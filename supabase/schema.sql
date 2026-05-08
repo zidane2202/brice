@@ -72,6 +72,10 @@ create table if not exists public.push_subscriptions (
 create index if not exists provider_accounts_user_id_idx on public.provider_accounts(user_id);
 create index if not exists client_subscriptions_user_id_end_date_idx on public.client_subscriptions(user_id, end_date);
 create index if not exists client_subscriptions_slot_id_idx on public.client_subscriptions(slot_id);
+create index if not exists clients_user_id_idx on public.clients(user_id);
+create index if not exists account_slots_account_id_idx on public.account_slots(account_id);
+create index if not exists client_subscriptions_user_id_status_idx on public.client_subscriptions(user_id, status);
+create index if not exists client_subscriptions_client_id_idx on public.client_subscriptions(client_id);
 
 -- RLS
 alter table public.user_profiles enable row level security;
