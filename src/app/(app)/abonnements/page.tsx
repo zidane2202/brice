@@ -17,7 +17,7 @@ async function getAccounts(userId: string) {
     .order("end_date", { ascending: true });
 
   if (error) throw new Error(error.message);
-  return (data ?? []).map((a) => ({
+  return (data ?? []).map((a: any) => ({
     ...a,
     used_slots: (a.account_slots as { id: string }[]).filter(Boolean).length,
   }));
