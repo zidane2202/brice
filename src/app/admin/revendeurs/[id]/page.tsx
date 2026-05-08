@@ -41,7 +41,7 @@ export default async function ResellerDetailPage({ params }: { params: Promise<{
     <>
       <div className="page-header">
         <div>
-          <p className="eyebrow"><Link href="/admin">← Admin</Link></p>
+          <p className="eyebrow"><Link href="/admin/revendeurs">← Revendeurs</Link></p>
           <h1>{data.email}</h1>
           <p style={{ color: "var(--muted)", marginTop: 6 }}>Plan : {data.profile.plan}</p>
         </div>

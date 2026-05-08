@@ -1,9 +1,9 @@
-import { Sidebar } from "@/components/Sidebar";
+import { AdminSidebar } from "@/components/AdminSidebar";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="app-shell">
-      <Sidebar />
+      <AdminSidebar />
       <main className="app-main">{children}</main>
     </div>
   );

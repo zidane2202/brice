@@ -5,20 +5,18 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/abonnements", label: "Mes abonnements" },
-  { href: "/clients", label: "Mes clients" },
+  { href: "/admin/dashboard", label: "Dashboard" },
+  { href: "/admin/revendeurs", label: "Revendeurs" },
 ];
 
-type Props = { isAdmin: boolean };
-
-export function Sidebar({ isAdmin }: Props) {
+export function AdminSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="sidebar">
+    <aside className="sidebar sidebar--admin">
       <div className="sidebar-logo">
         <p className="eyebrow">SubResell</p>
+        <span className="admin-badge">Admin</span>
       </div>
       <nav className="sidebar-nav">
         {navItems.map((item) => (
@@ -30,17 +28,10 @@ export function Sidebar({ isAdmin }: Props) {
             {item.label}
           </Link>
         ))}
-        {isAdmin && (
-          <>
-            <div className="sidebar-divider" />
-            <Link
-              href="/admin/dashboard"
-              className={`sidebar-link sidebar-link--admin${pathname.startsWith("/admin") ? " sidebar-link--active" : ""}`}
-            >
-              Admin
-            </Link>
-          </>
-        )}
+        <div className="sidebar-divider" />
+        <Link href="/dashboard" className="sidebar-link sidebar-link--muted">
+          ← App revendeur
+        </Link>
       </nav>
       <form action={logout} className="sidebar-footer">
         <button type="submit" className="secondary sidebar-logout">

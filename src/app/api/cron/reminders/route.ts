@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import webpush from "web-push";
 
 webpush.setVapidDetails(
-  "mailto:admin@subresell.app",
+  process.env.VAPID_SUBJECT!,
   process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
   process.env.VAPID_PRIVATE_KEY!
 );

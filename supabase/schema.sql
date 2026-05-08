@@ -6,6 +6,10 @@ create table if not exists public.user_profiles (
   user_id uuid not null references auth.users(id) on delete cascade,
   role text not null default 'reseller' check (role in ('reseller', 'admin')),
   plan text not null default 'free',
+  first_name text,
+  last_name text,
+  phone text,
+  city text,
   created_at timestamptz not null default now(),
   unique(user_id)
 );

@@ -1,6 +1,7 @@
 "use client";
 
 import { login } from "@/app/actions/auth";
+import { PasswordInput } from "@/components/PasswordInput";
 import Link from "next/link";
 import { useActionState } from "react";
 
@@ -17,12 +18,17 @@ export default function LoginPage() {
         {state?.error && <p className="auth-error">{state.error}</p>}
         <label>
           Email
-          <input name="email" type="email" placeholder="vous@email.com" required />
+          <input name="email" type="email" placeholder="brice@gmail.com" required />
         </label>
         <label>
           Mot de passe
-          <input name="password" type="password" placeholder="••••••••" required />
+          <PasswordInput name="password" required />
         </label>
+        <div style={{ textAlign: "right", marginTop: "-0.25rem" }}>
+          <Link href="/forgot-password" style={{ fontSize: "0.85rem", opacity: 0.7 }}>
+            Mot de passe oublié ?
+          </Link>
+        </div>
         <button type="submit" disabled={pending}>
           {pending ? "Connexion..." : "Se connecter"}
         </button>
