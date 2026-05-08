@@ -336,3 +336,56 @@ td span {
     grid-template-columns: 1fr;
   }
 }
+
+/* Auth */
+.auth-shell {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 24px;
+  background: var(--background);
+}
+
+.auth-card {
+  display: grid;
+  gap: 24px;
+  width: min(420px, 100%);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  padding: 32px;
+}
+
+.auth-header {
+  display: grid;
+  gap: 6px;
+}
+
+.auth-header h1 {
+  font-size: 1.8rem;
+}
+
+.auth-form {
+  display: grid;
+  gap: 16px;
+}
+
+.auth-error {
+  border-radius: 8px;
+  background: #fef3f2;
+  color: var(--danger);
+  padding: 10px 14px;
+  font-size: 0.9rem;
+}
+
+.auth-footer {
+  color: var(--muted);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.auth-footer a {
+  color: var(--primary);
+  font-weight: 700;
+  text-decoration: none;
+}
