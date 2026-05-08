@@ -540,3 +540,6 @@ td span {
   padding: 8px 14px;
   text-decoration: none;
 }
+
+.slot-free { color: var(--primary); font-weight: 600; }
+.slot-free-badge { background: var(--soft); color: var(--primary); }
