@@ -10,6 +10,12 @@ export function addDays(dateValue: string, days: number) {
   return toDateInputValue(date);
 }
 
+export function addMonths(dateStr: string, months: number): string {
+  const date = new Date(`${dateStr}T00:00:00`);
+  date.setMonth(date.getMonth() + months);
+  return toDateInputValue(date);
+}
+
 export function daysUntil(dateValue: string) {
   const today = new Date();
   const startOfToday = new Date(
