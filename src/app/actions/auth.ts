@@ -3,7 +3,7 @@
 import { createSupabaseServer } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
 
-export async function login(formData: FormData) {
+export async function login(_prevState: { error: string } | undefined, formData: FormData) {
   const supabase = await createSupabaseServer();
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
@@ -14,7 +14,7 @@ export async function login(formData: FormData) {
   redirect("/dashboard");
 }
 
-export async function signup(formData: FormData) {
+export async function signup(_prevState: { error: string } | undefined, formData: FormData) {
   const supabase = await createSupabaseServer();
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
