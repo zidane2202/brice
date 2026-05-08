@@ -37,7 +37,7 @@ export async function addClientWithSubscription(formData: FormData) {
     .eq("id", slotId)
     .single();
 
-  const accountOwner = (slot?.provider_accounts as { user_id: string } | null)?.user_id;
+  const accountOwner = (slot?.provider_accounts as unknown as { user_id: string } | null)?.user_id;
   if (!slot || accountOwner !== user.id) throw new Error("Slot invalide");
 
   const { data: client, error: clientError } = await supabase

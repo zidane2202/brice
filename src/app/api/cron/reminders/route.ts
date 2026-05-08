@@ -58,8 +58,8 @@ export async function GET(request: Request) {
     if (!pushSubs || pushSubs.length === 0) continue;
 
     const names = subs.map((s) => {
-      const client = s.client as { first_name: string; last_name: string } | null;
-      const slot = s.slot as { account?: { service_name: string } } | null;
+      const client = s.client as unknown as { first_name: string; last_name: string } | null;
+      const slot = s.slot as unknown as { account?: { service_name: string } } | null;
       return `${client?.first_name ?? ""} ${client?.last_name ?? ""} (${slot?.account?.service_name ?? ""})`.trim();
     });
 

@@ -28,10 +28,10 @@ async function getAccount(id: string, userId: string) {
 
   if (error || !data) return null;
 
-  const slots = (data.account_slots ?? []).map((slot: AccountSlot & { active_subscription: unknown[] }) => ({
+  const slots = (data.account_slots ?? []).map((slot: any) => ({
     ...slot,
     active_subscription: Array.isArray(slot.active_subscription)
-      ? slot.active_subscription.find((s: { status: string }) => s.status === "active") ?? null
+      ? slot.active_subscription.find((s: any) => s.status === "active") ?? null
       : slot.active_subscription,
   }));
 
