@@ -543,3 +543,14 @@ td span {
 
 .slot-free { color: var(--primary); font-weight: 600; }
 .slot-free-badge { background: var(--soft); color: var(--primary); }
+
+.select-input {
+  min-height: 42px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  color: var(--foreground);
+  padding: 0 12px;
+  font: inherit;
+}
