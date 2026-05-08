@@ -487,3 +487,56 @@ td span {
     border-bottom: 1px solid var(--line);
   }
 }
+
+/* Account cards */
+.accounts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.account-card {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 18px;
+}
+
+.account-card--urgent { border-color: #f97316; background: #fff7ed; }
+.account-card--expired { border-color: var(--danger); background: #fef3f2; }
+
+.account-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.account-slots-count { font-size: 1.3rem; }
+
+.account-card-dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.account-cost { color: var(--muted); font-size: 0.88rem; }
+
+.urgent-label { color: #c2410c; font-weight: 700; }
+.expired-label { color: var(--danger); font-weight: 700; }
+
+.btn-link {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 8px;
+  background: var(--soft);
+  color: var(--primary-strong);
+  font-size: 0.88rem;
+  font-weight: 700;
+  padding: 8px 14px;
+  text-decoration: none;
+}
