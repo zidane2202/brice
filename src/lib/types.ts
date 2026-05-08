@@ -55,3 +55,8 @@ export type ClientSubscription = {
   client?: Client | null;
   slot?: AccountSlot & { account?: ProviderAccount } | null;
 };
+
+// Backward compat — will be removed when old files are deleted in Task 14
+export type Subscription = ClientSubscription;
+export type SubscriptionKind = "provider" | "client";
+export type SubscriptionStatus = "active" | "cancelled";
