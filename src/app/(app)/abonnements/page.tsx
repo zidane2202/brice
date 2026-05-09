@@ -51,7 +51,7 @@ export default async function AbonnementsPage() {
               <input name="service_name" placeholder="Netflix, Spotify..." required />
             </label>
             <label>
-              Nombre de slots (profils)
+              Nombre de profils
               <input name="max_slots" type="number" min="1" max="20" defaultValue="5" required />
             </label>
           </div>

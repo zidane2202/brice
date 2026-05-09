@@ -97,9 +97,9 @@ export default async function ClientsPage() {
           </div>
           <div className="fields two-cols">
             <label>
-              Slot (profil libre)
+              Profil libre
               <select name="slot_id" required className="select-input">
-                <option value="">— Choisir un slot —</option>
+                <option value="">— Choisir un profil —</option>
                 {freeSlots.map((slot) => (
                   <option key={slot.id} value={slot.id}>
                     {slot.account?.service_name} — {slot.label || `Profil ${slot.slot_number}`}

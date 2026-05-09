@@ -84,7 +84,7 @@ export default async function DashboardPage() {
         <StatsCard label="Clients actifs" value={activeClients.length} />
         <StatsCard label="Revenus du mois (FCFA)" value={monthlyRevenue.toLocaleString()} accent />
         <StatsCard label="À relancer (≤ 3j)" value={urgent.length} accent={urgent.length > 0} />
-        <StatsCard label="Slots occupés" value={`${usedSlots}/${totalSlots}`} />
+        <StatsCard label="Profils occupés" value={`${usedSlots}/${totalSlots}`} />
       </div>
 
       <div className="panel">

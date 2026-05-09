@@ -1,3 +1,4 @@
+import { PushManager } from "@/components/PushManager";
 import { Sidebar } from "@/components/Sidebar";
 import { getUserProfile } from "@/lib/supabase-server";
 
@@ -9,6 +10,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="app-shell">
       <Sidebar isAdmin={isAdmin} />
       <main className="app-main">{children}</main>
+      <PushManager />
     </div>
   );
 }

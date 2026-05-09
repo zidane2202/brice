@@ -9,7 +9,7 @@ export function SlotTable({ slots }: Props) {
       <table>
         <thead>
           <tr>
-            <th>Slot</th>
+            <th>Profil</th>
             <th>Client</th>
             <th>Début</th>
             <th>Fin</th>

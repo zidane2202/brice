@@ -16,7 +16,7 @@ export function AccountCard({ account }: Props) {
         <div>
           <p className="eyebrow">{account.service_name}</p>
           <strong className="account-slots-count">
-            {account.used_slots}/{account.max_slots} slots
+            {account.used_slots}/{account.max_slots} profils
           </strong>
         </div>
         <span className={`status ${account.status}`}>
@@ -32,7 +32,7 @@ export function AccountCard({ account }: Props) {
       {account.cost && <p className="account-cost">Coût : {account.cost} FCFA</p>}
       <div className="actions">
         <Link href={`/abonnements/${account.id}`} className="btn-link">
-          Voir les slots →
+          Voir les profils →
         </Link>
         <form action={renewProviderAccount}>
           <input type="hidden" name="id" value={account.id} />

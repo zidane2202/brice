@@ -56,14 +56,14 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
           <p className="eyebrow"><Link href="/abonnements">← Mes abonnements</Link></p>
           <h1>{account.service_name}</h1>
           <p style={{ color: "var(--muted)", marginTop: 6 }}>
-            {usedSlots.length}/{account.max_slots} slots occupés · Expire le {formatDate(account.end_date)}
+            {usedSlots.length}/{account.max_slots} profils occupés · Expire le {formatDate(account.end_date)}
             {daysLeft >= 0 ? ` (J-${daysLeft})` : " (expiré)"}
           </p>
         </div>
       </div>
 
       <div className="panel">
-        <h2>Slots / Profils</h2>
+        <h2>Profils</h2>
         <SlotTable slots={account.account_slots ?? []} />
       </div>
     </>

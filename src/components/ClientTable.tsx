@@ -15,7 +15,7 @@ export function ClientTable({ subscriptions }: Props) {
         <thead>
           <tr>
             <th>Client</th>
-            <th>Service / Slot</th>
+            <th>Service / Profil</th>
             <th>Début</th>
             <th>Fin</th>
             <th>Prix</th>

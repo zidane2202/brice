@@ -15,7 +15,7 @@ export function UrgencyTable({ subscriptions }: Props) {
         <thead>
           <tr>
             <th>Client</th>
-            <th>Service / Slot</th>
+            <th>Service / Profil</th>
             <th>Téléphone</th>
             <th>Fin</th>
             <th>Actions</th>
