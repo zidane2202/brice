@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 
 const navItems = [
   { href: "/admin/dashboard", label: "Dashboard" },
-  { href: "/admin/revendeurs", label: "Revendeurs" },
+  { href: "/admin/vendeurs", label: "Vendeurs" },
 ];
 
 export function AdminSidebar() {
@@ -30,7 +30,7 @@ export function AdminSidebar() {
         ))}
         <div className="sidebar-divider" />
         <Link href="/dashboard" className="sidebar-link sidebar-link--muted">
-          ← App revendeur
+          ← App vendeur
         </Link>
       </nav>
       <form action={logout} className="sidebar-footer">

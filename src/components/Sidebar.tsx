@@ -8,6 +8,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/abonnements", label: "Mes abonnements" },
   { href: "/clients", label: "Mes clients" },
+  { href: "/profil", label: "Mon profil" },
 ];
 
 type Props = { isAdmin: boolean };

@@ -66,7 +66,7 @@ export default async function AdminDashboardPage() {
       </div>
 
       <div className="stats-grid">
-        <StatsCard label="Revendeurs inscrits" value={stats.totalResellers} />
+        <StatsCard label="Vendeurs inscrits" value={stats.totalResellers} />
         <StatsCard label="Clients actifs (total)" value={stats.totalActiveClients} accent />
         <StatsCard label="Revenus générés (FCFA)" value={stats.totalRevenue.toLocaleString()} />
         <StatsCard label="Nouveaux ce mois" value={stats.newThisMonth} />
@@ -74,8 +74,8 @@ export default async function AdminDashboardPage() {
 
       <div className="panel">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h2>Top revendeurs</h2>
-          <Link href="/admin/revendeurs" className="btn-link">Voir tous →</Link>
+          <h2>Top vendeurs</h2>
+          <Link href="/admin/vendeurs" className="btn-link">Voir tous →</Link>
         </div>
         <div className="table-wrap">
           <table>
@@ -90,7 +90,7 @@ export default async function AdminDashboardPage() {
             </thead>
             <tbody>
               {stats.topResellers.length === 0 && (
-                <tr><td colSpan={5} className="empty">Aucun revendeur inscrit.</td></tr>
+                <tr><td colSpan={5} className="empty">Aucun vendeur inscrit.</td></tr>
               )}
               {stats.topResellers.map((r) => (
                 <tr key={r.user_id}>
@@ -99,7 +99,7 @@ export default async function AdminDashboardPage() {
                   <td>{r.active_clients}</td>
                   <td>{new Date(r.created_at).toLocaleDateString("fr-FR")}</td>
                   <td>
-                    <Link href={`/admin/revendeurs/${r.user_id}`} className="btn-link">
+                    <Link href={`/admin/vendeurs/${r.user_id}`} className="btn-link">
                       Voir →
                     </Link>
                   </td>

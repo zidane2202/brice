@@ -45,8 +45,8 @@ export default async function ResellerListPage() {
     <>
       <div className="page-header">
         <div>
-          <p className="eyebrow">Administration</p>
-          <h1>Revendeurs ({resellers.length})</h1>
+          <p className="eyebrow"><Link href="/admin/dashboard">← Dashboard</Link></p>
+          <h1>Vendeurs ({resellers.length})</h1>
         </div>
       </div>
 
@@ -67,7 +67,7 @@ export default async function ResellerListPage() {
             </thead>
             <tbody>
               {resellers.length === 0 && (
-                <tr><td colSpan={8} className="empty">Aucun revendeur inscrit.</td></tr>
+                <tr><td colSpan={8} className="empty">Aucun vendeur inscrit.</td></tr>
               )}
               {resellers.map((r) => (
                 <tr key={r.user_id}>
@@ -85,7 +85,7 @@ export default async function ResellerListPage() {
                   <td>{r.active_clients}</td>
                   <td>{new Date(r.created_at).toLocaleDateString("fr-FR")}</td>
                   <td>
-                    <Link href={`/admin/revendeurs/${r.user_id}`} className="btn-link">
+                    <Link href={`/admin/vendeurs/${r.user_id}`} className="btn-link">
                       Voir →
                     </Link>
                   </td>

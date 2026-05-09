@@ -1,5 +1,48 @@
 @import "tailwindcss";
 
+/* ─── Keyframes ───────────────────────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes barGrow {
+  from { height: 0; opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(108,99,255,0.35); }
+  70%  { box-shadow: 0 0 0 8px rgba(108,99,255,0); }
+  100% { box-shadow: 0 0 0 0 rgba(108,99,255,0); }
+}
+
+@keyframes shimmer {
+  from { background-position: -400px 0; }
+  to   { background-position: 400px 0; }
+}
+
+@keyframes urgentPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
+}
+
 /* ─── Tokens ──────────────────────────────────────────────────────────────── */
 :root {
   --bg:             #f4f6fb;
@@ -153,6 +196,16 @@ button.danger:hover { background: #fecaca; }
   color: var(--primary);
 }
 
+/* ─── Page entrance ───────────────────────────────────────────────────────── */
+.app-main > * {
+  animation: fadeUp 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.app-main > *:nth-child(1) { animation-delay: 0ms; }
+.app-main > *:nth-child(2) { animation-delay: 60ms; }
+.app-main > *:nth-child(3) { animation-delay: 120ms; }
+.app-main > *:nth-child(4) { animation-delay: 180ms; }
+
 /* ─── Layout ──────────────────────────────────────────────────────────────── */
 .app-shell {
   display: grid;
@@ -167,6 +220,16 @@ button.danger:hover { background: #fecaca; }
   padding: 32px;
   min-width: 0;
 }
+
+/* ─── Sidebar entrance ────────────────────────────────────────────────────── */
+.sidebar-nav .sidebar-link {
+  animation: slideInLeft 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.sidebar-nav .sidebar-link:nth-child(1) { animation-delay: 50ms; }
+.sidebar-nav .sidebar-link:nth-child(2) { animation-delay: 100ms; }
+.sidebar-nav .sidebar-link:nth-child(3) { animation-delay: 150ms; }
+.sidebar-nav .sidebar-link:nth-child(4) { animation-delay: 200ms; }
+.sidebar-nav .sidebar-link:nth-child(5) { animation-delay: 250ms; }
 
 /* ─── Sidebar ─────────────────────────────────────────────────────────────── */
 .sidebar {
@@ -233,6 +296,19 @@ button.danger:hover { background: #fecaca; }
   background: var(--sidebar-active);
   color: #a5b4fc;
   font-weight: 600;
+  position: relative;
+}
+
+.sidebar-link--active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 20%;
+  height: 60%;
+  width: 3px;
+  border-radius: 0 4px 4px 0;
+  background: var(--primary);
+  box-shadow: 0 0 8px var(--primary);
 }
 
 .sidebar-link--admin {
@@ -295,6 +371,11 @@ button.danger:hover { background: #fecaca; }
   border: 1px solid var(--border);
   padding: 22px;
   box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.panel:hover {
+  box-shadow: var(--shadow-md);
 }
 
 /* ─── Stats cards ─────────────────────────────────────────────────────────── */
@@ -314,6 +395,13 @@ button.danger:hover { background: #fecaca; }
   padding: 20px;
   box-shadow: var(--shadow-sm);
   overflow: hidden;
+  transition: box-shadow 0.25s, transform 0.25s;
+  cursor: default;
+}
+
+.stats-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
 }
 
 .stats-card::before {
@@ -401,6 +489,8 @@ td span { display: block; color: var(--muted); font-size: 0.825rem; }
 
 .urgent-row { background: var(--warning-soft); }
 .urgent-row:hover td { background: #fde68a33; }
+.urgent-row td:first-child { border-left: 3px solid var(--warning); }
+.urgent-label { animation: urgentPulse 2s ease-in-out infinite; }
 
 .empty {
   color: var(--muted);
@@ -619,18 +709,22 @@ td span { display: block; color: var(--muted); font-size: 0.825rem; }
   place-items: center;
   min-height: 100vh;
   padding: 24px;
-  background: radial-gradient(ellipse at top, #1e1b4b 0%, var(--sidebar-bg) 60%);
+  background: linear-gradient(-45deg, #13111e, #1e1b4b, #0f172a, #1a103a);
+  background-size: 400% 400%;
+  animation: gradientShift 10s ease infinite;
 }
 
 .auth-card {
   display: grid;
   gap: 28px;
   width: min(440px, 100%);
-  background: var(--surface);
+  background: rgba(255,255,255,0.97);
+  backdrop-filter: blur(20px);
   border-radius: var(--radius-lg);
-  border: 1px solid var(--border);
+  border: 1px solid rgba(255,255,255,0.2);
   padding: 36px;
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 24px 64px rgba(0,0,0,0.4), 0 0 0 1px rgba(108,99,255,0.08);
+  animation: fadeUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .auth-header { display: grid; gap: 6px; }
