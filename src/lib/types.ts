@@ -12,6 +12,7 @@ export type ProviderAccount = {
   id: string;
   user_id: string;
   service_name: string;
+  label: string | null;
   max_slots: number;
   start_date: string;
   end_date: string;
@@ -49,7 +50,8 @@ export type ClientSubscription = {
   end_date: string;
   duration_months: number;
   price: number | null;
-  status: "active" | "cancelled";
+  status: "active" | "cancelled" | "grace";
+  grace_until: string | null;
   last_notified_on: string | null;
   created_at: string;
   client?: Client | null;

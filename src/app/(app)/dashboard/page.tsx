@@ -47,7 +47,7 @@ async function getDashboardData(userId: string) {
   const monthData = Array.from({ length: 6 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
     const month = d.toLocaleDateString("fr-FR", { month: "short" });
-    const revenue = activeClients
+    const revenue = subscriptions
       .filter((s) => {
         const sd = new Date(s.start_date);
         return sd.getFullYear() === d.getFullYear() && sd.getMonth() === d.getMonth();
@@ -56,21 +56,24 @@ async function getDashboardData(userId: string) {
     return { month, revenue };
   });
 
-  const monthlyRevenue = activeClients
+  const monthlyRevenue = subscriptions
     .filter((s) => {
       const sd = new Date(s.start_date);
       return sd.getFullYear() === now.getFullYear() && sd.getMonth() === now.getMonth();
     })
     .reduce((sum, s) => sum + (s.price ?? 0), 0);
 
-  return { activeClients, urgent, totalSlots, usedSlots, monthData, monthlyRevenue };
+  const activeAccounts = accounts.length;
+  const freeSlots = totalSlots - usedSlots;
+
+  return { activeClients, urgent, totalSlots, usedSlots, freeSlots, activeAccounts, monthData, monthlyRevenue };
 }
 
 export default async function DashboardPage() {
   const user = await getUser();
   if (!user) return null;
 
-  const { activeClients, urgent, totalSlots, usedSlots, monthData, monthlyRevenue } =
+  const { urgent, usedSlots, freeSlots, activeAccounts, monthData, monthlyRevenue } =
     await getDashboardData(user.id);
 
   return (
@@ -81,10 +84,10 @@ export default async function DashboardPage() {
       </div>
 
       <div className="stats-grid">
-        <StatsCard label="Clients actifs" value={activeClients.length} />
-        <StatsCard label="Revenus du mois (FCFA)" value={monthlyRevenue.toLocaleString()} accent />
+        <StatsCard label="Comptes actifs" value={activeAccounts} />
+        <StatsCard label="Profils occupés" value={usedSlots} sub={`${freeSlots} non occupé${freeSlots > 1 ? "s" : ""}`} />
         <StatsCard label="À relancer (≤ 3j)" value={urgent.length} accent={urgent.length > 0} />
-        <StatsCard label="Profils occupés" value={`${usedSlots}/${totalSlots}`} />
+        <StatsCard label="Revenus du mois (FCFA)" value={monthlyRevenue.toLocaleString()} accent />
       </div>
 
       <div className="panel">
@@ -101,7 +104,7 @@ export default async function DashboardPage() {
       <div className="panel">
         <div>
           <p className="eyebrow">Finances</p>
-          <h2>Revenus sur 6 mois</h2>
+          <h2>Chiffre d'affaires sur 6 mois</h2>
         </div>
         <RevenueChart data={monthData} />
       </div>

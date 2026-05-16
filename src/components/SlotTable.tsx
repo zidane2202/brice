@@ -41,8 +41,12 @@ export function SlotTable({ slots }: Props) {
                 <td>{sub?.price ? `${sub.price} FCFA` : "—"}</td>
                 <td>
                   {sub
-                    ? <span className={`status ${sub.status}`}>{sub.status === "active" ? "Actif" : "Annulé"}</span>
-                    : <span className="status slot-free-badge">Libre</span>
+                    ? <span className={`status ${sub.status}`}>
+                        {sub.status === "active" ? "• Actif"
+                          : sub.status === "grace" ? "• En grâce"
+                          : "• Expiré"}
+                      </span>
+                    : <span className="status slot-free-badge">• Libre</span>
                   }
                 </td>
               </tr>

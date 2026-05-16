@@ -19,6 +19,7 @@ create table if not exists public.provider_accounts (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   service_name text not null,
+  label text,
   max_slots int not null default 5,
   start_date date not null,
   end_date date not null,

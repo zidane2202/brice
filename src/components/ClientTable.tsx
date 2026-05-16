@@ -1,12 +1,13 @@
 import { renewClientSubscription, cancelClientSubscription } from "@/app/actions/subscriptions";
+import { GraceButton } from "@/components/GraceButton";
 import { formatDate, daysUntil } from "@/lib/dates";
 import type { ClientSubscription } from "@/lib/types";
 
-type Props = { subscriptions: ClientSubscription[] };
+type Props = { subscriptions: ClientSubscription[]; emptyMessage?: string };
 
-export function ClientTable({ subscriptions }: Props) {
+export function ClientTable({ subscriptions, emptyMessage = "Aucun client pour le moment." }: Props) {
   if (subscriptions.length === 0) {
-    return <p className="empty">Aucun client actif pour le moment.</p>;
+    return <p className="empty">{emptyMessage}</p>;
   }
 
   return (
@@ -26,7 +27,7 @@ export function ClientTable({ subscriptions }: Props) {
         <tbody>
           {subscriptions.map((sub) => {
             const daysLeft = daysUntil(sub.end_date);
-            const isUrgent = daysLeft >= 0 && daysLeft <= 3;
+            const isUrgent = sub.status === "active" && daysLeft >= 0 && daysLeft <= 3;
             const serviceName = sub.slot?.account?.service_name ?? "—";
             const slotLabel = sub.slot?.label || `Profil ${sub.slot?.slot_number ?? ""}`;
 
@@ -48,7 +49,9 @@ export function ClientTable({ subscriptions }: Props) {
                 <td>{sub.price ? `${sub.price} FCFA` : "—"}</td>
                 <td>
                   <span className={`status ${sub.status}`}>
-                    {sub.status === "active" ? "Actif" : "Annulé"}
+                    {sub.status === "active" ? "Actif"
+                      : sub.status === "grace" ? "En grâce"
+                      : "Expiré"}
                   </span>
                 </td>
                 <td>
@@ -57,6 +60,7 @@ export function ClientTable({ subscriptions }: Props) {
                       <input type="hidden" name="id" value={sub.id} />
                       <input type="hidden" name="end_date" value={sub.end_date} />
                       <input type="hidden" name="duration_months" value="1" />
+                      <input type="hidden" name="status" value={sub.status} />
                       <button type="submit">Renouveler</button>
                     </form>
                     {sub.status === "active" && (
@@ -65,6 +69,12 @@ export function ClientTable({ subscriptions }: Props) {
                         <button type="submit" className="secondary">Annuler</button>
                       </form>
                     )}
+                    <GraceButton
+                      subId={sub.id}
+                      currentStatus={sub.status}
+                      graceUntil={sub.grace_until ?? null}
+                      endDate={sub.end_date}
+                    />
                   </div>
                 </td>
               </tr>

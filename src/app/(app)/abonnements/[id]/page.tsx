@@ -17,7 +17,7 @@ async function getAccount(id: string, userId: string) {
       account_slots (
         id, slot_number, label,
         active_subscription:client_subscriptions (
-          id, start_date, end_date, duration_months, price, status,
+          *,
           client:clients (id, first_name, last_name, phone, email)
         )
       )
@@ -31,7 +31,7 @@ async function getAccount(id: string, userId: string) {
   const slots = (data.account_slots ?? []).map((slot: any) => ({
     ...slot,
     active_subscription: Array.isArray(slot.active_subscription)
-      ? slot.active_subscription.find((s: any) => s.status === "active") ?? null
+      ? slot.active_subscription.find((s: any) => s.status === "active" || s.status === "grace") ?? null
       : slot.active_subscription,
   }));
 

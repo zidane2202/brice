@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 
-type Props = { label: string; value: string | number; accent?: boolean };
+type Props = { label: string; value: string | number; accent?: boolean; sub?: string };
 
-export function StatsCard({ label, value, accent }: Props) {
+export function StatsCard({ label, value, accent, sub }: Props) {
   const isNumber = typeof value === "number";
   const [display, setDisplay] = useState(isNumber ? 0 : value);
   const frameRef = useRef<number | null>(null);
@@ -31,6 +31,7 @@ export function StatsCard({ label, value, accent }: Props) {
     <div className={`stats-card${accent ? " stats-card--accent" : ""}`}>
       <span>{label}</span>
       <strong>{display}</strong>
+      {sub && <span className="stats-card-sub">{sub}</span>}
     </div>
   );
 }
