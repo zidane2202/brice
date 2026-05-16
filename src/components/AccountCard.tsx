@@ -3,9 +3,9 @@ import { formatDate, daysUntil } from "@/lib/dates";
 import type { ProviderAccount } from "@/lib/types";
 import Link from "next/link";
 
-type Props = { account: ProviderAccount & { used_slots: number } };
+type Props = { account: ProviderAccount & { used_slots: number }; displayName: string };
 
-export function AccountCard({ account }: Props) {
+export function AccountCard({ account, displayName }: Props) {
   const daysLeft = daysUntil(account.end_date);
   const isUrgent = daysLeft >= 0 && daysLeft <= 3;
   const isExpired = daysLeft < 0;
@@ -14,7 +14,7 @@ export function AccountCard({ account }: Props) {
     <div className={`account-card${isUrgent ? " account-card--urgent" : ""}${isExpired ? " account-card--expired" : ""}`}>
       <div className="account-card-header">
         <div>
-          <p className="eyebrow">{account.service_name}</p>
+          <p className="eyebrow">{displayName}</p>
           <strong className="account-slots-count">
             {account.used_slots}/{account.max_slots} profils
           </strong>
@@ -30,6 +30,7 @@ export function AccountCard({ account }: Props) {
         {isExpired && <span className="expired-label">Expiré</span>}
       </div>
       {account.cost && <p className="account-cost">Coût : {account.cost} FCFA</p>}
+      {account.label && <span className="account-label">{account.label}</span>}
       <div className="actions">
         <Link href={`/abonnements/${account.id}`} className="btn-link">
           Voir les profils →

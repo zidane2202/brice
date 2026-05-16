@@ -57,8 +57,17 @@ export default async function ClientsPage() {
   if (!user) return null;
 
   const { subscriptions, freeSlots } = await getData(user.id);
-  const activeSubscriptions = subscriptions.filter((s) => s.status === "active");
   const today = toDateInputValue();
+
+  const activeSubscriptions = subscriptions.filter(
+    (s) => s.status === "active" && s.end_date >= today
+  );
+  const graceSubscriptions = subscriptions.filter(
+    (s) => s.status === "grace"
+  );
+  const inactiveSubscriptions = subscriptions.filter(
+    (s) => s.status !== "grace" && (s.status === "cancelled" || s.end_date < today)
+  );
 
   return (
     <>
@@ -128,8 +137,26 @@ export default async function ClientsPage() {
 
       <div className="panel">
         <h2>Clients actifs ({activeSubscriptions.length})</h2>
-        <ClientTable subscriptions={activeSubscriptions} />
+        <ClientTable subscriptions={activeSubscriptions} emptyMessage="Aucun client actif pour le moment." />
       </div>
+
+      {inactiveSubscriptions.length > 0 && (
+        <div className="panel">
+          <div className="accounts-divider" style={{ margin: "0 0 16px" }}>
+            <span>Inactifs</span>
+          </div>
+          <ClientTable subscriptions={inactiveSubscriptions} emptyMessage="Aucun client inactif." />
+        </div>
+      )}
+
+      {graceSubscriptions.length > 0 && (
+        <div className="panel">
+          <div className="accounts-divider accounts-divider--grace" style={{ margin: "0 0 16px" }}>
+            <span>En grâce</span>
+          </div>
+          <ClientTable subscriptions={graceSubscriptions} emptyMessage="Aucun client en grâce." />
+        </div>
+      )}
     </>
   );
 }

@@ -20,6 +20,7 @@ export async function addProviderAccount(formData: FormData) {
   const durationMonths = parseInt(req(formData, "duration_months"));
   const maxSlots = parseInt(req(formData, "max_slots"));
   const cost = formData.get("cost") ? parseFloat(String(formData.get("cost"))) : null;
+  const label = String(formData.get("label") ?? "").trim() || null;
   const endDate = addMonths(startDate, durationMonths);
 
   const supabase = createSupabaseAdmin();
@@ -29,6 +30,7 @@ export async function addProviderAccount(formData: FormData) {
     .insert({
       user_id: user.id,
       service_name: serviceName,
+      label,
       start_date: startDate,
       end_date: endDate,
       duration_months: durationMonths,
@@ -50,6 +52,24 @@ export async function addProviderAccount(formData: FormData) {
   const { error: slotError } = await supabase.from("account_slots").insert(slots);
   if (slotError) throw new Error(slotError.message);
 
+  revalidatePath("/abonnements");
+}
+
+export async function updateProviderAccountLabel(formData: FormData) {
+  const user = await getUser();
+  if (!user) throw new Error("Non authentifié");
+
+  const id = req(formData, "id");
+  const label = String(formData.get("label") ?? "").trim() || null;
+  const supabase = createSupabaseAdmin();
+
+  const { error } = await supabase
+    .from("provider_accounts")
+    .update({ label })
+    .eq("id", id)
+    .eq("user_id", user.id);
+
+  if (error) throw new Error(error.message);
   revalidatePath("/abonnements");
 }
 
