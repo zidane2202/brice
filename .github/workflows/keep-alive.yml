@@ -1,0 +1,25 @@
+name: Supabase Keep Alive
+
+on:
+  schedule:
+    # Tous les jours à 03h00 UTC. Le free tier Supabase suspend après 7 jours d'inactivité,
+    # donc une fois par jour est largement suffisant.
+    - cron: '0 3 * * *'
+  workflow_dispatch:  # Permet un déclenchement manuel pour tester
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST API
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/${{ secrets.SUPABASE_TABLE }}?select=*&limit=1" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}")
+          echo "HTTP status: $response"
+          if [ "$response" -ne 200 ]; then
+            echo "Échec du ping (status $response)"
+            exit 1
+          fi
+          echo "Ping réussi"
