@@ -2,12 +2,14 @@
 
 import { addProviderAccount } from "@/app/actions/accounts";
 import { CATEGORIES, SERVICES } from "@/lib/services";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 
 export function AddAccountForm({ today }: { today: string }) {
   const [selectedService, setSelectedService] = useState("");
   const [slots, setSlots] = useState(1);
   const [officialMax, setOfficialMax] = useState<number | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   function handleServiceChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const name = e.target.value;
@@ -26,8 +28,19 @@ export function AddAccountForm({ today }: { today: string }) {
     setSlots(val);
   }
 
+  async function handleSubmit(formData: FormData) {
+    setErrorMsg(null);
+    startTransition(async () => {
+      try {
+        await addProviderAccount(formData);
+      } catch (err) {
+        setErrorMsg(err instanceof Error ? err.message : "Erreur lors de la création");
+      }
+    });
+  }
+
   return (
-    <form action={addProviderAccount} className="fields">
+    <form action={handleSubmit} className="fields">
       <div className="fields two-cols">
         <label>
           Service
@@ -91,7 +104,30 @@ export function AddAccountForm({ today }: { today: string }) {
         </label>
       </div>
 
-      <button type="submit">Ajouter le compte</button>
+      {errorMsg && (
+        <div
+          style={{
+            padding: "10px 12px",
+            borderRadius: 6,
+            background: "var(--sr-danger-bg)",
+            border: "1px solid var(--sr-danger-border)",
+            color: "var(--sr-danger)",
+            font: "400 12px/1.4 var(--font-geist-sans)",
+          }}
+        >
+          {errorMsg}
+        </div>
+      )}
+      <button
+        type="submit"
+        disabled={isPending}
+        style={{
+          opacity: isPending ? 0.7 : 1,
+          cursor: isPending ? "not-allowed" : "pointer",
+        }}
+      >
+        {isPending ? "Ajout…" : "Ajouter le compte"}
+      </button>
     </form>
   );
 }

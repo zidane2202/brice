@@ -1,16 +1,14 @@
-import { addClientWithSubscription } from "@/app/actions/clients";
-import { ClientTable } from "@/components/ClientTable";
-import { toDateInputValue } from "@/lib/dates";
+import { ClientsView } from "@/components/clients/ClientsView";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
-import type { ClientSubscription, AccountSlot } from "@/lib/types";
+import type { AccountSlot, ClientSubscription, Invoice } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 async function getData(userId: string) {
   const supabase = createSupabaseAdmin();
 
-  const [subsResult, slotsResult] = await Promise.all([
+  const [subsResult, slotsResult, invoicesResult] = await Promise.all([
     supabase
       .from("client_subscriptions")
       .select(`
@@ -31,14 +29,20 @@ async function getData(userId: string) {
       `)
       .eq("provider_accounts.user_id", userId)
       .eq("provider_accounts.status", "active"),
+    supabase
+      .from("invoices")
+      .select("*")
+      .eq("user_id", userId)
+      .order("number", { ascending: false }),
   ]);
 
   if (subsResult.error) throw new Error(subsResult.error.message);
   if (slotsResult.error) throw new Error(slotsResult.error.message);
 
+  const today = new Date().toISOString().slice(0, 10);
   const occupiedSlotIds = new Set(
     (subsResult.data ?? [])
-      .filter((s) => s.status === "active")
+      .filter((s) => s.status === "active" && s.end_date >= today)
       .map((s) => s.slot_id)
   );
 
@@ -49,6 +53,7 @@ async function getData(userId: string) {
   return {
     subscriptions: (subsResult.data ?? []) as unknown as ClientSubscription[],
     freeSlots: freeSlots as unknown as (AccountSlot & { account: { id: string; service_name: string } })[],
+    invoices: (invoicesResult.data ?? []) as unknown as Invoice[],
   };
 }
 
@@ -56,107 +61,7 @@ export default async function ClientsPage() {
   const user = await getUser();
   if (!user) return null;
 
-  const { subscriptions, freeSlots } = await getData(user.id);
-  const today = toDateInputValue();
+  const { subscriptions, freeSlots, invoices } = await getData(user.id);
 
-  const activeSubscriptions = subscriptions.filter(
-    (s) => s.status === "active" && s.end_date >= today
-  );
-  const graceSubscriptions = subscriptions.filter(
-    (s) => s.status === "grace"
-  );
-  const inactiveSubscriptions = subscriptions.filter(
-    (s) => s.status !== "grace" && (s.status === "cancelled" || s.end_date < today)
-  );
-
-  return (
-    <>
-      <div className="page-header">
-        <div>
-          <p className="eyebrow">Vos clients</p>
-          <h1>Mes clients</h1>
-        </div>
-      </div>
-
-      <div className="panel">
-        <div>
-          <p className="eyebrow">Ajouter</p>
-          <h2>Nouveau client</h2>
-        </div>
-        <form action={addClientWithSubscription} className="fields">
-          <div className="fields two-cols">
-            <label>
-              Prénom
-              <input name="first_name" placeholder="Prénom" required />
-            </label>
-            <label>
-              Nom
-              <input name="last_name" placeholder="Nom" required />
-            </label>
-          </div>
-          <div className="fields two-cols">
-            <label>
-              Téléphone
-              <input name="phone" type="tel" placeholder="+237..." />
-            </label>
-            <label>
-              Email
-              <input name="email" type="email" placeholder="client@mail.com" />
-            </label>
-          </div>
-          <div className="fields two-cols">
-            <label>
-              Profil libre
-              <select name="slot_id" required className="select-input">
-                <option value="">— Choisir un profil —</option>
-                {freeSlots.map((slot) => (
-                  <option key={slot.id} value={slot.id}>
-                    {slot.account?.service_name} — {slot.label || `Profil ${slot.slot_number}`}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Prix (FCFA)
-              <input name="price" type="number" placeholder="Ex: 2000" />
-            </label>
-          </div>
-          <div className="fields two-cols">
-            <label>
-              Date de début
-              <input name="start_date" type="date" defaultValue={today} required />
-            </label>
-            <label>
-              Durée (mois)
-              <input name="duration_months" type="number" min="1" max="12" defaultValue="1" required />
-            </label>
-          </div>
-          <button type="submit">Ajouter le client</button>
-        </form>
-      </div>
-
-      <div className="panel">
-        <h2>Clients actifs ({activeSubscriptions.length})</h2>
-        <ClientTable subscriptions={activeSubscriptions} emptyMessage="Aucun client actif pour le moment." />
-      </div>
-
-      {inactiveSubscriptions.length > 0 && (
-        <div className="panel">
-          <div className="accounts-divider" style={{ margin: "0 0 16px" }}>
-            <span>Inactifs</span>
-          </div>
-          <ClientTable subscriptions={inactiveSubscriptions} emptyMessage="Aucun client inactif." />
-        </div>
-      )}
-
-      {graceSubscriptions.length > 0 && (
-        <div className="panel">
-          <div className="accounts-divider accounts-divider--grace" style={{ margin: "0 0 16px" }}>
-            <span>En grâce</span>
-          </div>
-          <ClientTable subscriptions={graceSubscriptions} emptyMessage="Aucun client en grâce." />
-        </div>
-      )}
-    </>
-  );
+  return <ClientsView subscriptions={subscriptions} freeSlots={freeSlots} invoices={invoices} />;
 }

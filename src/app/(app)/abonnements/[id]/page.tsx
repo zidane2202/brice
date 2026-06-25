@@ -18,7 +18,7 @@ async function getAccount(id: string, userId: string) {
         id, slot_number, label,
         active_subscription:client_subscriptions (
           *,
-          client:clients (id, first_name, last_name, phone, email)
+          client:clients (id, first_name, last_name, phone, email, pin_code)
         )
       )
     `)
@@ -28,12 +28,19 @@ async function getAccount(id: string, userId: string) {
 
   if (error || !data) return null;
 
-  const slots = (data.account_slots ?? []).map((slot: any) => ({
-    ...slot,
-    active_subscription: Array.isArray(slot.active_subscription)
-      ? slot.active_subscription.find((s: any) => s.status === "active" || s.status === "grace") ?? null
-      : slot.active_subscription,
-  }));
+  const today = new Date().toISOString().slice(0, 10);
+  const slots = (data.account_slots ?? []).map((slot: any) => {
+    const subs: any[] = Array.isArray(slot.active_subscription)
+      ? slot.active_subscription
+      : slot.active_subscription
+        ? [slot.active_subscription]
+        : [];
+    const current =
+      subs.find(
+        (s) => (s.status === "active" || s.status === "grace") && s.end_date >= today
+      ) ?? null;
+    return { ...slot, active_subscription: current };
+  });
 
   return { ...data, account_slots: slots } as ProviderAccount & { account_slots: AccountSlot[] };
 }

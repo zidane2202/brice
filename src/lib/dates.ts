@@ -28,11 +28,12 @@ export function daysUntil(dateValue: string) {
 }
 
 export function formatDate(dateValue: string) {
+  const dateOnly = dateValue.length > 10 ? dateValue.slice(0, 10) : dateValue;
   return new Intl.DateTimeFormat("fr-FR", {
     day: "2-digit",
     month: "short",
     year: "numeric",
-  }).format(new Date(`${dateValue}T00:00:00`));
+  }).format(new Date(`${dateOnly}T00:00:00`));
 }
 
 export function reminderLabel(endDate: string) {
