@@ -27,6 +27,10 @@ export default function SignupPage() {
           </label>
         </div>
         <label>
+          Nom de l&apos;entreprise
+          <input name="company_name" type="text" placeholder="ex. Brice Streaming" required />
+        </label>
+        <label>
           Téléphone
           <input name="phone" type="tel" placeholder="+237 6 00 00 00 00" required />
         </label>

@@ -10,6 +10,7 @@ export async function updateProfile(_prevState: { error?: string; success?: bool
 
   const firstName = String(formData.get("first_name") ?? "").trim();
   const lastName = String(formData.get("last_name") ?? "").trim();
+  const companyName = String(formData.get("company_name") ?? "").trim();
   const phone = String(formData.get("phone") ?? "").trim();
   const city = String(formData.get("city") ?? "").trim();
 
@@ -19,6 +20,7 @@ export async function updateProfile(_prevState: { error?: string; success?: bool
     .update({
       first_name: firstName || null,
       last_name: lastName || null,
+      company_name: companyName || null,
       phone: phone || null,
       city: city || null,
     })

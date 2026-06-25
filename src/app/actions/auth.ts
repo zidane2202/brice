@@ -20,6 +20,7 @@ export async function signup(_prevState: { error: string } | undefined, formData
   const password = String(formData.get("password") ?? "");
   const firstName = String(formData.get("first_name") ?? "").trim();
   const lastName = String(formData.get("last_name") ?? "").trim();
+  const companyName = String(formData.get("company_name") ?? "").trim();
   const phone = String(formData.get("phone") ?? "").trim();
   const city = String(formData.get("city") ?? "").trim();
 
@@ -31,7 +32,13 @@ export async function signup(_prevState: { error: string } | undefined, formData
     const admin = createSupabaseAdmin();
     await admin
       .from("user_profiles")
-      .update({ first_name: firstName || null, last_name: lastName || null, phone: phone || null, city: city || null })
+      .update({
+        first_name: firstName || null,
+        last_name: lastName || null,
+        company_name: companyName || null,
+        phone: phone || null,
+        city: city || null,
+      })
       .eq("user_id", data.user.id);
   }
 

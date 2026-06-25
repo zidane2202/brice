@@ -27,7 +27,10 @@ export function ClientTable({ subscriptions, emptyMessage = "Aucun client pour l
         <tbody>
           {subscriptions.map((sub) => {
             const daysLeft = daysUntil(sub.end_date);
-            const isUrgent = sub.status === "active" && daysLeft >= 0 && daysLeft <= 3;
+            const isExpiredByDate = daysLeft < 0;
+            const isUrgent = sub.status === "active" && !isExpiredByDate && daysLeft >= 0 && daysLeft <= 3;
+            const effectiveStatus =
+              isExpiredByDate && sub.status === "active" ? "expired" : sub.status;
             const serviceName = sub.slot?.account?.service_name ?? "—";
             const slotLabel = sub.slot?.label || `Profil ${sub.slot?.slot_number ?? ""}`;
 
@@ -48,9 +51,9 @@ export function ClientTable({ subscriptions, emptyMessage = "Aucun client pour l
                 </td>
                 <td>{sub.price ? `${sub.price} FCFA` : "—"}</td>
                 <td>
-                  <span className={`status ${sub.status}`}>
-                    {sub.status === "active" ? "Actif"
-                      : sub.status === "grace" ? "En grâce"
+                  <span className={`status ${effectiveStatus}`}>
+                    {effectiveStatus === "active" ? "Actif"
+                      : effectiveStatus === "grace" ? "En grâce"
                       : "Expiré"}
                   </span>
                 </td>

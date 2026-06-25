@@ -11,6 +11,7 @@ export function SlotTable({ slots }: Props) {
           <tr>
             <th>Profil</th>
             <th>Client</th>
+            <th>PIN</th>
             <th>Début</th>
             <th>Fin</th>
             <th>Prix</th>
@@ -21,7 +22,10 @@ export function SlotTable({ slots }: Props) {
           {slots.map((slot) => {
             const sub = slot.active_subscription;
             const daysLeft = sub ? daysUntil(sub.end_date) : null;
-            const isUrgent = daysLeft !== null && daysLeft >= 0 && daysLeft <= 3;
+            const isExpired = daysLeft !== null && daysLeft < 0;
+            const isUrgent = !isExpired && daysLeft !== null && daysLeft >= 0 && daysLeft <= 3;
+            const effectiveStatus =
+              sub && isExpired && sub.status === "active" ? "expired" : sub?.status;
             return (
               <tr key={slot.id} className={isUrgent ? "urgent-row" : ""}>
                 <td><strong>{slot.label || `Profil ${slot.slot_number}`}</strong></td>
@@ -29,6 +33,12 @@ export function SlotTable({ slots }: Props) {
                   {sub?.client
                     ? <><strong>{sub.client.first_name} {sub.client.last_name}</strong><span>{sub.client.phone}</span></>
                     : <span className="slot-free">Libre</span>
+                  }
+                </td>
+                <td>
+                  {sub?.client?.pin_code
+                    ? <strong style={{ fontFamily: "var(--font-geist-mono)", letterSpacing: "0.1em" }}>{sub.client.pin_code}</strong>
+                    : <span style={{ color: "var(--muted)" }}>—</span>
                   }
                 </td>
                 <td>{sub ? formatDate(sub.start_date) : "—"}</td>
@@ -41,9 +51,9 @@ export function SlotTable({ slots }: Props) {
                 <td>{sub?.price ? `${sub.price} FCFA` : "—"}</td>
                 <td>
                   {sub
-                    ? <span className={`status ${sub.status}`}>
-                        {sub.status === "active" ? "• Actif"
-                          : sub.status === "grace" ? "• En grâce"
+                    ? <span className={`status ${effectiveStatus}`}>
+                        {effectiveStatus === "active" ? "• Actif"
+                          : effectiveStatus === "grace" ? "• En grâce"
                           : "• Expiré"}
                       </span>
                     : <span className="status slot-free-badge">• Libre</span>
