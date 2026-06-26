@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { updateClientMeta, updateClientPin } from "@/app/actions/clients";
+import { deleteClientSubscription, updateClientMeta, updateClientPin } from "@/app/actions/clients";
 import {
-  cancelClientSubscription,
   generateInvoiceForSubscription,
   removeGraceStatus,
   renewClientSubscription,
@@ -766,7 +765,7 @@ function CancelButton({ subId }: { subId: string }) {
         type="button"
         onClick={() => setConfirming(true)}
         className="secondary"
-        title="Annuler l'abonnement (libère le profil)"
+        title="Supprimer dÃ©finitivement ce profil"
         style={{
           minHeight: 32,
           height: 32,
@@ -775,7 +774,7 @@ function CancelButton({ subId }: { subId: string }) {
           color: "var(--sr-danger)",
         }}
       >
-        <Icon name="x" size={12} /> Annuler
+        <Icon name="x" size={12} /> Supprimer
       </button>
     );
   }
@@ -797,7 +796,7 @@ function CancelButton({ subId }: { subId: string }) {
       <span style={{ font: "500 11px/1 var(--font-geist-sans)", color: "var(--sr-danger)", whiteSpace: "nowrap" }}>
         Sûr ?
       </span>
-      <form action={cancelClientSubscription} style={{ margin: 0 }}>
+      <form action={deleteClientSubscription} style={{ margin: 0 }}>
         <input type="hidden" name="id" value={subId} />
         <button
           type="submit"
@@ -811,7 +810,7 @@ function CancelButton({ subId }: { subId: string }) {
             color: "#fff",
           }}
         >
-          Terminer
+          Supprimer
         </button>
       </form>
       <button

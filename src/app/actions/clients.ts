@@ -28,7 +28,11 @@ export async function addClientWithSubscription(
   const slotId = req(formData, "slot_id");
   const startDate = req(formData, "start_date");
   const durationMonths = parseInt(req(formData, "duration_months"));
-  const price = formData.get("price") ? parseFloat(String(formData.get("price"))) : null;
+  const priceRaw = String(formData.get("price") ?? "").trim();
+  const price = priceRaw ? parseFloat(priceRaw) : NaN;
+  if (!Number.isFinite(price) || price <= 0) {
+    throw new Error("Le montant payé par le client est obligatoire");
+  }
   const endDate = addMonths(startDate, durationMonths);
 
   const supabase = createSupabaseAdmin();
@@ -80,7 +84,7 @@ export async function addClientWithSubscription(
   const clientPhone = opt(formData, "phone");
   let invoiceCode: string | null = null;
 
-  if (price && price > 0 && sub) {
+  if (sub) {
     const { data: serviceRow } = await supabase
       .from("account_slots")
       .select("label, slot_number, provider_accounts(service_name)")
@@ -271,4 +275,103 @@ export async function bulkCancelSubscriptions(formData: FormData) {
 
   if (error) throw new Error(error.message);
   revalidatePath("/clients");
+}
+
+export async function deleteClientSubscription(formData: FormData) {
+  const user = await getUser();
+  if (!user) throw new Error("Non authentifiÃ©");
+
+  const id = req(formData, "id");
+  const supabase = createSupabaseAdmin();
+
+  const { data: sub, error: subError } = await supabase
+    .from("client_subscriptions")
+    .select("id, client_id")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .single();
+
+  if (subError || !sub) throw new Error("Profil introuvable");
+
+  const clientId = sub.client_id as string;
+
+  const { error: deleteError } = await supabase
+    .from("client_subscriptions")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", user.id);
+
+  if (deleteError) throw new Error(deleteError.message);
+
+  const { count } = await supabase
+    .from("client_subscriptions")
+    .select("id", { count: "exact", head: true })
+    .eq("client_id", clientId)
+    .eq("user_id", user.id);
+
+  if ((count ?? 0) === 0) {
+    const { error: clientError } = await supabase
+      .from("clients")
+      .delete()
+      .eq("id", clientId)
+      .eq("user_id", user.id);
+
+    if (clientError) throw new Error(clientError.message);
+  }
+
+  revalidatePath("/clients");
+  revalidatePath("/abonnements");
+  revalidatePath("/dashboard");
+}
+
+export async function bulkDeleteSubscriptions(formData: FormData) {
+  const user = await getUser();
+  if (!user) throw new Error("Non authentifiÃ©");
+
+  const idsRaw = String(formData.get("ids") ?? "");
+  const ids = idsRaw.split(",").map((s) => s.trim()).filter(Boolean);
+  if (ids.length === 0) return;
+
+  const supabase = createSupabaseAdmin();
+
+  const { data: subs, error: subError } = await supabase
+    .from("client_subscriptions")
+    .select("id, client_id")
+    .in("id", ids)
+    .eq("user_id", user.id);
+
+  if (subError) throw new Error(subError.message);
+  if (!subs || subs.length === 0) return;
+
+  const clientIds = Array.from(new Set(subs.map((s) => s.client_id as string).filter(Boolean)));
+
+  const { error: deleteError } = await supabase
+    .from("client_subscriptions")
+    .delete()
+    .in("id", subs.map((s) => s.id))
+    .eq("user_id", user.id);
+
+  if (deleteError) throw new Error(deleteError.message);
+
+  for (const clientId of clientIds) {
+    const { count } = await supabase
+      .from("client_subscriptions")
+      .select("id", { count: "exact", head: true })
+      .eq("client_id", clientId)
+      .eq("user_id", user.id);
+
+    if ((count ?? 0) === 0) {
+      const { error: clientError } = await supabase
+        .from("clients")
+        .delete()
+        .eq("id", clientId)
+        .eq("user_id", user.id);
+
+      if (clientError) throw new Error(clientError.message);
+    }
+  }
+
+  revalidatePath("/clients");
+  revalidatePath("/abonnements");
+  revalidatePath("/dashboard");
 }

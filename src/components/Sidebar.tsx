@@ -3,6 +3,7 @@
 import { logout } from "@/app/actions/auth";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
 
@@ -36,7 +37,12 @@ export function Sidebar({
   clientsCount = 0,
 }: Props) {
   const pathname = usePathname();
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
   const displayName = userName || (userEmail ? userEmail.split("@")[0] : "Utilisateur");
+
+  useEffect(() => {
+    setPendingHref(null);
+  }, [pathname]);
 
   const navItems: NavItem[] = [
     { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
@@ -74,14 +80,19 @@ export function Sidebar({
       <nav className="sidebar-nav">
         {navItems.map((item) => {
           const active = pathname.startsWith(item.href);
+          const pending = pendingHref === item.href && !active;
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`sidebar-link${active ? " sidebar-link--active" : ""}`}
+              className={`sidebar-link${active ? " sidebar-link--active" : ""}${pending ? " sidebar-link--pending" : ""}`}
+              onClick={() => {
+                if (!active) setPendingHref(item.href);
+              }}
             >
               <Icon name={item.icon} size={15} />
               <span style={{ flex: 1 }}>{item.label}</span>
+              {pending && <span className="sidebar-link-loader" aria-hidden />}
               {item.badge != null && item.badge > 0 && (
                 <span className="sidebar-link-badge">{item.badge}</span>
               )}
@@ -95,10 +106,16 @@ export function Sidebar({
             <div className="sidebar-section-label">Système</div>
             <Link
               href="/admin/dashboard"
-              className={`sidebar-link sidebar-link--admin${pathname.startsWith("/admin") ? " sidebar-link--active" : ""}`}
+              className={`sidebar-link sidebar-link--admin${pathname.startsWith("/admin") ? " sidebar-link--active" : ""}${pendingHref === "/admin/dashboard" && !pathname.startsWith("/admin") ? " sidebar-link--pending" : ""}`}
+              onClick={() => {
+                if (!pathname.startsWith("/admin")) setPendingHref("/admin/dashboard");
+              }}
             >
               <Icon name="zap" size={15} />
               <span style={{ flex: 1 }}>Admin</span>
+              {pendingHref === "/admin/dashboard" && !pathname.startsWith("/admin") && (
+                <span className="sidebar-link-loader" aria-hidden />
+              )}
             </Link>
           </>
         )}

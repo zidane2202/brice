@@ -71,9 +71,9 @@ export function ProfilView({ profile, email, createdAt, stats }: Props) {
   const isPro = (profile?.plan ?? "free") !== "free";
 
   return (
-    <div style={{ display: "flex", flex: 1, minHeight: 0, marginInline: -32, marginTop: -32, marginBottom: -32 }}>
+    <div className="profile-view mobile-full-bleed" style={{ display: "flex", flex: 1, minHeight: 0, marginInline: -32, marginTop: -32, marginBottom: -32 }}>
       <aside
-        className="sr-scroll"
+        className="sr-scroll profile-sidebar"
         style={{
           width: 240,
           flex: "0 0 240px",
@@ -150,8 +150,9 @@ export function ProfilView({ profile, email, createdAt, stats }: Props) {
         })}
       </aside>
 
-      <div className="sr-scroll" style={{ flex: 1, overflow: "auto", minWidth: 0 }}>
+      <div className="sr-scroll profile-content" style={{ flex: 1, overflow: "auto", minWidth: 0 }}>
         <div
+          className="profile-hero"
           style={{
             padding: "32px 40px 32px",
             borderBottom: "1px solid var(--sr-border-subtle)",
@@ -174,9 +175,10 @@ export function ProfilView({ profile, email, createdAt, stats }: Props) {
 
           <p className="dash-eyebrow" style={{ marginBottom: 14 }}>Mon compte</p>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 22, position: "relative" }}>
+          <div className="profile-hero-inner" style={{ display: "flex", alignItems: "center", gap: 22, position: "relative" }}>
             <div style={{ position: "relative" }}>
               <div
+                className="profile-avatar"
                 style={{
                   width: 88,
                   height: 88,
@@ -196,8 +198,8 @@ export function ProfilView({ profile, email, createdAt, stats }: Props) {
               </div>
             </div>
 
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div className="profile-identity" style={{ flex: 1, minWidth: 0 }}>
+              <div className="profile-name-row" style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <h1
                   style={{
                     margin: 0,
@@ -250,7 +252,7 @@ export function ProfilView({ profile, email, createdAt, stats }: Props) {
                 </span>
               </div>
 
-              <div style={{ marginTop: 14, display: "flex", gap: 24, flexWrap: "wrap" }}>
+              <div className="profile-mini-stats" style={{ marginTop: 14, display: "flex", gap: 24, flexWrap: "wrap" }}>
                 <MiniInline label="Clients" value={String(stats.clientsCount)} />
                 <MiniInline label="Comptes actifs" value={String(stats.activeAccounts)} />
                 <MiniInline
@@ -264,7 +266,7 @@ export function ProfilView({ profile, email, createdAt, stats }: Props) {
           </div>
         </div>
 
-        <div style={{ maxWidth: 820, padding: "16px 40px 80px", display: "flex", flexDirection: "column", gap: 32 }}>
+        <div className="profile-sections" style={{ maxWidth: 820, padding: "16px 40px 80px", display: "flex", flexDirection: "column", gap: 32 }}>
           <PersoSection profile={profile} email={email} />
           <BizSection city={profile?.city ?? ""} />
           <SecuSection />
@@ -278,7 +280,7 @@ export function ProfilView({ profile, email, createdAt, stats }: Props) {
 
 function MiniInline({ label, value, suffix }: { label: string; value: string; suffix?: string }) {
   return (
-    <div>
+    <div className="profile-mini-stat">
       <div
         style={{
           font: "500 10px/1 var(--font-geist-sans)",
@@ -326,7 +328,7 @@ function PrSection({
   children: React.ReactNode;
 }) {
   return (
-    <section id={`section-${id}`} style={{ scrollMarginTop: 24 }}>
+    <section id={`section-${id}`} className="profile-section" style={{ scrollMarginTop: 24 }}>
       <div style={{ display: "flex", alignItems: "flex-end", gap: 16, marginBottom: 14 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <h2
@@ -347,6 +349,7 @@ function PrSection({
         </div>
       </div>
       <div
+        className="profile-panel"
         style={{
           background: "var(--sr-surface)",
           border: "1px solid " + (danger ? "var(--sr-danger-border)" : "var(--sr-border-subtle)"),
@@ -374,6 +377,7 @@ function FormRow({
 }) {
   return (
     <div
+      className="profile-form-row"
       style={{
         display: "grid",
         gridTemplateColumns: "200px 1fr",
@@ -391,7 +395,7 @@ function FormRow({
           </div>
         )}
       </div>
-      <div style={{ minWidth: 0 }}>{children}</div>
+      <div className="profile-form-control" style={{ minWidth: 0 }}>{children}</div>
     </div>
   );
 }
@@ -399,6 +403,7 @@ function FormRow({
 function SectionFooter({ children }: { children: React.ReactNode }) {
   return (
     <div
+      className="profile-section-footer"
       style={{
         padding: "12px 20px",
         borderTop: "1px solid var(--sr-border-subtle)",
