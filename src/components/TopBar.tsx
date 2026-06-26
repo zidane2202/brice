@@ -26,6 +26,7 @@ export function TopBar() {
 
   return (
     <header
+      className="topbar"
       style={{
         height: 48,
         flex: "0 0 48px",
@@ -41,6 +42,7 @@ export function TopBar() {
       }}
     >
       <div
+        className="topbar-crumbs"
         style={{
           display: "flex",
           alignItems: "center",
@@ -61,7 +63,7 @@ export function TopBar() {
 
       <div style={{ flex: 1 }} />
 
-      <div style={{ position: "relative", width: 280 }}>
+      <div className="topbar-search" style={{ position: "relative", width: 280 }}>
         <Icon
           name="search"
           size={13}
@@ -104,7 +106,7 @@ export function TopBar() {
 
       <button
         type="button"
-        className="secondary"
+        className="secondary topbar-notification"
         title="Notifications"
         aria-label="Notifications"
         style={{ width: 30, minHeight: 30, height: 30, padding: 0, justifyContent: "center" }}

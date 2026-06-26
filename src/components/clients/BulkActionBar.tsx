@@ -1,6 +1,6 @@
 "use client";
 
-import { bulkCancelSubscriptions, bulkRenewSubscriptions } from "@/app/actions/clients";
+import { bulkDeleteSubscriptions, bulkRenewSubscriptions } from "@/app/actions/clients";
 import { Icon } from "@/components/Icon";
 
 type Props = { ids: string[]; onClear: () => void };
@@ -63,14 +63,14 @@ export function BulkActionBar({ ids, onClear }: Props) {
         </button>
       </form>
 
-      <form action={bulkCancelSubscriptions} style={{ margin: 0 }}>
+      <form action={bulkDeleteSubscriptions} style={{ margin: 0 }}>
         <input type="hidden" name="ids" value={idsStr} />
         <button
           type="submit"
           className="danger"
           style={{ minHeight: 28, height: 28, fontSize: "0.75rem", paddingInline: 10 }}
         >
-          <Icon name="x" size={12} /> Archiver
+          <Icon name="x" size={12} /> Supprimer
         </button>
       </form>
 

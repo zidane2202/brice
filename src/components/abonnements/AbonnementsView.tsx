@@ -60,15 +60,16 @@ export function AbonnementsView({ accounts, displayNames, balance }: Props) {
   }, [accounts, today]);
 
   return (
-    <div style={{ display: "flex", flex: 1, minHeight: 0, flexDirection: "column", marginInline: -32, marginTop: -32, marginBottom: -32 }}>
+    <div className="mobile-full-bleed" style={{ display: "flex", flex: 1, minHeight: 0, flexDirection: "column", marginInline: -32, marginTop: -32, marginBottom: -32 }}>
       <div className="sr-scroll" style={{ flex: 1, overflow: "auto", minWidth: 0 }}>
         <div
+          className="mobile-page-hero"
           style={{
             padding: "32px 32px 24px",
             borderBottom: "1px solid var(--sr-border-subtle)",
           }}
         >
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 24 }}>
+          <div className="mobile-page-heading" style={{ display: "flex", alignItems: "flex-end", gap: 24 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <p className="dash-eyebrow" style={{ marginBottom: 12 }}>Vos comptes</p>
               <h1 style={{ font: "600 32px/1.1 var(--font-geist-sans)", letterSpacing: "-0.022em", color: "var(--sr-fg-strong)" }}>
@@ -86,6 +87,7 @@ export function AbonnementsView({ accounts, displayNames, balance }: Props) {
           </div>
 
           <div
+            className="mobile-stats-grid"
             style={{
               marginTop: 24,
               display: "grid",
@@ -119,7 +121,7 @@ export function AbonnementsView({ accounts, displayNames, balance }: Props) {
         </div>
 
         <Collapse open={formOpen}>
-          <div style={{ padding: "20px 32px 8px" }}>
+          <div className="mobile-section-pad" style={{ padding: "20px 32px 8px" }}>
             <div
               style={{
                 background: "var(--sr-surface)",
@@ -194,6 +196,7 @@ export function AbonnementsView({ accounts, displayNames, balance }: Props) {
         </Collapse>
 
         <div
+          className="mobile-toolbar"
           style={{
             padding: "20px 32px 0",
             display: "flex",
@@ -220,6 +223,7 @@ export function AbonnementsView({ accounts, displayNames, balance }: Props) {
         </div>
 
         <div
+          className="mobile-cards-grid mobile-section-pad mobile-bottom-pad"
           style={{
             padding: "20px 32px 48px",
             display: "grid",

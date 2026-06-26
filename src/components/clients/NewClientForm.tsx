@@ -27,6 +27,11 @@ export function NewClientForm({ freeSlots, onClose }: Props) {
 
   async function handleSubmit(formData: FormData) {
     setErrorMsg(null);
+    const amount = Number(formData.get("price"));
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setErrorMsg("Le montant payÃ© par le client est obligatoire.");
+      return;
+    }
     startTransition(async () => {
       try {
         const result = await addClientWithSubscription(formData);
@@ -242,11 +247,14 @@ export function NewClientForm({ freeSlots, onClose }: Props) {
           <input type="hidden" name="slot_id" value={slotId} required />
         </NewField>
 
-        <NewField label="Prix (FCFA)" hint="ce qu'il vous paie">
+        <NewField label="Prix (FCFA)" hint="obligatoire">
           <div style={{ position: "relative" }}>
             <input
               type="number"
               name="price"
+              required
+              min={1}
+              step={1}
               value={price || ""}
               onChange={(e) => setPrice(Number(e.target.value) || 0)}
               placeholder="2500"
@@ -372,7 +380,7 @@ export function NewClientForm({ freeSlots, onClose }: Props) {
             size={13}
             style={{ color: errorMsg ? "var(--sr-danger)" : "var(--sr-fg-subtle)" }}
           />
-          {errorMsg ?? "Le client sera ajouté et son abonnement démarrera à la date choisie."}
+          {errorMsg ?? "Le montant payÃ© est obligatoire pour crÃ©er le profil et gÃ©nÃ©rer la facture."}
         </div>
         <button
           type="button"

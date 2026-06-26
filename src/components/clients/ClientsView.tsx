@@ -179,15 +179,16 @@ export function ClientsView({ subscriptions, freeSlots, invoices }: Props) {
   };
 
   return (
-    <div style={{ display: "flex", flex: 1, minHeight: 0, marginInline: -32, marginTop: -32, marginBottom: -32 }}>
+    <div className="mobile-full-bleed" style={{ display: "flex", flex: 1, minHeight: 0, marginInline: -32, marginTop: -32, marginBottom: -32 }}>
       <div className="sr-scroll" style={{ flex: 1, overflow: "auto", minWidth: 0 }}>
         <div
+          className="mobile-page-hero"
           style={{
             padding: "32px 32px 24px",
             borderBottom: "1px solid var(--sr-border-subtle)",
           }}
         >
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 24 }}>
+          <div className="mobile-page-heading" style={{ display: "flex", alignItems: "flex-end", gap: 24 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <p className="dash-eyebrow" style={{ marginBottom: 12 }}>Carnet d&apos;adresses</p>
               <h1 style={{ font: "600 32px/1.1 var(--font-geist-sans)", letterSpacing: "-0.022em", color: "var(--sr-fg-strong)" }}>
@@ -218,6 +219,7 @@ export function ClientsView({ subscriptions, freeSlots, invoices }: Props) {
           </div>
 
           <div
+            className="mobile-stats-grid"
             style={{
               marginTop: 24,
               display: "grid",
@@ -257,12 +259,13 @@ export function ClientsView({ subscriptions, freeSlots, invoices }: Props) {
         </div>
 
         <Collapse open={formOpen}>
-          <div style={{ padding: "20px 32px 8px" }}>
+          <div className="mobile-section-pad" style={{ padding: "20px 32px 8px" }}>
             <NewClientForm freeSlots={freeSlots} onClose={() => setFormOpen(false)} />
           </div>
         </Collapse>
 
         <div
+          className="mobile-toolbar"
           style={{
             padding: "20px 32px 0",
             display: "flex",
@@ -288,7 +291,7 @@ export function ClientsView({ subscriptions, freeSlots, invoices }: Props) {
             <FilterPill label="En grâce" count={counts.grace}   active={filter === "grace"}   onClick={() => setFilter("grace")}   tone="warning" />
           </div>
 
-          <div style={{ position: "relative", width: 260 }}>
+          <div className="mobile-search-field" style={{ position: "relative", width: 260 }}>
             <Icon
               name="search"
               size={13}
@@ -328,12 +331,13 @@ export function ClientsView({ subscriptions, freeSlots, invoices }: Props) {
           />
         </div>
 
-        <div style={{ padding: "16px 32px 48px" }}>
+        <div className="mobile-section-pad mobile-bottom-pad" style={{ padding: "16px 32px 48px" }}>
           {picked.size > 0 && (
             <BulkActionBar ids={Array.from(picked)} onClear={() => setPicked(new Set())} />
           )}
 
           <div
+            className="clients-list"
             style={{
               background: "var(--sr-surface)",
               border: "1px solid var(--sr-border-subtle)",
@@ -343,6 +347,7 @@ export function ClientsView({ subscriptions, freeSlots, invoices }: Props) {
             }}
           >
             <div
+              className="clients-list-head"
               style={{
                 display: "grid",
                 gridTemplateColumns: "28px minmax(160px,1.6fr) minmax(140px,1fr) 40px 80px 100px 130px 110px 36px",
@@ -535,6 +540,7 @@ function Row({
 
   return (
     <div
+      className="client-row"
       onClick={onSelect}
       style={{
         position: "relative",
@@ -555,6 +561,33 @@ function Row({
         if (!isSelected && !isPicked) e.currentTarget.style.background = "transparent";
       }}
     >
+      <div className="client-mobile-card">
+        <div onClick={(e) => e.stopPropagation()} className="client-mobile-check">
+          <CheckBox checked={isPicked} onChange={() => onPick()} />
+        </div>
+        <div className="client-mobile-main">
+          <div className="client-mobile-title">
+            <Avatar name={fullName} size={32} />
+            <div>
+              <div className="client-mobile-name">{fullName}</div>
+              <div className="client-mobile-service">
+                <ProviderGlyph name={serviceName} size={16} />
+                <span>{serviceName}</span>
+              </div>
+            </div>
+          </div>
+          <div className="client-mobile-meta">
+            <span className={`status ${b === "active" ? "active" : b === "danger" ? "cancelled" : "grace"}`}>
+              {status.label}
+            </span>
+            <span style={{ color: endDateColor }}>Renouv. {formatDate(sub.end_date)}</span>
+            {sub.price ? <span>{sub.price.toLocaleString("en-US").replace(/,/g, " ")} FCFA</span> : null}
+            {pin ? <span>PIN {pin}</span> : null}
+          </div>
+        </div>
+        <Icon name="chevronR" size={14} style={{ color: "var(--sr-fg-subtle)" }} />
+      </div>
+
       {isSelected && (
         <span
           style={{
