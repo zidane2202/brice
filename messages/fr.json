@@ -1,0 +1,77 @@
+{
+  "LocaleSwitcher": {
+    "fr": "FR",
+    "en": "EN",
+    "label": "Langue"
+  },
+  "Landing": {
+    "nav": {
+      "login": "Connexion",
+      "cta": "Commencer gratis",
+      "contact": "Nous contacter"
+    },
+    "hero": {
+      "brand": "subresell",
+      "eyebrow": "Pour revendeurs d'abonnements",
+      "title": "Gérez vos comptes, clients et encaissements — sans tableur.",
+      "subtitle": "Un outil pensé pour les revendeurs streaming et SaaS en Afrique : slots, factures, solde et relances au même endroit.",
+      "ctaPrimary": "Créer un compte Free",
+      "ctaSecondary": "Voir les tarifs"
+    },
+    "product": {
+      "eyebrow": "Le produit",
+      "title": "Tout le cycle du revendeur, dans une seule app.",
+      "items": {
+        "accounts": {
+          "title": "Comptes provider",
+          "body": "Netflix, Spotify et le reste : suivez coûts, échéances et profils disponibles."
+        },
+        "clients": {
+          "title": "Clients & slots",
+          "body": "Assignez un profil, renouvelez, générez la facture en un clic."
+        },
+        "cash": {
+          "title": "Solde & compta",
+          "body": "Entrées, sorties, dépenses et exports — la caisse enfin lisible."
+        }
+      }
+    },
+    "pricing": {
+      "eyebrow": "Tarifs",
+      "title": "Simple. En FCFA. Sans surprise.",
+      "perMonth": "/ mois",
+      "free": {
+        "name": "Free",
+        "tagline": "Pour tester",
+        "cta": "Démarrer gratis",
+        "features": "2 comptes · 3 clients/compte · factures basiques · compta lecture seule"
+      },
+      "pro": {
+        "name": "Pro",
+        "tagline": "Pour revendre sérieusement",
+        "cta": "Passer Pro",
+        "badge": "Populaire",
+        "features": "15 comptes · 5 clients/compte · logo · compta complète · exports · rappels",
+        "extras": "Extras : +2 000 FCFA / compte · ou +5 000 FCFA / 3 comptes"
+      },
+      "business": {
+        "name": "Business",
+        "tagline": "Volume & agences",
+        "cta": "Nous contacter",
+        "features": "Gros volumes · support dédié · rapports avancés"
+      }
+    },
+    "contact": {
+      "eyebrow": "Support",
+      "title": "Une question avant de démarrer ?",
+      "body": "Écrivez-nous sur WhatsApp — activation de plan et extras se gèrent aussi manuellement pour l'instant.",
+      "cta": "Nous contacter sur WhatsApp"
+    },
+    "footer": {
+      "tagline": "L'ops des revendeurs d'abonnements.",
+      "login": "Connexion",
+      "signup": "Créer un compte",
+      "beta": "Beta"
+    }
+  }
+}

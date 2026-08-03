@@ -1,0 +1,77 @@
+{
+  "LocaleSwitcher": {
+    "fr": "FR",
+    "en": "EN",
+    "label": "Language"
+  },
+  "Landing": {
+    "nav": {
+      "login": "Log in",
+      "cta": "Start for free",
+      "contact": "Contact us"
+    },
+    "hero": {
+      "brand": "subresell",
+      "eyebrow": "Built for subscription resellers",
+      "title": "Run accounts, clients and cash — without spreadsheets.",
+      "subtitle": "Made for African streaming & SaaS resellers: slots, invoices, balance and renewals in one place.",
+      "ctaPrimary": "Create a Free account",
+      "ctaSecondary": "See pricing"
+    },
+    "product": {
+      "eyebrow": "Product",
+      "title": "The full reseller loop, one app.",
+      "items": {
+        "accounts": {
+          "title": "Provider accounts",
+          "body": "Netflix, Spotify and more: track costs, renewals and free profiles."
+        },
+        "clients": {
+          "title": "Clients & slots",
+          "body": "Assign a profile, renew, and issue an invoice in one click."
+        },
+        "cash": {
+          "title": "Balance & books",
+          "body": "Income, outflows, expenses and exports — cash you can actually read."
+        }
+      }
+    },
+    "pricing": {
+      "eyebrow": "Pricing",
+      "title": "Simple. In FCFA. No surprises.",
+      "perMonth": "/ month",
+      "free": {
+        "name": "Free",
+        "tagline": "To try it out",
+        "cta": "Start free",
+        "features": "2 accounts · 3 clients/account · basic invoices · read-only books"
+      },
+      "pro": {
+        "name": "Pro",
+        "tagline": "For serious resellers",
+        "cta": "Go Pro",
+        "badge": "Popular",
+        "features": "15 accounts · 5 clients/account · logo · full books · exports · reminders",
+        "extras": "Extras: +2,000 FCFA / account · or +5,000 FCFA / 3 accounts"
+      },
+      "business": {
+        "name": "Business",
+        "tagline": "Volume & agencies",
+        "cta": "Contact us",
+        "features": "High volume · dedicated support · advanced reports"
+      }
+    },
+    "contact": {
+      "eyebrow": "Support",
+      "title": "Questions before you start?",
+      "body": "Message us on WhatsApp — plan activation and extras are handled manually for now.",
+      "cta": "Contact us on WhatsApp"
+    },
+    "footer": {
+      "tagline": "Ops for subscription resellers.",
+      "login": "Log in",
+      "signup": "Sign up",
+      "beta": "Beta"
+    }
+  }
+}

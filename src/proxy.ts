@@ -28,14 +28,21 @@ export async function proxy(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   const { pathname } = request.nextUrl;
 
-  const isPublic = pathname.startsWith("/login") || pathname.startsWith("/signup") || pathname.startsWith("/forgot-password") || pathname.startsWith("/reset-password");
+  const isAuthPublic =
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/signup") ||
+    pathname.startsWith("/forgot-password") ||
+    pathname.startsWith("/reset-password");
+  const isLanding = pathname === "/";
+  const isPublic = isAuthPublic || isLanding;
   const isAdmin = pathname.startsWith("/admin");
 
   if (!user && !isPublic) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  if (user && isPublic) {
+  // Logged-in users leave auth pages; landing stays handled by page.tsx → dashboard
+  if (user && isAuthPublic) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
