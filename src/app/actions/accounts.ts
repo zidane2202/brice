@@ -4,6 +4,14 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
 import { addMonths, toDateInputValue } from "@/lib/dates";
+import {
+  PLAN_LIMIT_ACCOUNT,
+  PLAN_LIMIT_SLOTS,
+  accountCap,
+  clientsPerAccount,
+  normalizePlan,
+  planLimitError,
+} from "@/lib/plans";
 
 function req(fd: FormData, key: string) {
   const v = String(fd.get(key) ?? "").trim();
@@ -18,7 +26,7 @@ export async function addProviderAccount(formData: FormData) {
   const serviceName = req(formData, "service_name");
   const startDate = req(formData, "start_date");
   const durationMonths = parseInt(req(formData, "duration_months"));
-  const maxSlots = parseInt(req(formData, "max_slots"));
+  let maxSlots = parseInt(req(formData, "max_slots"));
   const cost = formData.get("cost") ? parseFloat(String(formData.get("cost"))) : null;
   const label = String(formData.get("label") ?? "").trim() || null;
   const accountEmail = String(formData.get("account_email") ?? "").trim() || null;
@@ -26,6 +34,40 @@ export async function addProviderAccount(formData: FormData) {
   const endDate = addMonths(startDate, durationMonths);
 
   const supabase = createSupabaseAdmin();
+
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("plan, extra_provider_accounts")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const plan = normalizePlan(profile?.plan);
+  const extras = Number(profile?.extra_provider_accounts ?? 0);
+  const cap = accountCap(plan, extras);
+  const slotCap = clientsPerAccount(plan);
+
+  if (!Number.isFinite(maxSlots) || maxSlots < 1) {
+    throw new Error("Nombre de profils invalide");
+  }
+  if (maxSlots > slotCap) {
+    throw planLimitError(
+      PLAN_LIMIT_SLOTS,
+      `Votre plan ${plan} autorise au maximum ${slotCap} clients par compte.`
+    );
+  }
+
+  const { count: accountCount } = await supabase
+    .from("provider_accounts")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .eq("status", "active");
+
+  if ((accountCount ?? 0) >= cap) {
+    throw planLimitError(
+      PLAN_LIMIT_ACCOUNT,
+      `Limite atteinte : ${cap} compte${cap > 1 ? "s" : ""} provider sur le plan ${plan}.`
+    );
+  }
 
   const { data: existing } = await supabase
     .from("provider_accounts")

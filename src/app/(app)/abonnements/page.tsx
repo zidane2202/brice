@@ -1,4 +1,5 @@
 import { AbonnementsView } from "@/components/abonnements/AbonnementsView";
+import { accountCap, clientsPerAccount, normalizePlan } from "@/lib/plans";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
 import type { ProviderAccount } from "@/lib/types";
@@ -50,6 +51,18 @@ export default async function AbonnementsPage() {
   const user = await getUser();
   if (!user) return null;
 
+  const supabase = createSupabaseAdmin();
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("plan, extra_provider_accounts")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  const plan = normalizePlan(profile?.plan);
+  const slotCap = clientsPerAccount(plan);
+  // extras used by server actions; keep for future UI display
+  void accountCap(plan, Number(profile?.extra_provider_accounts ?? 0));
+
   const [accounts, balance] = await Promise.all([getAccounts(user.id), getBalance(user.id)]);
 
   // Stable numbering by created_at
@@ -70,5 +83,13 @@ export default async function AbonnementsPage() {
     }
   }
 
-  return <AbonnementsView accounts={accounts} displayNames={displayNames} balance={balance} />;
+  return (
+    <AbonnementsView
+      accounts={accounts}
+      displayNames={displayNames}
+      balance={balance}
+      plan={plan}
+      slotCap={slotCap}
+    />
+  );
 }

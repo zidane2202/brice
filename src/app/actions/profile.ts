@@ -6,9 +6,31 @@ import {
   isAllowedLogoMime,
   logoObjectPath,
 } from "@/lib/branding";
+import {
+  PLAN_LIMIT_BRANDING,
+  canUseBranding,
+  normalizePlan,
+  planLimitError,
+} from "@/lib/plans";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
+
+async function requirePlanForBranding(userId: string) {
+  const supabase = createSupabaseAdmin();
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("plan")
+    .eq("user_id", userId)
+    .maybeSingle();
+  const plan = normalizePlan(profile?.plan);
+  if (!canUseBranding(plan)) {
+    throw planLimitError(
+      PLAN_LIMIT_BRANDING,
+      "Le logo entreprise est réservé aux plans Pro et Business."
+    );
+  }
+}
 
 export async function updateProfile(
   _prevState: { error?: string; success?: boolean } | undefined,
@@ -23,6 +45,14 @@ export async function updateProfile(
   const phone = String(formData.get("phone") ?? "").trim();
   const city = String(formData.get("city") ?? "").trim();
   const logoUrlRaw = String(formData.get("logo_url") ?? "").trim();
+
+  if (logoUrlRaw) {
+    try {
+      await requirePlanForBranding(user.id);
+    } catch (e) {
+      return { error: e instanceof Error ? e.message.replace(/^PLAN_LIMIT_BRANDING:/, "") : "Plan insuffisant" };
+    }
+  }
 
   const supabase = createSupabaseAdmin();
   const { error } = await supabase
@@ -47,6 +77,17 @@ export async function updateProfile(
 export async function uploadCompanyLogo(formData: FormData) {
   const user = await getUser();
   if (!user) return { error: "Non authentifié" };
+
+  try {
+    await requirePlanForBranding(user.id);
+  } catch (e) {
+    return {
+      error:
+        e instanceof Error
+          ? e.message.replace(/^PLAN_LIMIT_BRANDING:/, "")
+          : "Plan insuffisant",
+    };
+  }
 
   const file = formData.get("logo") as File | null;
   if (!file || typeof file === "string" || file.size === 0) {

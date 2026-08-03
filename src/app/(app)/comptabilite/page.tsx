@@ -1,6 +1,7 @@
 import { AddExpenseForm } from "@/components/comptabilite/AddExpenseForm";
 import { ComptaView } from "@/components/comptabilite/ComptaView";
 import { computeBalance, computePeriodKpis, monthBounds } from "@/lib/comptabilite";
+import { canUseFullCompta, normalizePlan } from "@/lib/plans";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
 import type { Transaction } from "@/lib/types";
@@ -22,7 +23,12 @@ export default async function ComptabilitePage({
   const { from, to } = monthBounds(year, month - 1);
 
   const supabase = createSupabaseAdmin();
-  const [allBal, periodTx] = await Promise.all([
+  const [profileRes, allBal, periodTx] = await Promise.all([
+    supabase
+      .from("user_profiles")
+      .select("plan")
+      .eq("user_id", user.id)
+      .maybeSingle(),
     supabase
       .from("transactions")
       .select("kind, amount, affects_balance")
@@ -38,6 +44,7 @@ export default async function ComptabilitePage({
       .order("created_at", { ascending: false }),
   ]);
 
+  const fullCompta = canUseFullCompta(normalizePlan(profileRes.data?.plan));
   const balance = computeBalance(allBal.data ?? []);
   const txs = (periodTx.data ?? []) as Transaction[];
   for (const t of txs) {
@@ -56,7 +63,17 @@ export default async function ComptabilitePage({
       expenses={kpis.expenses}
       margin={kpis.margin}
       transactions={txs}
-      expenseForm={<AddExpenseForm today={now.toISOString().slice(0, 10)} />}
+      fullCompta={fullCompta}
+      expenseForm={
+        fullCompta ? (
+          <AddExpenseForm today={now.toISOString().slice(0, 10)} />
+        ) : (
+          <p style={{ color: "var(--sr-fg-subtle)", margin: 0, fontSize: 13 }}>
+            Les dépenses manuelles et exports sont réservés au plan Pro. Passez Pro pour
+            débloquer la comptabilité complète.
+          </p>
+        )
+      }
     />
   );
 }

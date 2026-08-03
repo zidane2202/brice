@@ -4,7 +4,7 @@ import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser, getUserProfile } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
 
-const PLANS = new Set(["free", "pro"]);
+const PLANS = new Set(["free", "pro", "business"]);
 const ROLES = new Set(["reseller", "admin"]);
 
 export async function updateResellerPlanRole(formData: FormData) {
@@ -17,6 +17,8 @@ export async function updateResellerPlanRole(formData: FormData) {
   const userId = String(formData.get("user_id") ?? "").trim();
   const plan = String(formData.get("plan") ?? "").trim();
   const role = String(formData.get("role") ?? "").trim();
+  const extrasRaw = String(formData.get("extra_provider_accounts") ?? "0").trim();
+  const extras = Math.max(0, parseInt(extrasRaw || "0", 10) || 0);
 
   if (!userId) throw new Error("Vendeur manquant");
   if (!PLANS.has(plan)) throw new Error("Plan invalide");
@@ -38,7 +40,11 @@ export async function updateResellerPlanRole(formData: FormData) {
 
   const { error } = await supabase
     .from("user_profiles")
-    .update({ plan, role })
+    .update({
+      plan,
+      role,
+      extra_provider_accounts: plan === "pro" ? extras : 0,
+    })
     .eq("user_id", userId);
 
   if (error) throw new Error(error.message);

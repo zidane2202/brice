@@ -1,6 +1,7 @@
 import { PushManager } from "@/components/PushManager";
 import { Sidebar } from "@/components/Sidebar";
 import { TopBar } from "@/components/TopBar";
+import { canUsePush, normalizePlan } from "@/lib/plans";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser, getUserProfile } from "@/lib/supabase-server";
 
@@ -69,7 +70,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <TopBar />
         <main className="app-main">{children}</main>
       </div>
-      <PushManager />
+      <PushManager enabled={canUsePush(normalizePlan(profile?.plan))} />
     </div>
   );
 }

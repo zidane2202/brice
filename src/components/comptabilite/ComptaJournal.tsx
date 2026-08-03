@@ -17,9 +17,17 @@ type Props = {
   to: string;
   year: number;
   month: number;
+  allowExports?: boolean;
 };
 
-export function ComptaJournal({ transactions, from, to, year, month }: Props) {
+export function ComptaJournal({
+  transactions,
+  from,
+  to,
+  year,
+  month,
+  allowExports = true,
+}: Props) {
   const [kind, setKind] = useState<"all" | "income" | "outflow">("all");
   const [category, setCategory] = useState<ExpenseCategory | "all">("all");
   const [q, setQ] = useState("");
@@ -88,12 +96,20 @@ export function ComptaJournal({ transactions, from, to, year, month }: Props) {
           />
         </label>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button type="button" onClick={downloadCsv}>
-            Export CSV
-          </button>
-          <button type="button" onClick={openPdf}>
-            Export PDF
-          </button>
+          {allowExports ? (
+            <>
+              <button type="button" onClick={downloadCsv}>
+                Export CSV
+              </button>
+              <button type="button" onClick={openPdf}>
+                Export PDF
+              </button>
+            </>
+          ) : (
+            <p style={{ margin: 0, fontSize: 12, color: "var(--sr-fg-subtle)" }}>
+              Exports réservés au plan Pro.
+            </p>
+          )}
         </div>
       </div>
 

@@ -11,6 +11,7 @@ export type UserProfile = {
   phone: string | null;
   city: string | null;
   logo_url: string | null;
+  extra_provider_accounts: number;
   created_at: string;
 };
 

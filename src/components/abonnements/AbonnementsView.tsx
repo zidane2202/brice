@@ -7,12 +7,19 @@ import { Icon } from "@/components/Icon";
 import { FilterPill } from "@/components/ui/FilterPill";
 import { daysUntil, toDateInputValue } from "@/lib/dates";
 import type { ProviderAccount } from "@/lib/types";
+import type { PlanId } from "@/lib/plans";
 
 type AccountWithSlots = ProviderAccount & { used_slots: number };
 
 type FilterKey = "active" | "warning" | "expired";
 
-type Props = { accounts: AccountWithSlots[]; displayNames: Record<string, string>; balance: number };
+type Props = {
+  accounts: AccountWithSlots[];
+  displayNames: Record<string, string>;
+  balance: number;
+  plan: PlanId;
+  slotCap: number;
+};
 
 function bucket(a: AccountWithSlots): FilterKey {
   if (a.status === "inactive") return "expired";
@@ -22,7 +29,7 @@ function bucket(a: AccountWithSlots): FilterKey {
   return "active";
 }
 
-export function AbonnementsView({ accounts, displayNames, balance }: Props) {
+export function AbonnementsView({ accounts, displayNames, balance, plan, slotCap }: Props) {
   const [filter, setFilter] = useState<FilterKey>("active");
   const [formOpen, setFormOpen] = useState(false);
   const today = toDateInputValue();
@@ -189,7 +196,7 @@ export function AbonnementsView({ accounts, displayNames, balance }: Props) {
                 </button>
               </div>
               <div style={{ padding: 18 }}>
-                <AddAccountForm today={today} />
+                <AddAccountForm today={today} plan={plan} slotCap={slotCap} />
               </div>
             </div>
           </div>

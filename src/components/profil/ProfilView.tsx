@@ -426,6 +426,7 @@ function PersoSection({ profile, email }: { profile: ProfileData | null; email: 
   const [logoUrl, setLogoUrl] = useState(profile?.logo_url ?? null);
   const [logoError, setLogoError] = useState<string | null>(null);
   const [logoPending, startLogoTransition] = useTransition();
+  const canBrand = (profile?.plan ?? "free") !== "free";
 
   useEffect(() => {
     setLogoUrl(profile?.logo_url ?? null);
@@ -521,8 +522,13 @@ function PersoSection({ profile, email }: { profile: ProfileData | null; email: 
         </FormRow>
         <FormRow
           label="Logo entreprise"
-          hint="Upload prioritaire. L’upload remplace l’URL manuelle. PNG, JPG ou WebP — max 2 Mo."
+          hint={
+            canBrand
+              ? "Upload prioritaire. L’upload remplace l’URL manuelle. PNG, JPG ou WebP — max 2 Mo."
+              : "Réservé au plan Pro. Passez Pro pour afficher votre logo sur la sidebar et les factures."
+          }
         >
+          {canBrand ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 420 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <BrandMark
@@ -581,6 +587,11 @@ function PersoSection({ profile, email }: { profile: ProfileData | null; email: 
               <p style={{ margin: 0, color: "var(--sr-danger)", fontSize: 12 }}>{logoError}</p>
             )}
           </div>
+          ) : (
+            <p style={{ margin: 0, fontSize: 13, color: "var(--sr-fg-subtle)" }}>
+              Disponible avec Pro.
+            </p>
+          )}
         </FormRow>
         <FormRow label="Email" hint="Utilisé pour la connexion (non modifiable ici).">
           <input value={email} disabled style={{ height: 36, minHeight: 36, maxWidth: 360, opacity: 0.6 }} />
@@ -772,7 +783,23 @@ function SecuSection() {
 }
 
 function PlanSection({ plan }: { plan: string }) {
-  const isPro = plan !== "free";
+  const normalized = plan === "pro" || plan === "business" ? plan : "free";
+  const isPaid = normalized !== "free";
+  const SUPPORT_WA =
+    typeof process !== "undefined"
+      ? process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP?.replace(/\D/g, "") || ""
+      : "";
+  const waPro = SUPPORT_WA
+    ? `https://wa.me/${SUPPORT_WA}?text=${encodeURIComponent("Bonjour, je souhaite passer au plan Pro SubResell (10 000 FCFA/mois).")}`
+    : `https://wa.me/?text=${encodeURIComponent("Bonjour, je souhaite passer au plan Pro SubResell (10 000 FCFA/mois).")}`;
+
+  const blurb =
+    normalized === "business"
+      ? "Volumes élevés, support dédié."
+      : normalized === "pro"
+        ? "15 comptes × 5 clients, compta complète, logo, rappels. Extras : +2 000/compte ou +5 000/3."
+        : "2 comptes × 3 clients. Comptabilité lecture seule. Passez Pro (10 000 FCFA/mois) pour tout débloquer.";
+
   return (
     <PrSection id="plan" title="Mon plan Subresell" subtitle="Votre abonnement à l'outil. Distinct des comptes fournisseurs.">
       <div style={{ padding: "16px 20px", display: "flex", gap: 16 }}>
@@ -780,10 +807,10 @@ function PlanSection({ plan }: { plan: string }) {
           style={{
             flex: 1,
             padding: 18,
-            background: isPro
+            background: isPaid
               ? "linear-gradient(135deg, rgba(41,220,133,0.10) 0%, rgba(92,200,255,0.06) 50%, rgba(179,136,255,0.08) 100%), var(--sr-bg)"
               : "var(--sr-bg)",
-            border: isPro ? "1px solid rgba(255,255,255,0.10)" : "1px solid var(--sr-border-subtle)",
+            border: isPaid ? "1px solid rgba(255,255,255,0.10)" : "1px solid var(--sr-border-subtle)",
             borderRadius: 10,
             boxShadow: "var(--sr-hairline-top)",
             position: "relative",
@@ -798,7 +825,7 @@ function PlanSection({ plan }: { plan: string }) {
               font: "500 10px/1 var(--font-geist-sans)",
               letterSpacing: "0.08em",
               textTransform: "uppercase",
-              color: isPro ? "var(--sr-mint-300)" : "var(--sr-fg-muted)",
+              color: isPaid ? "var(--sr-mint-300)" : "var(--sr-fg-muted)",
               marginBottom: 14,
             }}
           >
@@ -812,7 +839,7 @@ function PlanSection({ plan }: { plan: string }) {
               textTransform: "capitalize",
             }}
           >
-            {plan}
+            {normalized}
           </div>
           <div
             style={{
@@ -821,18 +848,33 @@ function PlanSection({ plan }: { plan: string }) {
               color: "var(--sr-fg-muted)",
             }}
           >
-            {isPro
-              ? "Clients illimités, exports CSV, support prioritaire WhatsApp."
-              : "Plan gratuit avec limites. Passez à Pro pour débloquer toutes les fonctions."}
+            {blurb}
           </div>
         </div>
       </div>
 
       <SectionFooter>
-        {!isPro && (
-          <button type="button" style={{ minHeight: 34, height: 34 }}>
-            <Icon name="zap" size={13} /> Passer en Pro
-          </button>
+        {normalized === "free" && (
+          <a
+            href={waPro}
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              minHeight: 34,
+              height: 34,
+              padding: "0 12px",
+              borderRadius: 6,
+              background: "var(--sr-mint-500)",
+              color: "var(--sr-mint-ink)",
+              font: "600 12px/1 var(--font-geist-sans)",
+              textDecoration: "none",
+            }}
+          >
+            <Icon name="zap" size={13} /> Passer en Pro — 10 000 FCFA
+          </a>
         )}
       </SectionFooter>
     </PrSection>

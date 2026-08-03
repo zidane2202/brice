@@ -17,12 +17,22 @@ type Props = {
   margin: number;
   transactions: Transaction[];
   expenseForm: ReactNode;
+  fullCompta?: boolean;
 };
 
 export function ComptaView(props: Props) {
   return (
     <>
-      <div className="dash-header" style={{ display: "flex", flexWrap: "wrap", gap: 16, justifyItems: "end", justifyContent: "space-between" }}>
+      <div
+        className="dash-header"
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 16,
+          alignItems: "end",
+          justifyContent: "space-between",
+        }}
+      >
         <div>
           <p className="dash-eyebrow">Finance</p>
           <h1>Comptabilité</h1>
@@ -53,6 +63,7 @@ export function ComptaView(props: Props) {
           to={props.to}
           year={props.year}
           month={props.month}
+          allowExports={props.fullCompta !== false}
         />
       </div>
     </>

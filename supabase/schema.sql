@@ -17,6 +17,7 @@ create table if not exists public.user_profiles (
 
 alter table public.user_profiles add column if not exists company_name text;
 alter table public.user_profiles add column if not exists logo_url text;
+alter table public.user_profiles add column if not exists extra_provider_accounts int not null default 0;
 
 -- Storage (créer aussi dans le dashboard Supabase) :
 -- Bucket public: logos

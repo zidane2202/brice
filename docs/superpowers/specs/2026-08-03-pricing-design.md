@@ -1,7 +1,7 @@
 # Tarification SubResell — Spec produit
 
 **Date:** 2026-08-03  
-**Statut:** Validé (pas encore branché en code)
+**Statut:** Validé — plafonds et gates branchés en code (paiement via WhatsApp / admin)
 
 ## Plans
 

@@ -24,6 +24,7 @@ type ProfileRow = {
   phone: string | null;
   city: string | null;
   logo_url: string | null;
+  extra_provider_accounts: number;
   created_at: string;
 };
 
@@ -33,7 +34,7 @@ async function getResellerDetail(userId: string) {
   const { data: profile } = await supabase
     .from("user_profiles")
     .select(
-      "user_id, role, plan, first_name, last_name, company_name, phone, city, logo_url, created_at"
+      "user_id, role, plan, first_name, last_name, company_name, phone, city, logo_url, extra_provider_accounts, created_at"
     )
     .eq("user_id", userId)
     .maybeSingle();
@@ -185,6 +186,7 @@ export default async function ResellerDetailPage({
           userId={profile.user_id}
           plan={profile.plan}
           role={profile.role}
+          extraProviderAccounts={Number(profile.extra_provider_accounts ?? 0)}
           isSelf={actor?.id === profile.user_id}
         />
       </div>

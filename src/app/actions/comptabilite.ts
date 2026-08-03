@@ -1,5 +1,11 @@
 "use server";
 
+import {
+  PLAN_LIMIT_COMPTA,
+  canUseFullCompta,
+  normalizePlan,
+  planLimitError,
+} from "@/lib/plans";
 import { EXPENSE_CATEGORIES } from "@/lib/comptabilite";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
@@ -17,6 +23,20 @@ function req(formData: FormData, key: string): string {
 export async function addManualExpense(formData: FormData) {
   const user = await getUser();
   if (!user) throw new Error("Non authentifié");
+
+  const supabase = createSupabaseAdmin();
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("plan")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!canUseFullCompta(normalizePlan(profile?.plan))) {
+    throw planLimitError(
+      PLAN_LIMIT_COMPTA,
+      "Les dépenses manuelles et exports avancés sont réservés aux plans Pro et Business."
+    );
+  }
 
   const amount = parseFloat(req(formData, "amount"));
   if (!Number.isFinite(amount) || amount <= 0) {
@@ -38,8 +58,6 @@ export async function addManualExpense(formData: FormData) {
     note ||
     EXPENSE_CATEGORIES.find((c) => c.value === category)?.label ||
     "Dépense";
-
-  const supabase = createSupabaseAdmin();
 
   const { data: txs } = await supabase
     .from("transactions")

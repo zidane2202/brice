@@ -2,8 +2,9 @@
 
 import { useEffect } from "react";
 
-export function PushManager() {
+export function PushManager({ enabled = true }: { enabled?: boolean }) {
   useEffect(() => {
+    if (!enabled) return;
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
 
     navigator.serviceWorker.register("/sw.js").then(async (reg) => {
@@ -26,7 +27,7 @@ export function PushManager() {
         body: JSON.stringify(sub),
       });
     });
-  }, []);
+  }, [enabled]);
 
   return null;
 }
