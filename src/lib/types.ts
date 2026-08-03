@@ -5,6 +5,12 @@ export type UserProfile = {
   user_id: string;
   role: UserRole;
   plan: string;
+  first_name: string | null;
+  last_name: string | null;
+  company_name: string | null;
+  phone: string | null;
+  city: string | null;
+  logo_url: string | null;
   created_at: string;
 };
 

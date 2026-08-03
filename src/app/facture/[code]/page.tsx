@@ -1,5 +1,6 @@
 import { InvoiceActions } from "@/components/InvoiceActions";
 import { ProviderGlyph } from "@/components/ProviderGlyph";
+import { resolveBrandLogoUrl, resolveBrandName } from "@/lib/branding";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { formatDate } from "@/lib/dates";
 import { getProviderTheme, hexToRgba } from "@/lib/providers";
@@ -19,6 +20,16 @@ export default async function InvoicePage({ params }: { params: Promise<{ code: 
   const invoice = await getInvoice(code);
   if (!invoice) return notFound();
 
+  const supabase = createSupabaseAdmin();
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("company_name, logo_url")
+    .eq("user_id", invoice.user_id)
+    .maybeSingle();
+
+  const brandName = resolveBrandName(profile, invoice.reseller_name);
+  const brandLogo = resolveBrandLogoUrl(profile);
+
   const fmt = (n: number) => n.toLocaleString("en-US").replace(/,/g, " ");
   const kindLabel = invoice.kind === "new" ? "Nouvel abonnement" : "Renouvellement";
   const theme = getProviderTheme(invoice.service_name);
@@ -35,13 +46,25 @@ export default async function InvoicePage({ params }: { params: Promise<{ code: 
         style={{ borderTop: `6px solid ${brand}` }}
       >
         <header className="invoice-header">
-          <div>
-            <div className="invoice-eyebrow" style={{ color: brand }}>
-              {invoice.reseller_name ?? "subresell"}
-            </div>
-            <h1 className="invoice-title">Facture</h1>
-            <div className="invoice-number">
-              N° {String(invoice.number).padStart(4, "0")}
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+            {brandLogo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={brandLogo}
+                alt={brandName}
+                width={40}
+                height={40}
+                style={{ borderRadius: 6, objectFit: "cover", flexShrink: 0 }}
+              />
+            ) : null}
+            <div>
+              <div className="invoice-eyebrow" style={{ color: brand }}>
+                {brandName}
+              </div>
+              <h1 className="invoice-title">Facture</h1>
+              <div className="invoice-number">
+                N° {String(invoice.number).padStart(4, "0")}
+              </div>
             </div>
           </div>
           <div className="invoice-date">
@@ -53,7 +76,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ code: 
         <section className="invoice-parties">
           <div>
             <div className="invoice-label">De</div>
-            <div className="invoice-party-name">{invoice.reseller_name ?? "Revendeur"}</div>
+            <div className="invoice-party-name">{brandName}</div>
           </div>
           <div>
             <div className="invoice-label">Pour</div>

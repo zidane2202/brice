@@ -1,10 +1,19 @@
 "use server";
 
+import {
+  LOGO_BUCKET,
+  LOGO_MAX_BYTES,
+  isAllowedLogoMime,
+  logoObjectPath,
+} from "@/lib/branding";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
 
-export async function updateProfile(_prevState: { error?: string; success?: boolean } | undefined, formData: FormData) {
+export async function updateProfile(
+  _prevState: { error?: string; success?: boolean } | undefined,
+  formData: FormData
+) {
   const user = await getUser();
   if (!user) return { error: "Non authentifié" };
 
@@ -13,6 +22,7 @@ export async function updateProfile(_prevState: { error?: string; success?: bool
   const companyName = String(formData.get("company_name") ?? "").trim();
   const phone = String(formData.get("phone") ?? "").trim();
   const city = String(formData.get("city") ?? "").trim();
+  const logoUrlRaw = String(formData.get("logo_url") ?? "").trim();
 
   const supabase = createSupabaseAdmin();
   const { error } = await supabase
@@ -23,11 +33,76 @@ export async function updateProfile(_prevState: { error?: string; success?: bool
       company_name: companyName || null,
       phone: phone || null,
       city: city || null,
+      logo_url: logoUrlRaw || null,
     })
     .eq("user_id", user.id);
 
   if (error) return { error: error.message };
 
   revalidatePath("/profil");
+  revalidatePath("/", "layout");
+  return { success: true };
+}
+
+export async function uploadCompanyLogo(formData: FormData) {
+  const user = await getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  const file = formData.get("logo") as File | null;
+  if (!file || typeof file === "string" || file.size === 0) {
+    return { error: "Aucun fichier sélectionné" };
+  }
+  if (!isAllowedLogoMime(file.type)) {
+    return { error: "Format invalide (PNG, JPG ou WebP)" };
+  }
+  if (file.size > LOGO_MAX_BYTES) {
+    return { error: "Fichier trop volumineux (max 2 Mo)" };
+  }
+
+  const path = logoObjectPath(user.id, file.type);
+  const supabase = createSupabaseAdmin();
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  const { error: upErr } = await supabase.storage
+    .from(LOGO_BUCKET)
+    .upload(path, buffer, { contentType: file.type, upsert: true });
+
+  if (upErr) return { error: upErr.message };
+
+  const { data: pub } = supabase.storage.from(LOGO_BUCKET).getPublicUrl(path);
+  const logoUrl = `${pub.publicUrl}?v=${Date.now()}`;
+
+  const { error } = await supabase
+    .from("user_profiles")
+    .update({ logo_url: logoUrl })
+    .eq("user_id", user.id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/profil");
+  revalidatePath("/", "layout");
+  return { success: true, logoUrl };
+}
+
+export async function removeCompanyLogo() {
+  const user = await getUser();
+  if (!user) return { error: "Non authentifié" };
+  const supabase = createSupabaseAdmin();
+
+  await supabase.storage.from(LOGO_BUCKET).remove([
+    `${user.id}/logo.png`,
+    `${user.id}/logo.jpg`,
+    `${user.id}/logo.webp`,
+  ]);
+
+  const { error } = await supabase
+    .from("user_profiles")
+    .update({ logo_url: null })
+    .eq("user_id", user.id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/profil");
+  revalidatePath("/", "layout");
   return { success: true };
 }

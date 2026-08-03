@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Avatar } from "@/components/Avatar";
+import { BrandMark } from "@/components/BrandMark";
 import { Icon } from "@/components/Icon";
 
 type IconName = "dashboard" | "seat" | "users" | "settings" | "zap" | "bill";
@@ -19,6 +20,8 @@ type Props = {
   revenueDelta?: number | null;
   accountsCount?: number;
   clientsCount?: number;
+  companyName?: string | null;
+  logoUrl?: string | null;
 };
 
 function shortFCFA(n: number): string {
@@ -35,10 +38,13 @@ export function Sidebar({
   revenueDelta,
   accountsCount = 0,
   clientsCount = 0,
+  companyName,
+  logoUrl,
 }: Props) {
   const pathname = usePathname();
   const [pendingHref, setPendingHref] = useState<string | null>(null);
   const displayName = userName || (userEmail ? userEmail.split("@")[0] : "Utilisateur");
+  const brandName = companyName?.trim() || "subresell";
 
   useEffect(() => {
     setPendingHref(null);
@@ -55,24 +61,8 @@ export function Sidebar({
   return (
     <aside className="sidebar">
       <div className="sidebar-logo">
-        <span
-          aria-hidden
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 24,
-            height: 24,
-            borderRadius: 5,
-            background: "linear-gradient(135deg, var(--sr-mint-500), var(--sr-mint-700))",
-            color: "var(--sr-mint-ink)",
-            font: "700 12px/1 var(--font-geist-sans)",
-            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.25)",
-          }}
-        >
-          S
-        </span>
-        <p className="eyebrow">subresell</p>
+        <BrandMark logoUrl={logoUrl} name={brandName} size={24} />
+        <p className="eyebrow">{brandName}</p>
         <span className="beta-badge">Beta</span>
       </div>
 

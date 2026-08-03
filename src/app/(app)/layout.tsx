@@ -62,6 +62,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         revenueDelta={stats?.delta ?? null}
         accountsCount={stats?.accountsCount ?? 0}
         clientsCount={stats?.clientsCount ?? 0}
+        companyName={profile?.company_name ?? null}
+        logoUrl={profile?.logo_url ?? null}
       />
       <div style={{ display: "flex", flexDirection: "column", minWidth: 0, minHeight: "100vh" }}>
         <TopBar />

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Icon } from "@/components/Icon";
-import { updateProfile } from "@/app/actions/profile";
+import { BrandMark } from "@/components/BrandMark";
+import { removeCompanyLogo, updateProfile, uploadCompanyLogo } from "@/app/actions/profile";
 import { useActionState } from "react";
 
 type Section = { id: string; label: string; icon: string; danger?: boolean };
@@ -23,6 +24,7 @@ type ProfileData = {
   city?: string | null;
   role?: string | null;
   plan?: string | null;
+  logo_url?: string | null;
 };
 
 type Props = {
@@ -421,6 +423,40 @@ function SectionFooter({ children }: { children: React.ReactNode }) {
 
 function PersoSection({ profile, email }: { profile: ProfileData | null; email: string }) {
   const [state, formAction, pending] = useActionState(updateProfile, undefined);
+  const [logoUrl, setLogoUrl] = useState(profile?.logo_url ?? null);
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const [logoPending, startLogoTransition] = useTransition();
+
+  useEffect(() => {
+    setLogoUrl(profile?.logo_url ?? null);
+  }, [profile?.logo_url]);
+
+  function onUpload(file: File | null) {
+    if (!file) return;
+    setLogoError(null);
+    const fd = new FormData();
+    fd.set("logo", file);
+    startLogoTransition(async () => {
+      const res = await uploadCompanyLogo(fd);
+      if (res.error) {
+        setLogoError(res.error);
+        return;
+      }
+      if (res.logoUrl) setLogoUrl(res.logoUrl);
+    });
+  }
+
+  function onRemove() {
+    setLogoError(null);
+    startLogoTransition(async () => {
+      const res = await removeCompanyLogo();
+      if (res.error) {
+        setLogoError(res.error);
+        return;
+      }
+      setLogoUrl(null);
+    });
+  }
 
   return (
     <PrSection id="perso" title="Informations personnelles" subtitle="Visibles uniquement par vous.">
@@ -472,13 +508,79 @@ function PersoSection({ profile, email }: { profile: ProfileData | null; email: 
             style={{ height: 36, minHeight: 36, maxWidth: 360 }}
           />
         </FormRow>
-        <FormRow label="Nom de l'entreprise" hint="Apparaît sur les factures envoyées aux clients.">
+        <FormRow
+          label="Nom de l'entreprise"
+          hint="Apparaît sur les factures et dans la barre latérale."
+        >
           <input
             name="company_name"
             defaultValue={profile?.company_name ?? ""}
             placeholder="ex. Brice Streaming"
             style={{ height: 36, minHeight: 36, maxWidth: 360 }}
           />
+        </FormRow>
+        <FormRow
+          label="Logo entreprise"
+          hint="Upload prioritaire. L’upload remplace l’URL manuelle. PNG, JPG ou WebP — max 2 Mo."
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 420 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <BrandMark
+                logoUrl={logoUrl}
+                name={profile?.company_name ?? "subresell"}
+                size={48}
+              />
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                <label
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    height: 34,
+                    padding: "0 12px",
+                    borderRadius: 6,
+                    border: "1px solid var(--sr-border-subtle)",
+                    cursor: logoPending ? "wait" : "pointer",
+                    font: "500 12px/1 var(--font-geist-sans)",
+                    opacity: logoPending ? 0.6 : 1,
+                  }}
+                >
+                  <Icon name="plus" size={13} />
+                  {logoPending ? "Envoi…" : "Uploader"}
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    hidden
+                    disabled={logoPending}
+                    onChange={(e) => {
+                      onUpload(e.target.files?.[0] ?? null);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+                {logoUrl && (
+                  <button
+                    type="button"
+                    disabled={logoPending}
+                    onClick={onRemove}
+                    style={{ minHeight: 34, height: 34 }}
+                  >
+                    Retirer le logo
+                  </button>
+                )}
+              </div>
+            </div>
+            <input
+              name="logo_url"
+              defaultValue={logoUrl ?? ""}
+              key={logoUrl ?? "empty"}
+              placeholder="https://… (URL manuelle)"
+              style={{ height: 36, minHeight: 36, maxWidth: 360 }}
+            />
+            {logoError && (
+              <p style={{ margin: 0, color: "var(--sr-danger)", fontSize: 12 }}>{logoError}</p>
+            )}
+          </div>
         </FormRow>
         <FormRow label="Email" hint="Utilisé pour la connexion (non modifiable ici).">
           <input value={email} disabled style={{ height: 36, minHeight: 36, maxWidth: 360, opacity: 0.6 }} />
