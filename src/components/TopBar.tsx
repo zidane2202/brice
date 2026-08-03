@@ -7,6 +7,8 @@ const LABELS: Record<string, string> = {
   dashboard: "Dashboard",
   abonnements: "Mes abonnements",
   clients: "Mes clients",
+  comptabilite: "Comptabilité",
+  rapport: "Rapport",
   profil: "Mon profil",
   admin: "Admin",
 };
@@ -20,8 +22,8 @@ export function TopBar() {
   if (first) {
     crumbs.push(LABELS[first] ?? first);
   }
-  if (segments.length > 1 && segments[1] && !LABELS[segments[1]]) {
-    crumbs.push("Détail");
+  if (segments.length > 1 && segments[1]) {
+    crumbs.push(LABELS[segments[1]] ?? "Détail");
   }
 
   return (

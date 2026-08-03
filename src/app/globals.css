@@ -2162,6 +2162,15 @@ label { position: relative; }
     print-color-adjust: exact;
   }
   @page { size: A4; margin: 12mm; }
+  .sidebar,
+  .topbar,
+  .print-hide {
+    display: none !important;
+  }
+  .app-main {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
 }
 
 @media (max-width: 600px) {

@@ -47,8 +47,19 @@ export type Client = {
 };
 
 export type TransactionKind = "income" | "outflow";
-export type TransactionSource = "new_profile" | "profile_renewal" | "account_renewal";
+export type TransactionSource =
+  | "new_profile"
+  | "profile_renewal"
+  | "account_renewal"
+  | "manual_expense";
 export type TransactionFunding = "balance" | "personal";
+export type ExpenseCategory =
+  | "account_renewal"
+  | "data"
+  | "ads"
+  | "momo_fees"
+  | "rent"
+  | "other";
 
 export type Transaction = {
   id: string;
@@ -62,6 +73,8 @@ export type Transaction = {
   subscription_id: string | null;
   account_id: string | null;
   label: string;
+  category: ExpenseCategory | null;
+  occurred_on: string; // YYYY-MM-DD
   created_at: string;
 };
 

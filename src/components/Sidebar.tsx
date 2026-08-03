@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
 
-type IconName = "dashboard" | "seat" | "users" | "settings" | "zap";
+type IconName = "dashboard" | "seat" | "users" | "settings" | "zap" | "bill";
 
 type NavItem = { href: string; label: string; icon: IconName; badge?: number };
 
@@ -48,6 +48,7 @@ export function Sidebar({
     { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
     { href: "/abonnements", label: "Mes abonnements", icon: "seat", badge: accountsCount },
     { href: "/clients", label: "Mes clients", icon: "users", badge: clientsCount },
+    { href: "/comptabilite", label: "Comptabilité", icon: "bill" },
     { href: "/profil", label: "Mon profil", icon: "settings" },
   ];
 

@@ -111,7 +111,7 @@ create table if not exists public.transactions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   kind text not null check (kind in ('income', 'outflow')),
-  source text not null check (source in ('new_profile', 'profile_renewal', 'account_renewal')),
+  source text not null check (source in ('new_profile', 'profile_renewal', 'account_renewal', 'manual_expense')),
   funded_by text check (funded_by in ('balance', 'personal')),
   affects_balance boolean not null default true,
   amount numeric(10,2) not null,
@@ -119,8 +119,50 @@ create table if not exists public.transactions (
   subscription_id uuid references public.client_subscriptions(id) on delete set null,
   account_id uuid references public.provider_accounts(id) on delete set null,
   label text not null default '',
+  category text,
+  occurred_on date not null default (current_date),
   created_at timestamptz not null default now()
 );
+
+-- Comptabilité: sources, catégorie, date d'opération (migrations idempotentes)
+alter table public.transactions drop constraint if exists transactions_source_check;
+alter table public.transactions add constraint transactions_source_check
+  check (source in (
+    'new_profile',
+    'profile_renewal',
+    'account_renewal',
+    'manual_expense'
+  ));
+
+alter table public.transactions add column if not exists category text;
+alter table public.transactions drop constraint if exists transactions_category_check;
+alter table public.transactions add constraint transactions_category_check
+  check (
+    category is null or category in (
+      'account_renewal',
+      'data',
+      'ads',
+      'momo_fees',
+      'rent',
+      'other'
+    )
+  );
+
+alter table public.transactions
+  add column if not exists occurred_on date;
+
+update public.transactions
+set occurred_on = (created_at at time zone 'utc')::date
+where occurred_on is null;
+
+alter table public.transactions
+  alter column occurred_on set default (current_date);
+
+alter table public.transactions
+  alter column occurred_on set not null;
+
+create index if not exists transactions_user_occurred_idx
+  on public.transactions(user_id, occurred_on desc);
 
 -- Tokens push liés à un utilisateur
 create table if not exists public.push_subscriptions (

@@ -28,6 +28,11 @@ const SOURCE_META: Record<
     iconBg: "var(--sr-warning-bg)",
     iconColor: "var(--sr-warning)",
   },
+  manual_expense: {
+    label: "Dépense",
+    iconBg: "var(--sr-danger-bg)",
+    iconColor: "var(--sr-danger)",
+  },
 };
 
 function relTime(iso: string): string {

@@ -163,6 +163,8 @@ export async function renewProviderAccount(formData: FormData) {
       affects_balance: fundedBy === "balance",
       amount: account.cost,
       account_id: id,
+      category: "account_renewal",
+      occurred_on: toDateInputValue(),
       label: `Renouvellement ${account.service_name}${account.label ? ` (${account.label})` : ""}${tag}`,
     });
   }
