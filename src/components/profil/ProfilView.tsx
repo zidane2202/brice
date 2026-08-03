@@ -524,7 +524,7 @@ function PersoSection({ profile, email }: { profile: ProfileData | null; email: 
           label="Logo entreprise"
           hint={
             canBrand
-              ? "Upload prioritaire. L’upload remplace l’URL manuelle. PNG, JPG ou WebP — max 2 Mo."
+              ? "Upload prioritaire. L’upload remplace l’URL manuelle. PNG, JPG ou WebP, max 2 Mo."
               : "Réservé au plan Pro. Passez Pro pour afficher votre logo sur la sidebar et les factures."
           }
         >
@@ -873,7 +873,7 @@ function PlanSection({ plan }: { plan: string }) {
               textDecoration: "none",
             }}
           >
-            <Icon name="zap" size={13} /> Passer en Pro — 10 000 FCFA
+            <Icon name="zap" size={13} /> Passer en Pro (10 000 FCFA)
           </a>
         )}
       </SectionFooter>

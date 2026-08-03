@@ -139,14 +139,14 @@ export default async function DashboardPage() {
               <strong style={{ color: "var(--sr-fg)" }}>{usedSlots}</strong> profil{usedSlots > 1 ? "s" : ""} vendu{usedSlots > 1 ? "s" : ""}
               {urgentTotal > 0 ? (
                 <>
-                  {" — "}
+                  {". "}
                   <strong style={{ color: "var(--sr-warning)" }}>
                     {urgentTotal} relance{urgentTotal > 1 ? "s" : ""}
                   </strong>{" "}
                   dans les 3 jours.
                 </>
               ) : (
-                " — tout est à jour."
+                ". Tout est à jour."
               )}
             </>
           ) : (
@@ -206,7 +206,7 @@ export default async function DashboardPage() {
               <p className="eyebrow">Priorité</p>
               <h2>À relancer</h2>
               <p style={{ marginTop: 4, color: "var(--sr-fg-muted)", font: "400 12px/1.4 var(--font-geist-sans)" }}>
-                Relances clients & renouvellement comptes — 3 prochains jours
+                Relances clients & renouvellement comptes (3 prochains jours)
               </p>
             </div>
             <span style={{ color: "var(--sr-fg-muted)", fontSize: "0.78rem" }}>

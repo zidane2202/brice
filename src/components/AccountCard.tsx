@@ -393,7 +393,7 @@ export function AccountCard({ account, displayName, balance = 0 }: Props) {
                               }}
                             >
                               {insufficient
-                                ? `solde ${balance.toLocaleString("en-US").replace(/,/g, " ")} FCFA — insuffisant`
+                                ? `solde ${balance.toLocaleString("en-US").replace(/,/g, " ")} FCFA, insuffisant`
                                 : `−${account.cost.toLocaleString("en-US").replace(/,/g, " ")} FCFA`}
                             </div>
                           </div>
@@ -455,7 +455,7 @@ export function AccountCard({ account, displayName, balance = 0 }: Props) {
                       cursor: "pointer",
                     }}
                   >
-                    Pas de coût défini — renouveler
+                    Pas de coût défini, renouveler
                   </button>
                 </form>
               )}

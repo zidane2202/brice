@@ -103,7 +103,7 @@ export async function addClientWithSubscription(
       amount: price,
       client_id: client.id,
       subscription_id: sub.id,
-      label: `Vente ${serviceName} — ${clientName}`,
+      label: `Vente ${serviceName} · ${clientName}`,
     });
     const result = await createInvoice(supabase, {
       userId: user.id,
@@ -230,7 +230,7 @@ export async function bulkRenewSubscriptions(formData: FormData) {
         amount: sub.price,
         client_id: sub.client_id,
         subscription_id: sub.id,
-        label: `Renouvellement ${service} — ${who}`,
+        label: `Renouvellement ${service} · ${who}`,
       });
       await createInvoice(supabase, {
         userId: user.id,

@@ -52,4 +52,43 @@ export async function updateResellerPlanRole(formData: FormData) {
   revalidatePath(`/admin/vendeurs/${userId}`);
   revalidatePath("/admin/vendeurs");
   revalidatePath("/admin/dashboard");
+  revalidatePath("/admin/finances");
+}
+
+export async function setResellerSuspended(formData: FormData) {
+  const actor = await getUser();
+  const actorProfile = await getUserProfile();
+  if (!actor || actorProfile?.role !== "admin") {
+    throw new Error("Accès refusé");
+  }
+
+  const userId = String(formData.get("user_id") ?? "").trim();
+  const suspended = String(formData.get("suspended") ?? "") === "true";
+
+  if (!userId) throw new Error("Vendeur manquant");
+  if (userId === actor.id) {
+    throw new Error("Vous ne pouvez pas suspendre votre propre compte");
+  }
+
+  const supabase = createSupabaseAdmin();
+  const { data: target, error: findErr } = await supabase
+    .from("user_profiles")
+    .select("user_id, role")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (findErr) throw new Error(findErr.message);
+  if (!target) throw new Error("Vendeur introuvable");
+
+  const { error } = await supabase
+    .from("user_profiles")
+    .update({ suspended })
+    .eq("user_id", userId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/admin/vendeurs/${userId}`);
+  revalidatePath("/admin/vendeurs");
+  revalidatePath("/admin/dashboard");
+  revalidatePath("/admin/finances");
 }

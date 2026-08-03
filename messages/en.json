@@ -6,14 +6,13 @@
   },
   "Landing": {
     "nav": {
-      "login": "Log in",
-      "cta": "Start for free",
+      "login": "Sign in",
       "contact": "Contact us"
     },
     "hero": {
       "brand": "subresell",
       "eyebrow": "Built for subscription resellers",
-      "title": "Run accounts, clients and cash — without spreadsheets.",
+      "title": "Run accounts, clients and cash, without spreadsheets.",
       "subtitle": "Made for African streaming & SaaS resellers: slots, invoices, balance and renewals in one place.",
       "ctaPrimary": "Create a Free account",
       "ctaSecondary": "See pricing"
@@ -32,46 +31,65 @@
         },
         "cash": {
           "title": "Balance & books",
-          "body": "Income, outflows, expenses and exports — cash you can actually read."
+          "body": "Income, outflows, expenses and exports: cash you can actually read."
         }
       }
     },
     "pricing": {
       "eyebrow": "Pricing",
-      "title": "Simple. In FCFA. No surprises.",
+      "title": "Three packs. In FCFA. No surprises.",
       "perMonth": "/ month",
+      "compareHint": "Pro is the recommended pack for day-to-day reselling.",
       "free": {
         "name": "Free",
         "tagline": "To try it out",
         "cta": "Start free",
-        "features": "2 accounts · 3 clients/account · basic invoices · read-only books"
+        "features": [
+          "2 provider accounts",
+          "3 clients per account",
+          "Basic invoices",
+          "Read-only books"
+        ]
       },
       "pro": {
         "name": "Pro",
         "tagline": "For serious resellers",
         "cta": "Go Pro",
-        "badge": "Popular",
-        "features": "15 accounts · 5 clients/account · logo · full books · exports · reminders",
-        "extras": "Extras: +2,000 FCFA / account · or +5,000 FCFA / 3 accounts"
+        "badge": "Recommended",
+        "features": [
+          "15 provider accounts",
+          "5 clients per account",
+          "Logo & branding",
+          "Full books + exports",
+          "Push reminders"
+        ],
+        "extrasTitle": "Pro extras",
+        "extras": [
+          "+2,000 FCFA / account",
+          "+5,000 FCFA / pack of 3"
+        ]
       },
       "business": {
         "name": "Business",
         "tagline": "Volume & agencies",
         "cta": "Contact us",
-        "features": "High volume · dedicated support · advanced reports"
+        "features": [
+          "High volume",
+          "Dedicated support",
+          "Advanced reports"
+        ]
       }
     },
     "contact": {
       "eyebrow": "Support",
       "title": "Questions before you start?",
-      "body": "Message us on WhatsApp — plan activation and extras are handled manually for now.",
+      "body": "Message us on WhatsApp. Plan activation and extras are handled manually for now.",
       "cta": "Contact us on WhatsApp"
     },
     "footer": {
       "tagline": "Ops for subscription resellers.",
       "login": "Log in",
-      "signup": "Sign up",
-      "beta": "Beta"
+      "signup": "Sign up"
     }
   }
 }

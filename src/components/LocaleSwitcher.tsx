@@ -8,47 +8,28 @@ export function LocaleSwitcher({ className }: { className?: string }) {
   const locale = useLocale();
   const t = useTranslations("LocaleSwitcher");
   const [pending, startTransition] = useTransition();
+  const next = locale === "fr" ? "en" : "fr";
 
-  function switchTo(next: "fr" | "en") {
-    if (next === locale) return;
+  function switchLocale() {
     startTransition(async () => {
       await setLocale(next);
     });
   }
 
   return (
-    <div
-      className={className}
-      role="group"
+    <button
+      type="button"
+      className={`landing-locale-toggle${className ? ` ${className}` : ""}`}
+      onClick={switchLocale}
+      disabled={pending}
       aria-label={t("label")}
-      style={{
-        display: "inline-flex",
-        gap: 2,
-        padding: 3,
-        borderRadius: 999,
-        border: "1px solid currentColor",
-        opacity: pending ? 0.6 : 1,
-      }}
+      title={locale === "fr" ? "Switch to English" : "Passer en français"}
     >
-      {(["fr", "en"] as const).map((code) => (
-        <button
-          key={code}
-          type="button"
-          onClick={() => switchTo(code)}
-          style={{
-            border: "none",
-            cursor: "pointer",
-            padding: "4px 10px",
-            borderRadius: 999,
-            font: "600 11px/1 var(--font-landing-body, inherit)",
-            letterSpacing: "0.06em",
-            background: locale === code ? "currentColor" : "transparent",
-            color: locale === code ? "var(--landing-switch-on, #fff)" : "inherit",
-          }}
-        >
-          {t(code)}
-        </button>
-      ))}
-    </div>
+      <span className="landing-locale-toggle-current">{locale === "fr" ? t("fr") : t("en")}</span>
+      <span className="landing-locale-toggle-arrow" aria-hidden>
+        ↔
+      </span>
+      <span className="landing-locale-toggle-next">{next === "fr" ? t("fr") : t("en")}</span>
+    </button>
   );
 }

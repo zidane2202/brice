@@ -1,4 +1,5 @@
 import { ResellerSettingsForm } from "@/components/admin/ResellerSettingsForm";
+import { SuspendToggle } from "@/components/admin/SuspendToggle";
 import { KpiCard } from "@/components/KpiCard";
 import { computeBalance, formatFcfa } from "@/lib/comptabilite";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
@@ -25,6 +26,7 @@ type ProfileRow = {
   city: string | null;
   logo_url: string | null;
   extra_provider_accounts: number;
+  suspended: boolean | null;
   created_at: string;
 };
 
@@ -34,7 +36,7 @@ async function getResellerDetail(userId: string) {
   const { data: profile } = await supabase
     .from("user_profiles")
     .select(
-      "user_id, role, plan, first_name, last_name, company_name, phone, city, logo_url, extra_provider_accounts, created_at"
+      "user_id, role, plan, first_name, last_name, company_name, phone, city, logo_url, extra_provider_accounts, suspended, created_at"
     )
     .eq("user_id", userId)
     .maybeSingle();
@@ -181,7 +183,28 @@ export default async function ResellerDetailPage({
       </div>
 
       <div className="panel" style={{ marginBottom: 20 }}>
-        <h2 style={{ marginTop: 0 }}>Réglages</h2>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 12,
+            marginBottom: 12,
+          }}
+        >
+          <h2 style={{ marginTop: 0, marginBottom: 0 }}>Réglages</h2>
+          {actor?.id !== profile.user_id && (
+            <SuspendToggle
+              userId={profile.user_id}
+              suspended={Boolean(profile.suspended)}
+            />
+          )}
+        </div>
+        {profile.suspended && (
+          <p style={{ color: "var(--sr-danger)", fontSize: 13, margin: "0 0 12px" }}>
+            Ce compte est actuellement suspendu.
+          </p>
+        )}
         <ResellerSettingsForm
           userId={profile.user_id}
           plan={profile.plan}

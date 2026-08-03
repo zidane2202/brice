@@ -59,6 +59,19 @@ export function canUsePush(plan: PlanId): boolean {
   return PLAN_LIMITS[plan].push;
 }
 
+/** Estimated SaaS MRR for one reseller (extras billed at unit rate). */
+export function estimateMrrFcfa(
+  plan: string | null | undefined,
+  extraProviderAccounts = 0,
+  suspended = false
+): number {
+  if (suspended) return 0;
+  const id = normalizePlan(plan);
+  if (id === "free") return 0;
+  if (id === "business") return PLAN_PRICES_FCFA.business;
+  return PLAN_PRICES_FCFA.pro + Math.max(0, extraProviderAccounts) * PLAN_PRICES_FCFA.extraAccount;
+}
+
 /** Prefixed errors so UI can open upgrade modal */
 export const PLAN_LIMIT_ACCOUNT = "PLAN_LIMIT_ACCOUNT";
 export const PLAN_LIMIT_SLOTS = "PLAN_LIMIT_SLOTS";

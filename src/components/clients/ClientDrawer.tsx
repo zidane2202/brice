@@ -221,7 +221,7 @@ export function ClientDrawer({ sub, lifetime, cyclesCount, history, invoices, on
                 color: "var(--sr-fg)",
               }}
             >
-              <option value="">— Aucun rail —</option>
+              <option value="">Aucun rail</option>
               {RAIL_NAMES.map((r) => (
                 <option key={r} value={r}>
                   {r}
@@ -950,7 +950,7 @@ function NotesForm({
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onFocus={() => onToggle(true)}
-        placeholder="Ajoutez une note privée — visible par vous seul."
+        placeholder="Ajoutez une note privée (visible par vous seul)."
         style={{
           width: "100%",
           minHeight: 70,

@@ -1,5 +1,5 @@
 import { LocaleSwitcher } from "@/components/LocaleSwitcher";
-import { PLAN_LIMITS, PLAN_PRICES_FCFA } from "@/lib/plans";
+import { PLAN_PRICES_FCFA } from "@/lib/plans";
 import { supportWhatsAppHref } from "@/lib/support";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
@@ -26,6 +26,11 @@ export async function LandingPage({ locale }: { locale: string }) {
       : "Bonjour, je suis intéressé par le plan Business."
   );
 
+  const freeFeatures = t.raw("pricing.free.features") as string[];
+  const proFeatures = t.raw("pricing.pro.features") as string[];
+  const proExtras = t.raw("pricing.pro.extras") as string[];
+  const businessFeatures = t.raw("pricing.business.features") as string[];
+
   return (
     <div className="landing">
       <header className="landing-nav">
@@ -35,18 +40,11 @@ export async function LandingPage({ locale }: { locale: string }) {
               S
             </span>
             <span>{t("hero.brand")}</span>
-            <span className="landing-beta">{t("footer.beta")}</span>
           </a>
           <div className="landing-nav-actions">
-            <LocaleSwitcher className="landing-locale" />
-            <a href={contactHref} className="landing-link" target="_blank" rel="noreferrer">
-              {t("nav.contact")}
-            </a>
-            <Link href="/login" className="landing-link">
+            <LocaleSwitcher />
+            <Link href="/login" className="landing-btn landing-btn--solid">
               {t("nav.login")}
-            </Link>
-            <Link href="/signup" className="landing-btn landing-btn--solid">
-              {t("nav.cta")}
             </Link>
           </div>
         </div>
@@ -96,6 +94,8 @@ export async function LandingPage({ locale }: { locale: string }) {
         <section className="landing-section landing-section--pricing" id="pricing">
           <p className="landing-eyebrow">{t("pricing.eyebrow")}</p>
           <h2 className="landing-h2">{t("pricing.title")}</h2>
+          <p className="landing-pricing-hint">{t("pricing.compareHint")}</p>
+
           <div className="landing-pricing">
             <article className="landing-plan">
               <h3>{t("pricing.free.name")}</h3>
@@ -108,10 +108,11 @@ export async function LandingPage({ locale }: { locale: string }) {
                   {t("pricing.perMonth")}
                 </span>
               </p>
-              <p className="landing-plan-feat">{t("pricing.free.features")}</p>
-              <p className="landing-plan-meta">
-                {PLAN_LIMITS.free.maxAccounts} × {PLAN_LIMITS.free.clientsPerAccount}
-              </p>
+              <ul className="landing-plan-list">
+                {freeFeatures.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
               <Link href="/signup" className="landing-btn landing-btn--ghost">
                 {t("pricing.free.cta")}
               </Link>
@@ -129,8 +130,19 @@ export async function LandingPage({ locale }: { locale: string }) {
                   {t("pricing.perMonth")}
                 </span>
               </p>
-              <p className="landing-plan-feat">{t("pricing.pro.features")}</p>
-              <p className="landing-plan-extras">{t("pricing.pro.extras")}</p>
+              <ul className="landing-plan-list">
+                {proFeatures.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+              <div className="landing-plan-extras-box">
+                <p className="landing-plan-extras-title">{t("pricing.pro.extrasTitle")}</p>
+                <ul className="landing-plan-list landing-plan-list--compact">
+                  {proExtras.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
               <a href={proContact} className="landing-btn landing-btn--solid" target="_blank" rel="noreferrer">
                 {t("pricing.pro.cta")}
               </a>
@@ -147,7 +159,11 @@ export async function LandingPage({ locale }: { locale: string }) {
                   {t("pricing.perMonth")}
                 </span>
               </p>
-              <p className="landing-plan-feat">{t("pricing.business.features")}</p>
+              <ul className="landing-plan-list">
+                {businessFeatures.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
               <a
                 href={businessContact}
                 className="landing-btn landing-btn--ghost"

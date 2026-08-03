@@ -195,7 +195,7 @@ export function NewClientForm({ freeSlots, onClose }: Props) {
                   borderRadius: 6,
                 }}
               >
-                Aucun profil libre — ajoute un compte fournisseur d&apos;abord.
+                Aucun profil libre : ajoute un compte fournisseur d&apos;abord.
               </div>
             )}
             {freeSlots.map((slot) => {
@@ -538,8 +538,8 @@ function SuccessPanel({
             }}
           >
             {invoiceCode
-              ? "Facture générée — télécharge ou envoie-la directement au client."
-              : "Aucun prix défini — pas de facture générée."}
+              ? "Facture générée. Télécharge ou envoie-la directement au client."
+              : "Aucun prix défini, pas de facture générée."}
           </div>
         </div>
       </div>

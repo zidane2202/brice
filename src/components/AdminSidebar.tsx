@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 const navItems = [
   { href: "/admin/dashboard", label: "Dashboard" },
   { href: "/admin/vendeurs", label: "Vendeurs" },
+  { href: "/admin/finances", label: "Finances" },
 ];
 
 export function AdminSidebar() {

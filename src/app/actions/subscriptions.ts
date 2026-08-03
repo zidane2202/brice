@@ -74,7 +74,7 @@ export async function renewClientSubscription(formData: FormData) {
       amount: sub.price,
       client_id: sub.client_id,
       subscription_id: id,
-      label: `Renouvellement ${service} — ${who}`,
+      label: `Renouvellement ${service} · ${who}`,
     });
     await createInvoice(supabase, {
       userId: user.id,

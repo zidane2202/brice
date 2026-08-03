@@ -1,5 +1,6 @@
 import { PushManager } from "@/components/PushManager";
 import { Sidebar } from "@/components/Sidebar";
+import { SuspendedGate } from "@/components/SuspendedGate";
 import { TopBar } from "@/components/TopBar";
 import { canUsePush, normalizePlan } from "@/lib/plans";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
@@ -50,6 +51,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const userName = userMeta?.full_name ?? userMeta?.name ?? null;
   const profileName = `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim();
   const displayName = profileName || userName || null;
+
+  if (profile?.suspended && profile.role !== "admin") {
+    return <SuspendedGate />;
+  }
 
   const stats = user ? await getSidebarStats(user.id) : null;
 

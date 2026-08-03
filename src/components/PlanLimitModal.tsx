@@ -72,7 +72,7 @@ export function PlanLimitModal({ open, onClose, mode, message }: Props) {
                 textDecoration: "none",
               }}
             >
-              <Icon name="zap" size={14} /> Passer en Pro — {PLAN_PRICES_FCFA.pro.toLocaleString("fr-FR")} FCFA/mois
+              <Icon name="zap" size={14} /> Passer en Pro ({PLAN_PRICES_FCFA.pro.toLocaleString("fr-FR")} FCFA/mois)
             </a>
           ) : (
             <>
@@ -91,7 +91,7 @@ export function PlanLimitModal({ open, onClose, mode, message }: Props) {
                   color: "var(--sr-fg)",
                 }}
               >
-                +1 compte — {PLAN_PRICES_FCFA.extraAccount.toLocaleString("fr-FR")} FCFA/mois
+                +1 compte ({PLAN_PRICES_FCFA.extraAccount.toLocaleString("fr-FR")} FCFA/mois)
               </a>
               <a
                 href={waHref(
@@ -108,7 +108,7 @@ export function PlanLimitModal({ open, onClose, mode, message }: Props) {
                   color: "var(--sr-fg)",
                 }}
               >
-                +3 comptes — {PLAN_PRICES_FCFA.extraPack3.toLocaleString("fr-FR")} FCFA/mois
+                +3 comptes ({PLAN_PRICES_FCFA.extraPack3.toLocaleString("fr-FR")} FCFA/mois)
               </a>
               <a
                 href={waHref(
