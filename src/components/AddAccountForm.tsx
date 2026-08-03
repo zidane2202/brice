@@ -2,6 +2,7 @@
 
 import { addProviderAccount } from "@/app/actions/accounts";
 import { CATEGORIES, SERVICES } from "@/lib/services";
+import { PasswordInput } from "@/components/PasswordInput";
 import { useState, useTransition } from "react";
 
 export function AddAccountForm({ today }: { today: string }) {
@@ -79,6 +80,22 @@ export function AddAccountForm({ today }: { today: string }) {
             onChange={handleSlotsChange}
             required
           />
+        </label>
+      </div>
+
+      <div className="fields two-cols">
+        <label>
+          E-mail du compte
+          <input
+            name="account_email"
+            type="email"
+            placeholder="Ex: compte@gmail.com"
+            autoComplete="off"
+          />
+        </label>
+        <label>
+          Mot de passe du compte
+          <PasswordInput name="account_password" placeholder="Mot de passe" />
         </label>
       </div>
 

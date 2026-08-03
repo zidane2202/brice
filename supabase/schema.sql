@@ -23,6 +23,8 @@ create table if not exists public.provider_accounts (
   user_id uuid not null references auth.users(id) on delete cascade,
   service_name text not null,
   label text,
+  account_email text,
+  account_password text,
   max_slots int not null default 5,
   start_date date not null,
   end_date date not null,
@@ -60,6 +62,8 @@ alter table public.clients add column if not exists payment_rail text;
 alter table public.clients add column if not exists notes text;
 alter table public.clients add column if not exists pin_code text;
 alter table public.clients alter column last_name drop not null;
+alter table public.provider_accounts add column if not exists account_email text;
+alter table public.provider_accounts add column if not exists account_password text;
 
 -- Abonnements vendus : un client loue un slot
 create table if not exists public.client_subscriptions (

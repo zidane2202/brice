@@ -21,6 +21,8 @@ export async function addProviderAccount(formData: FormData) {
   const maxSlots = parseInt(req(formData, "max_slots"));
   const cost = formData.get("cost") ? parseFloat(String(formData.get("cost"))) : null;
   const label = String(formData.get("label") ?? "").trim() || null;
+  const accountEmail = String(formData.get("account_email") ?? "").trim() || null;
+  const accountPassword = String(formData.get("account_password") ?? "").trim() || null;
   const endDate = addMonths(startDate, durationMonths);
 
   const supabase = createSupabaseAdmin();
@@ -57,6 +59,8 @@ export async function addProviderAccount(formData: FormData) {
       user_id: user.id,
       service_name: serviceName,
       label,
+      account_email: accountEmail,
+      account_password: accountPassword,
       start_date: startDate,
       end_date: endDate,
       duration_months: durationMonths,
