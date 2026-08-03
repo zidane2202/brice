@@ -1,5 +1,6 @@
 import { PushManager } from "@/components/PushManager";
 import { Sidebar } from "@/components/Sidebar";
+import { SupportChat } from "@/components/SupportChat";
 import { SuspendedGate } from "@/components/SuspendedGate";
 import { TopBar } from "@/components/TopBar";
 import { canUsePush, normalizePlan } from "@/lib/plans";
@@ -76,6 +77,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <main className="app-main">{children}</main>
       </div>
       <PushManager enabled={canUsePush(normalizePlan(profile?.plan))} />
+      <SupportChat />
     </div>
   );
 }
