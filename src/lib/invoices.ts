@@ -2,18 +2,13 @@ import { randomBytes } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export function generateInvoiceCode(): string {
-  return randomBytes(6).toString("hex");
+  return randomBytes(16).toString("hex");
 }
 
 async function nextInvoiceNumber(supabase: SupabaseClient, userId: string): Promise<number> {
-  const { data } = await supabase
-    .from("invoices")
-    .select("number")
-    .eq("user_id", userId)
-    .order("number", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return ((data?.number as number | undefined) ?? 0) + 1;
+  const { data, error } = await supabase.rpc("next_invoice_number", { p_user_id: userId });
+  if (error || typeof data !== "number") throw new Error(error?.message || "Numéro de facture indisponible");
+  return data;
 }
 
 export type CreateInvoiceInput = {

@@ -26,7 +26,8 @@ export async function updateSlotLabel(formData: FormData) {
   const { error } = await supabase
     .from("account_slots")
     .update({ label })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("account_id", accountId);
 
   if (error) throw new Error(error.message);
   revalidatePath(`/abonnements/${accountId}`);

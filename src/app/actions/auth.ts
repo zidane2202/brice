@@ -2,11 +2,20 @@
 
 import { createSupabaseServer } from "@/lib/supabase-server";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
+import { consumeRateLimit } from "@/lib/rate-limit";
+
+async function authAllowed(action: string, identity: string, limit: number, seconds: number) {
+  const h = await headers();
+  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "unknown";
+  return consumeRateLimit(`${ip}:${identity.toLowerCase()}`, action, limit, seconds);
+}
 
 export async function login(_prevState: { error: string } | undefined, formData: FormData) {
   const supabase = await createSupabaseServer();
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
+  if (!await authAllowed("login", email, 10, 900)) return { error: "Trop de tentatives. Réessayez dans 15 minutes." };
 
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return { error: error.message };
@@ -23,6 +32,7 @@ export async function signup(_prevState: { error: string } | undefined, formData
   const companyName = String(formData.get("company_name") ?? "").trim();
   const phone = String(formData.get("phone") ?? "").trim();
   const city = String(formData.get("city") ?? "").trim();
+  if (!await authAllowed("signup", email, 5, 3600)) return { error: "Trop de tentatives. Réessayez plus tard." };
 
   const { data, error } = await supabase.auth.signUp({ email, password });
   if (error) return { error: error.message };
@@ -54,6 +64,7 @@ export async function logout() {
 export async function forgotPassword(_prevState: { error?: string; success?: boolean } | undefined, formData: FormData) {
   const supabase = await createSupabaseServer();
   const email = String(formData.get("email") ?? "").trim();
+  if (!await authAllowed("forgot-password", email, 5, 3600)) return { error: "Trop de demandes. Réessayez plus tard." };
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/reset-password`,
@@ -66,6 +77,7 @@ export async function forgotPassword(_prevState: { error?: string; success?: boo
 export async function resetPassword(_prevState: { error?: string; success?: boolean } | undefined, formData: FormData) {
   const supabase = await createSupabaseServer();
   const password = String(formData.get("password") ?? "");
+  if (!await authAllowed("reset-password", "session", 5, 3600)) return { error: "Trop de tentatives. Réessayez plus tard." };
 
   const { error } = await supabase.auth.updateUser({ password });
   if (error) return { error: error.message };

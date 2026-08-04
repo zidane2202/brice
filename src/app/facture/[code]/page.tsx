@@ -8,8 +8,10 @@ import type { Invoice } from "@/lib/types";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
+export const metadata = { robots: { index: false, follow: false } };
 
 async function getInvoice(code: string): Promise<Invoice | null> {
+  if (!/^[a-f0-9]{12,64}$/i.test(code)) return null;
   const supabase = createSupabaseAdmin();
   const { data } = await supabase.from("invoices").select("*").eq("code", code).maybeSingle();
   return (data as Invoice | null) ?? null;

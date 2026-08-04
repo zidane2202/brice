@@ -34,7 +34,8 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/forgot-password") ||
     pathname.startsWith("/reset-password");
   const isLanding = pathname === "/";
-  const isPublic = isAuthPublic || isLanding;
+  const isPublicInvoice = pathname.startsWith("/facture/");
+  const isPublic = isAuthPublic || isLanding || isPublicInvoice;
   const isAdmin = pathname.startsWith("/admin");
 
   if (!user && !isPublic) {

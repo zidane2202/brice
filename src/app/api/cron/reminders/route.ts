@@ -13,22 +13,25 @@ async function sendPush(
 ) {
   const { data: pushSubs } = await supabase
     .from("push_subscriptions")
-    .select("subscription")
+    .select("id, subscription")
     .eq("user_id", userId);
 
   if (!pushSubs?.length) return 0;
 
   let sent = 0;
   const body = JSON.stringify(payload);
-  for (const { subscription } of pushSubs) {
+  for (const { id, subscription } of pushSubs) {
     try {
       await webpush.sendNotification(
         subscription as Parameters<typeof webpush.sendNotification>[0],
         body
       );
       sent++;
-    } catch {
-      /* ignore dead endpoints */
+    } catch (error) {
+      const status = (error as { statusCode?: number }).statusCode;
+      if (status === 404 || status === 410) {
+        await supabase.from("push_subscriptions").delete().eq("id", id);
+      }
     }
   }
   return sent;

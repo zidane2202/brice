@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
 import { addMonths, toDateInputValue } from "@/lib/dates";
+import { encryptCredential } from "@/lib/provider-credentials";
 import {
   PLAN_LIMIT_ACCOUNT,
   PLAN_LIMIT_SLOTS,
@@ -31,6 +32,10 @@ export async function addProviderAccount(formData: FormData) {
   const label = String(formData.get("label") ?? "").trim() || null;
   const accountEmail = String(formData.get("account_email") ?? "").trim() || null;
   const accountPassword = String(formData.get("account_password") ?? "").trim() || null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !Number.isInteger(durationMonths) || durationMonths < 1 || durationMonths > 24) {
+    throw new Error("Date ou durée invalide (1 à 24 mois).");
+  }
+  if (cost !== null && (!Number.isFinite(cost) || cost < 0)) throw new Error("Coût invalide.");
   const endDate = addMonths(startDate, durationMonths);
 
   const supabase = createSupabaseAdmin();
@@ -102,7 +107,7 @@ export async function addProviderAccount(formData: FormData) {
       service_name: serviceName,
       label,
       account_email: accountEmail,
-      account_password: accountPassword,
+      account_password: encryptCredential(accountPassword),
       start_date: startDate,
       end_date: endDate,
       duration_months: durationMonths,
@@ -150,23 +155,27 @@ export async function renewProviderAccount(formData: FormData) {
   if (!user) throw new Error("Non authentifié");
 
   const id = req(formData, "id");
-  const currentEndDate = req(formData, "end_date");
   const durationMonths = parseInt(req(formData, "duration_months") || "1");
   const fundedByRaw = String(formData.get("funded_by") ?? "personal");
   const fundedBy: "balance" | "personal" = fundedByRaw === "balance" ? "balance" : "personal";
-  const baseDate = new Date(`${currentEndDate}T00:00:00`) > new Date()
-    ? currentEndDate
-    : toDateInputValue();
-  const newEndDate = addMonths(baseDate, durationMonths);
+  if (!Number.isInteger(durationMonths) || durationMonths < 1 || durationMonths > 24) {
+    throw new Error("Durée invalide (1 à 24 mois).");
+  }
 
   const supabase = createSupabaseAdmin();
 
   const { data: account } = await supabase
     .from("provider_accounts")
-    .select("cost, service_name, label")
+    .select("cost, service_name, label, end_date")
     .eq("id", id)
     .eq("user_id", user.id)
     .single();
+
+  if (!account) throw new Error("Compte introuvable.");
+  const baseDate = new Date(`${account.end_date}T23:59:59`) > new Date()
+    ? account.end_date
+    : toDateInputValue();
+  const newEndDate = addMonths(baseDate, durationMonths);
 
   if (fundedBy === "balance" && account?.cost && account.cost > 0) {
     const { data: txs } = await supabase
@@ -221,6 +230,7 @@ export async function updateProviderAccountStatus(formData: FormData) {
 
   const id = req(formData, "id");
   const status = req(formData, "status");
+  if (!new Set(["active", "inactive"]).has(status)) throw new Error("Statut invalide.");
   const supabase = createSupabaseAdmin();
 
   const { error } = await supabase

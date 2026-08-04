@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { buildSupportSystemPrompt } from "@/lib/support-prompt";
 import { createSupabaseServer } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { consumeRateLimit, requestIp } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -17,6 +18,9 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+  }
+  if (!await consumeRateLimit(`${user.id}:${requestIp(request)}`, "support-chat", 30, 60)) {
+    return NextResponse.json({ error: "Trop de messages. Réessayez dans une minute." }, { status: 429 });
   }
 
   if (!process.env.ANTHROPIC_API_KEY) {

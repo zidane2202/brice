@@ -244,41 +244,25 @@ export async function recordPlatformPayment(formData: FormData) {
         ? extendPlanRenewal(target.plan_renews_on, occurredOn)
         : null;
 
-    const { error: upErr } = await supabase
-      .from("user_profiles")
-      .update({
-        plan,
-        extra_provider_accounts: plan === "pro" ? extras : 0,
-        suspended: false,
-        plan_renews_on: planRenewsOn,
-        plan_renewal_notified_on: null,
-      })
-      .eq("user_id", resellerId);
-
-    if (upErr) throw new Error(upErr.message);
     appliedPlan = plan;
     appliedExtras = plan === "pro" ? extras : 0;
+    target.plan_renews_on = planRenewsOn;
   }
 
-  const { error } = await supabase.from("platform_payments").insert({
-    reseller_user_id: resellerId,
-    amount,
-    kind: kindRaw,
-    note: note || null,
-    occurred_on: occurredOn,
-    recorded_by: actor.id,
-    applied_plan: appliedPlan,
-    applied_extras: appliedExtras,
+  const { error } = await supabase.rpc("record_platform_payment_atomic", {
+    p_actor: actor.id,
+    p_reseller: resellerId,
+    p_amount: amount,
+    p_kind: kindRaw,
+    p_note: note,
+    p_occurred_on: occurredOn,
+    p_apply_plan: applyPlan,
+    p_plan: appliedPlan ?? target.plan,
+    p_extras: appliedExtras ?? Number(target.extra_provider_accounts ?? 0),
+    p_renews_on: target.plan_renews_on,
   });
 
   if (error) throw new Error(error.message);
-
-  await logAdminAction({
-    actorId: actor.id,
-    targetUserId: resellerId,
-    action: "platform_payment_recorded",
-    details: { amount, kind: kindRaw, occurredOn, appliedPlan, appliedExtras, note: note || null },
-  });
 
   revalidatePath(`/admin/vendeurs/${resellerId}`);
   revalidatePath("/admin/vendeurs");

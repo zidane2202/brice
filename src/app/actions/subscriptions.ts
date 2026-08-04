@@ -15,16 +15,23 @@ export async function renewClientSubscription(formData: FormData) {
   if (!user) throw new Error("Non authentifié");
 
   const id = req(formData, "id");
-  const currentEndDate = req(formData, "end_date");
   const durationMonths = parseInt(req(formData, "duration_months") || "1");
-  const isGrace = String(formData.get("status") ?? "") === "grace";
-  // En grâce : on repart toujours de la date de fin d'origine, pas d'aujourd'hui
-  const baseDate = isGrace || new Date(`${currentEndDate}T00:00:00`) > new Date()
-    ? currentEndDate
-    : toDateInputValue();
-  const newEndDate = addMonths(baseDate, durationMonths);
+  if (!id || !Number.isInteger(durationMonths) || durationMonths < 1 || durationMonths > 24) {
+    throw new Error("Renouvellement invalide (1 à 24 mois).");
+  }
 
   const supabase = createSupabaseAdmin();
+  const { data: existing } = await supabase
+    .from("client_subscriptions")
+    .select("end_date, status")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .single();
+  if (!existing) throw new Error("Abonnement introuvable.");
+  const baseDate = existing.status === "grace" || new Date(`${existing.end_date}T23:59:59`) > new Date()
+    ? existing.end_date
+    : toDateInputValue();
+  const newEndDate = addMonths(baseDate, durationMonths);
   const { error } = await supabase
     .from("client_subscriptions")
     .update({

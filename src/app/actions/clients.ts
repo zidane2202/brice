@@ -53,6 +53,9 @@ export async function addClientWithSubscription(
       throw new Error(`Un client existe déjà avec ${phone ? "ce numéro" : "cet e-mail"} (${duplicateName}). Ouvrez sa fiche au lieu de créer un doublon.`);
     }
   }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !Number.isInteger(durationMonths) || durationMonths < 1 || durationMonths > 24) {
+    throw new Error("Date ou durée invalide (1 à 24 mois).");
+  }
 
   // Verify the slot belongs to an account owned by this user
   const { data: slot } = await supabase
@@ -132,7 +135,10 @@ export async function addClientWithSubscription(
     .select("id")
     .single();
 
-  if (subError) throw new Error(subError.message);
+  if (subError) {
+    await supabase.from("clients").delete().eq("id", client.id).eq("user_id", user.id);
+    throw new Error(subError.message);
+  }
 
   const clientPhone = phone;
   let invoiceCode: string | null = null;
@@ -148,7 +154,7 @@ export async function addClientWithSubscription(
     const slotLabel =
       (serviceRow?.label as string | undefined) ||
       `Profil ${(serviceRow?.slot_number as number | undefined) ?? ""}`.trim();
-    await supabase.from("transactions").insert({
+    const { error: transactionError } = await supabase.from("transactions").insert({
       user_id: user.id,
       kind: "income",
       source: "new_profile",
@@ -158,7 +164,13 @@ export async function addClientWithSubscription(
       subscription_id: sub.id,
       label: transactionLabel,
     });
-    const result = await createInvoice(supabase, {
+    if (transactionError) {
+      await supabase.from("clients").delete().eq("id", client.id).eq("user_id", user.id);
+      throw new Error(transactionError.message);
+    }
+    let result;
+    try {
+      result = await createInvoice(supabase, {
       userId: user.id,
       clientId: client.id,
       subscriptionId: sub.id,
@@ -172,7 +184,12 @@ export async function addClientWithSubscription(
       clientPhone,
       clientEmail: email,
       paymentRail: opt(formData, "payment_rail"),
-    });
+      });
+    } catch (error) {
+      await supabase.from("transactions").delete().eq("subscription_id", sub.id).eq("user_id", user.id);
+      await supabase.from("clients").delete().eq("id", client.id).eq("user_id", user.id);
+      throw error;
+    }
     invoiceCode = result?.code ?? null;
   }
 
