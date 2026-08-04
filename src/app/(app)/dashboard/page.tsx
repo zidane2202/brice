@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 async function getDashboardData(userId: string) {
   const supabase = createSupabaseAdmin();
 
-  const [subsResult, accountsResult, txResult, balanceResult] = await Promise.all([
+  const [subsResult, accountsResult, txResult, balanceResult, invoicesResult] = await Promise.all([
     supabase
       .from("client_subscriptions")
       .select(`
@@ -44,6 +44,7 @@ async function getDashboardData(userId: string) {
       .select("kind, amount")
       .eq("user_id", userId)
       .eq("affects_balance", true),
+    supabase.from("invoices").select("kind,status,amount,service_name").eq("user_id",userId),
   ]);
 
   const subscriptions = (subsResult.data ?? []) as unknown as ClientSubscription[];
@@ -95,6 +96,18 @@ async function getDashboardData(userId: string) {
 
   const activeAccounts = liveAccounts.length;
   const freeSlots = totalSlots - usedSlots;
+  const invoices = invoicesResult.data ?? [];
+  const paidInvoices = invoices.filter((invoice) => invoice.status === "paid");
+  const renewalInvoices = paidInvoices.filter((invoice) => invoice.kind === "renewal");
+  const renewalRate = paidInvoices.length ? Math.round((renewalInvoices.length / paidInvoices.length) * 100) : 0;
+  const forecast = (days: number) => subscriptions.filter((subscription) => {
+    if (subscription.status === "cancelled") return false;
+    const remaining = daysUntil(subscription.end_date);
+    return remaining >= 0 && remaining <= days;
+  }).reduce((sum, subscription) => sum + Number(subscription.price ?? 0), 0);
+  const totalAccountCost = liveAccounts.reduce((sum, account) => sum + Number(account.cost ?? 0), 0);
+  const netProfit = paidInvoices.reduce((sum, invoice) => sum + Number(invoice.amount ?? 0), 0) - totalAccountCost;
+  const serviceProfit = Array.from(paidInvoices.reduce((map, invoice) => map.set(invoice.service_name, (map.get(invoice.service_name) ?? 0) + Number(invoice.amount ?? 0)), new Map<string,number>())).sort((a,b)=>b[1]-a[1]).slice(0,5);
 
   return {
     subscriptions,
@@ -111,6 +124,11 @@ async function getDashboardData(userId: string) {
     balance,
     expiredClients,
     graceClients,
+    renewalRate,
+    forecast7: forecast(7),
+    forecast30: forecast(30),
+    netProfit,
+    serviceProfit,
   };
 }
 
@@ -131,6 +149,11 @@ export default async function DashboardPage() {
     balance,
     expiredClients,
     graceClients,
+    renewalRate,
+    forecast7,
+    forecast30,
+    netProfit,
+    serviceProfit,
   } = await getDashboardData(user.id);
   const urgentTotal = urgent.length + urgentAccounts.length;
   const supabase = createSupabaseAdmin();
@@ -197,6 +220,12 @@ export default async function DashboardPage() {
       </div>
 
       <OnboardingChecklist hasProfile={Boolean(profile?.first_name || profile?.company_name)} accounts={activeAccounts} clients={usedSlots} />
+
+      <section className="panel commercial-panel">
+        <div className="section-head"><div><p className="eyebrow">Pilotage</p><h2>Performance commerciale</h2></div></div>
+        <div className="commercial-kpis"><KpiCard label="Bénéfice net estimé" value={netProfit} unit="FCFA" tone={netProfit<0?"danger":"neutral"}/><KpiCard label="Taux de renouvellement" value={renewalRate} unit="%"/><KpiCard label="Prévision à 7 jours" value={forecast7} unit="FCFA"/><KpiCard label="Prévision à 30 jours" value={forecast30} unit="FCFA"/></div>
+        <div className="service-profit-list">{serviceProfit.map(([service,revenue])=><div key={service}><span>{service}</span><strong>{revenue.toLocaleString("fr-FR")} FCFA</strong></div>)}{!serviceProfit.length&&<p className="empty-state">Les services les plus rentables apparaîtront après les premières ventes.</p>}</div>
+      </section>
 
       <div className="panel" style={{ marginBottom: 20, padding: 12, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
         <DashboardAction href={urgent.length ? "/clients?filter=warning" : "/clients"} label="Clients à relancer" value={urgent.length} tone={urgent.length ? "warning" : "neutral"} />

@@ -55,9 +55,12 @@ export function Sidebar({
     { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
     { href: "/abonnements", label: "Mes abonnements", icon: "seat", badge: accountsCount },
     { href: "/clients", label: "Mes clients", icon: "users", badge: clientsCount },
+    { href: "/clients/archives", label: "Archives clients", icon: "users" },
+    { href: "/relances", label: "Relances", icon: "alert" },
     { href: "/comptabilite", label: "Comptabilité", icon: "bill" },
     { href: "/profil", label: "Mon profil", icon: "settings" },
     { href: "/aide", label: "Aide", icon: "alert" },
+    { href: "/support", label: "Support humain", icon: "alert" },
   ];
 
   return (

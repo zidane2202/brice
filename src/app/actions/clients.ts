@@ -263,19 +263,18 @@ export async function mergeClients(sourceClientId: string, targetClientId: strin
   const user = await getUser(); if (!user) throw new Error("Non authentifié");
   if (!sourceClientId || !targetClientId || sourceClientId === targetClientId) throw new Error("Sélection de fusion invalide");
   const db = createSupabaseAdmin();
-  const { data: clients } = await db.from("clients").select("id,first_name,last_name,notes").eq("user_id", user.id).in("id", [sourceClientId, targetClientId]);
-  if ((clients ?? []).length !== 2) throw new Error("Client introuvable");
-  const source = clients!.find((client) => client.id === sourceClientId)!; const target = clients!.find((client) => client.id === targetClientId)!;
-  for (const table of ["client_subscriptions", "transactions", "invoices", "client_events"] as const) {
-    const { error } = await db.from(table).update({ client_id: targetClientId }).eq("client_id", sourceClientId).eq("user_id", user.id);
-    if (error) throw new Error(error.message);
-  }
-  const notes = [target.notes, source.notes && `Fusion de ${[source.first_name, source.last_name].filter(Boolean).join(" ")} : ${source.notes}`].filter(Boolean).join("\n\n") || null;
-  await db.from("clients").update({ notes }).eq("id", targetClientId).eq("user_id", user.id);
-  const { error: deleteError } = await db.from("clients").delete().eq("id", sourceClientId).eq("user_id", user.id);
-  if (deleteError) throw new Error(deleteError.message);
-  await recordClientEvent(db, { userId: user.id, clientId: targetClientId, type: "clients_merged", title: "Doublon fusionné", details: { sourceName: [source.first_name, source.last_name].filter(Boolean).join(" ") } });
+  const { error } = await db.rpc("merge_clients_atomic", { p_user: user.id, p_source: sourceClientId, p_target: targetClientId });
+  if (error) throw new Error(error.message);
   revalidatePath("/clients"); revalidatePath("/dashboard");
+}
+
+export async function restoreArchivedClient(clientId: string) {
+  const user = await getUser(); if (!user) throw new Error("Non authentifié");
+  const db = createSupabaseAdmin();
+  const { error } = await db.from("clients").update({ archived_at: null }).eq("id", clientId).eq("user_id", user.id).not("archived_at", "is", null);
+  if (error) throw new Error(error.message);
+  await recordClientEvent(db, { userId: user.id, clientId, type: "client_restored", title: "Client restauré depuis les archives" });
+  revalidatePath("/clients"); revalidatePath("/clients/archives");
 }
 
 export async function updateClientMeta(formData: FormData) {

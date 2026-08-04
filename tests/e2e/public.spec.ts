@@ -11,8 +11,20 @@ test("la connexion est utilisable au clavier", async ({ page }) => {
 test("le manifeste PWA est disponible", async ({ request }) => {
   const response = await request.get("/manifest.webmanifest");
   expect(response.ok()).toBeTruthy();
-  expect((await response.json()).name).toBe("SubResell");
+  const manifest = await response.json();
+  expect(manifest.name).toBe("SubResell");
+  expect(manifest.shortcuts).toEqual(expect.arrayContaining([expect.objectContaining({ url: "/clients?new=1" })]));
 });
+
+for (const viewport of [{ name: "mobile", width: 360, height: 740 }, { name: "tablette", width: 768, height: 1024 }, { name: "bureau", width: 1440, height: 900 }]) {
+  test(`la page de connexion reste responsive sur ${viewport.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await page.goto("/login");
+    await expect(page.getByRole("heading")).toBeVisible();
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(1);
+  });
+}
 
 test("la santé applicative répond", async ({ request }) => {
   const response = await request.get("/api/health");

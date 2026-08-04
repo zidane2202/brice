@@ -79,6 +79,21 @@ create index if not exists admin_audit_logs_target_idx
 -- Policies: owner-only write ; public read
 insert into storage.buckets (id, name, public) values ('receipts', 'receipts', false) on conflict (id) do nothing;
 
+-- Les justificatifs sont privés et chaque vendeur reste limité à son dossier.
+drop policy if exists "owners read own receipts" on storage.objects;
+create policy "owners read own receipts" on storage.objects for select to authenticated
+using (bucket_id = 'receipts' and (storage.foldername(name))[1] = auth.uid()::text);
+drop policy if exists "owners upload own receipts" on storage.objects;
+create policy "owners upload own receipts" on storage.objects for insert to authenticated
+with check (bucket_id = 'receipts' and (storage.foldername(name))[1] = auth.uid()::text);
+drop policy if exists "owners update own receipts" on storage.objects;
+create policy "owners update own receipts" on storage.objects for update to authenticated
+using (bucket_id = 'receipts' and (storage.foldername(name))[1] = auth.uid()::text)
+with check (bucket_id = 'receipts' and (storage.foldername(name))[1] = auth.uid()::text);
+drop policy if exists "owners delete own receipts" on storage.objects;
+create policy "owners delete own receipts" on storage.objects for delete to authenticated
+using (bucket_id = 'receipts' and (storage.foldername(name))[1] = auth.uid()::text);
+
 -- Comptes provider (ex: "Mon Netflix Premium")
 create table if not exists public.provider_accounts (
   id uuid primary key default gen_random_uuid(),
@@ -265,6 +280,42 @@ create index if not exists client_events_client_created_idx on public.client_eve
 alter table public.client_events enable row level security;
 drop policy if exists "users see own client events" on public.client_events;
 create policy "users see own client events" on public.client_events for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create table if not exists public.client_reminders (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  client_id uuid not null references public.clients(id) on delete cascade,
+  subscription_id uuid not null references public.client_subscriptions(id) on delete cascade,
+  status text not null default 'prepared' check (status in ('prepared','sent','replied','paid')),
+  message text not null,
+  sent_at timestamptz,
+  updated_at timestamptz not null default now(),
+  unique(user_id, subscription_id)
+);
+create index if not exists client_reminders_user_status_idx on public.client_reminders(user_id,status,updated_at desc);
+alter table public.client_reminders enable row level security;
+drop policy if exists "users manage own reminders" on public.client_reminders;
+create policy "users manage own reminders" on public.client_reminders for all using(auth.uid()=user_id) with check(auth.uid()=user_id);
+
+create table if not exists public.support_tickets (
+  id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade,
+  subject text not null check(length(subject) between 3 and 120), status text not null default 'open' check(status in ('open','in_progress','resolved')),
+  priority text not null default 'normal' check(priority in ('normal','urgent')), created_at timestamptz not null default now(), updated_at timestamptz not null default now()
+);
+create table if not exists public.support_messages (
+  id uuid primary key default gen_random_uuid(), ticket_id uuid not null references public.support_tickets(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade, author_role text not null check(author_role in ('reseller','admin')),
+  body text not null check(length(body) between 1 and 3000), created_at timestamptz not null default now()
+);
+create index if not exists support_tickets_status_idx on public.support_tickets(status,updated_at desc);
+alter table public.support_tickets enable row level security; alter table public.support_messages enable row level security;
+drop policy if exists "users see own tickets" on public.support_tickets; create policy "users see own tickets" on public.support_tickets for all using(auth.uid()=user_id) with check(auth.uid()=user_id);
+drop policy if exists "users see own ticket messages" on public.support_messages; create policy "users see own ticket messages" on public.support_messages for all using(exists(select 1 from support_tickets t where t.id=ticket_id and t.user_id=auth.uid())) with check(exists(select 1 from support_tickets t where t.id=ticket_id and t.user_id=auth.uid()));
+
+create table if not exists public.system_job_runs(id uuid primary key default gen_random_uuid(),job_name text not null,status text not null check(status in ('success','failed')),details jsonb not null default '{}'::jsonb,started_at timestamptz not null,finished_at timestamptz not null default now());
+create index if not exists system_job_runs_job_idx on public.system_job_runs(job_name,finished_at desc);alter table public.system_job_runs enable row level security;
+create table if not exists public.push_delivery_logs(id uuid primary key default gen_random_uuid(),user_id uuid references auth.users(id) on delete set null,status text not null check(status in ('sent','failed','expired')),created_at timestamptz not null default now());
+create index if not exists push_delivery_logs_created_idx on public.push_delivery_logs(created_at desc);alter table public.push_delivery_logs enable row level security;
 create index if not exists account_slots_account_id_idx on public.account_slots(account_id);
 create index if not exists client_subscriptions_user_id_status_idx on public.client_subscriptions(user_id, status);
 create index if not exists client_subscriptions_client_id_idx on public.client_subscriptions(client_id);
@@ -437,3 +488,105 @@ end;
 $$;
 revoke all on function public.record_platform_payment_atomic(uuid,uuid,numeric,text,text,date,boolean,text,integer,date) from public;
 grant execute on function public.record_platform_payment_atomic(uuid,uuid,numeric,text,text,date,boolean,text,integer,date) to service_role;
+
+-- Fusion atomique : toutes les références sont déplacées ou rien ne change.
+create or replace function public.merge_clients_atomic(p_user uuid, p_source uuid, p_target uuid)
+returns void language plpgsql security definer set search_path = public as $$
+declare source_row clients%rowtype; target_row clients%rowtype; merged_notes text;
+begin
+  if p_source = p_target then raise exception 'Sélection de fusion invalide'; end if;
+  select * into source_row from clients where id = p_source and user_id = p_user for update;
+  select * into target_row from clients where id = p_target and user_id = p_user for update;
+  if source_row.id is null or target_row.id is null then raise exception 'Client introuvable'; end if;
+  merged_notes := concat_ws(E'\n\n', nullif(target_row.notes, ''),
+    case when nullif(source_row.notes, '') is not null then
+      'Fusion de ' || trim(concat_ws(' ', source_row.first_name, source_row.last_name)) || ' : ' || source_row.notes end);
+  update client_subscriptions set client_id = p_target where client_id = p_source and user_id = p_user;
+  update transactions set client_id = p_target where client_id = p_source and user_id = p_user;
+  update invoices set client_id = p_target where client_id = p_source and user_id = p_user;
+  update client_events set client_id = p_target where client_id = p_source and user_id = p_user;
+  update clients set notes = nullif(merged_notes, '') where id = p_target and user_id = p_user;
+  delete from clients where id = p_source and user_id = p_user;
+  insert into client_events(user_id, client_id, type, title, details)
+  values (p_user, p_target, 'clients_merged', 'Doublon fusionné',
+    jsonb_build_object('sourceName', trim(concat_ws(' ', source_row.first_name, source_row.last_name))));
+end;
+$$;
+revoke all on function public.merge_clients_atomic(uuid,uuid,uuid) from public;
+grant execute on function public.merge_clients_atomic(uuid,uuid,uuid) to service_role;
+
+-- Restauration atomique d'une sauvegarde appartenant au compte connecté.
+create or replace function public.restore_account_backup_atomic(p_user uuid, p_backup jsonb)
+returns integer language plpgsql security definer set search_path = public as $$
+declare restored integer := 0; affected integer;
+begin
+  if jsonb_typeof(p_backup) <> 'object' then raise exception 'Sauvegarde invalide'; end if;
+  update user_profiles p set
+    first_name = coalesce(x.first_name, p.first_name), last_name = coalesce(x.last_name, p.last_name),
+    company_name = coalesce(x.company_name, p.company_name), phone = coalesce(x.phone, p.phone), city = coalesce(x.city, p.city)
+  from jsonb_to_record(coalesce((p_backup->'user_profiles')->0, '{}'::jsonb))
+    as x(first_name text,last_name text,company_name text,phone text,city text)
+  where p.user_id = p_user;
+
+  insert into provider_accounts(id,user_id,service_name,label,account_email,max_slots,start_date,end_date,duration_months,cost,status,created_at)
+  select id,p_user,service_name,label,account_email,max_slots,start_date,end_date,duration_months,cost,status,created_at
+  from jsonb_populate_recordset(null::provider_accounts, coalesce(p_backup->'provider_accounts','[]'::jsonb))
+  on conflict(id) do update set service_name=excluded.service_name,label=excluded.label,account_email=excluded.account_email,max_slots=excluded.max_slots,start_date=excluded.start_date,end_date=excluded.end_date,duration_months=excluded.duration_months,cost=excluded.cost,status=excluded.status
+  where provider_accounts.user_id=p_user;
+  get diagnostics affected = row_count; restored := restored + affected;
+
+  if exists(select 1 from jsonb_populate_recordset(null::account_slots,coalesce(p_backup->'account_slots','[]'::jsonb)) s left join provider_accounts a on a.id=s.account_id and a.user_id=p_user where a.id is null) then raise exception 'Profil rattaché à un autre compte'; end if;
+  insert into account_slots(id,account_id,slot_number,label)
+  select id,account_id,slot_number,label from jsonb_populate_recordset(null::account_slots,coalesce(p_backup->'account_slots','[]'::jsonb))
+  on conflict(id) do update set account_id=excluded.account_id,slot_number=excluded.slot_number,label=excluded.label;
+  get diagnostics affected = row_count; restored := restored + affected;
+
+  insert into clients(id,user_id,first_name,last_name,email,phone,payment_rail,notes,pin_code,created_at,archived_at)
+  select id,p_user,first_name,last_name,email,phone,payment_rail,notes,pin_code,created_at,archived_at from jsonb_populate_recordset(null::clients,coalesce(p_backup->'clients','[]'::jsonb))
+  on conflict(id) do update set first_name=excluded.first_name,last_name=excluded.last_name,email=excluded.email,phone=excluded.phone,payment_rail=excluded.payment_rail,notes=excluded.notes,pin_code=excluded.pin_code,archived_at=excluded.archived_at where clients.user_id=p_user;
+  get diagnostics affected = row_count; restored := restored + affected;
+
+  insert into client_subscriptions select id,p_user,slot_id,client_id,start_date,end_date,duration_months,price,status,last_notified_on,created_at,grace_until from jsonb_populate_recordset(null::client_subscriptions,coalesce(p_backup->'client_subscriptions','[]'::jsonb))
+  on conflict(id) do update set slot_id=excluded.slot_id,client_id=excluded.client_id,start_date=excluded.start_date,end_date=excluded.end_date,duration_months=excluded.duration_months,price=excluded.price,status=excluded.status,last_notified_on=excluded.last_notified_on,grace_until=excluded.grace_until where client_subscriptions.user_id=p_user;
+  get diagnostics affected = row_count; restored := restored + affected;
+
+  insert into transactions select id,p_user,kind,source,funded_by,affects_balance,amount,client_id,subscription_id,account_id,label,category,occurred_on,created_at,reversed_transaction_id,reversal_reason from jsonb_populate_recordset(null::transactions,coalesce(p_backup->'transactions','[]'::jsonb))
+  on conflict(id) do update set kind=excluded.kind,source=excluded.source,funded_by=excluded.funded_by,affects_balance=excluded.affects_balance,amount=excluded.amount,client_id=excluded.client_id,subscription_id=excluded.subscription_id,account_id=excluded.account_id,label=excluded.label,category=excluded.category,occurred_on=excluded.occurred_on,reversed_transaction_id=excluded.reversed_transaction_id,reversal_reason=excluded.reversal_reason where transactions.user_id=p_user;
+  get diagnostics affected = row_count; restored := restored + affected;
+
+  insert into invoices select id,p_user,number,code,client_id,subscription_id,amount,service_name,service_slot,period_start,period_end,kind,client_name,client_phone,client_email,payment_rail,reseller_name,created_at,status,payment_reference,receipt_url from jsonb_populate_recordset(null::invoices,coalesce(p_backup->'invoices','[]'::jsonb))
+  on conflict(id) do update set amount=excluded.amount,service_name=excluded.service_name,service_slot=excluded.service_slot,period_start=excluded.period_start,period_end=excluded.period_end,kind=excluded.kind,client_name=excluded.client_name,client_phone=excluded.client_phone,client_email=excluded.client_email,payment_rail=excluded.payment_rail,reseller_name=excluded.reseller_name,status=excluded.status,payment_reference=excluded.payment_reference,receipt_url=excluded.receipt_url where invoices.user_id=p_user;
+  get diagnostics affected = row_count; restored := restored + affected;
+
+  insert into client_events(id,user_id,client_id,subscription_id,type,title,details,created_at)
+  select id,p_user,client_id,subscription_id,type,title,details,created_at from jsonb_populate_recordset(null::client_events,coalesce(p_backup->'client_events','[]'::jsonb))
+  on conflict(id) do update set client_id=excluded.client_id,subscription_id=excluded.subscription_id,type=excluded.type,title=excluded.title,details=excluded.details where client_events.user_id=p_user;
+  get diagnostics affected = row_count; restored := restored + affected;
+  return restored;
+end;
+$$;
+revoke all on function public.restore_account_backup_atomic(uuid,jsonb) from public;
+grant execute on function public.restore_account_backup_atomic(uuid,jsonb) to service_role;
+
+create or replace function public.client_list_summary(p_user uuid)
+returns jsonb language sql stable security definer set search_path=public as $$
+with base as (
+  select s.*,c.first_name,c.last_name,c.created_at client_created
+  from client_subscriptions s join clients c on c.id=s.client_id
+  where s.user_id=p_user and c.archived_at is null
+), totals as (
+  select count(*) filter(where status='active' and end_date>current_date+3)::int active,
+    count(*) filter(where status='active' and end_date between current_date and current_date+3)::int warning,
+    count(*) filter(where status='cancelled' or (status<>'grace' and end_date<current_date))::int danger,
+    count(*) filter(where status='grace')::int grace,
+    coalesce(sum(price),0) revenue,
+    count(distinct client_id)::int clients,
+    count(distinct client_id) filter(where date_trunc('month',client_created)=date_trunc('month',current_date))::int acquired
+  from base
+), top_client as (
+  select client_id,trim(concat_ws(' ',first_name,last_name)) name,coalesce(sum(price),0) total from base group by client_id,first_name,last_name order by total desc limit 1
+)
+select jsonb_build_object('active',t.active,'warning',t.warning,'danger',t.danger,'grace',t.grace,'visible',t.active+t.warning+t.grace,
+  'totalRevenue',t.revenue,'clients',t.clients,'acquired',t.acquired,'topClient',coalesce((select jsonb_build_object('name',name,'total',total) from top_client),'null'::jsonb)) from totals t;
+$$;
+revoke all on function public.client_list_summary(uuid) from public;grant execute on function public.client_list_summary(uuid) to service_role;

@@ -24,5 +24,9 @@ export default function manifest(): MetadataRoute.Manifest {
         purpose: "maskable",
       },
     ],
+    shortcuts: [
+      { name: "Nouveau client", short_name: "Nouveau client", url: "/clients?new=1", icons: [{ src: "/pwa-icon-192", sizes: "192x192", type: "image/png" }] },
+      { name: "Clients à relancer", short_name: "Relances", url: "/relances", icons: [{ src: "/pwa-icon-192", sizes: "192x192", type: "image/png" }] },
+    ],
   };
 }

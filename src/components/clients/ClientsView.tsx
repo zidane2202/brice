@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
@@ -27,6 +28,9 @@ type Props = {
   initialClientId?: string | null;
   initialFilter?: FilterKey;
   events: Array<{ id: string; client_id: string; subscription_id: string | null; type: string; title: string; details: Record<string, unknown>; created_at: string }>;
+  initialQuery?: string; initialSort?: SortKey; serverPage?: number; totalRows?: number; pageSize?: number;
+  summary?: { active:number; warning:number; danger:number; grace:number; visible:number; totalRevenue:number; clients:number; acquired:number; topClient:{name:string;total:number}|null } | null;
+  initialNewClient?: boolean;
 };
 
 const STATUS_META: Record<
@@ -48,17 +52,18 @@ function bucket(sub: ClientSubscription, today: string): FilterKey {
   return "active";
 }
 
-export function ClientsView({ subscriptions, freeSlots, invoices, events, initialClientId = null, initialFilter }: Props) {
+export function ClientsView({ subscriptions, freeSlots, invoices, events, initialClientId = null, initialFilter, initialQuery="", initialSort="recent", serverPage=1, totalRows, pageSize=25, summary, initialNewClient=false }: Props) {
+  const router = useRouter();
   const today = toDateInputValue();
   const [filter, setFilter] = useState<FilterKey>(initialFilter ?? "active");
-  const [query, setQuery] = useState("");
-  const [sortBy, setSortBy] = useState<SortKey>("recent");
+  const [query, setQuery] = useState(initialQuery);
+  const [sortBy, setSortBy] = useState<SortKey>(initialSort);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [formOpen, setFormOpen] = useState(false);
-  const [page, setPage] = useState(1);
-  const pageSize = 25;
+  const [formOpen, setFormOpen] = useState(initialNewClient);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const navigate = (next: { filter?:FilterKey; query?:string; sort?:SortKey; page?:number }) => { const params=new URLSearchParams(); const targetFilter=next.filter??filter; const targetQuery=next.query??query; const targetSort=next.sort??sortBy; params.set("filter",targetFilter); if(targetQuery.trim())params.set("q",targetQuery.trim()); if(targetSort!=="recent")params.set("sort",targetSort); if((next.page??1)>1)params.set("page",String(next.page)); router.replace(`/clients?${params}`); };
 
   useEffect(() => {
     const matchingSubscription = subscriptions.find((sub) => sub.client_id === initialClientId);
@@ -69,16 +74,10 @@ export function ClientsView({ subscriptions, freeSlots, invoices, events, initia
   }, [initialClientId, subscriptions]);
 
   useEffect(() => {
-    const savedFilter = localStorage.getItem("subresell-clients-filter") as FilterKey | null;
-    const savedSort = localStorage.getItem("subresell-clients-sort") as SortKey | null;
-    if (!initialFilter && savedFilter && ["active", "warning", "danger", "grace"].includes(savedFilter)) setFilter(savedFilter);
-    if (savedSort && ["recent", "echeance", "ltv"].includes(savedSort)) setSortBy(savedSort);
-  }, [initialFilter]);
-
-  useEffect(() => {
     localStorage.setItem("subresell-clients-filter", filter);
     localStorage.setItem("subresell-clients-sort", sortBy);
   }, [filter, sortBy]);
+  useEffect(() => () => { if (searchTimer.current) clearTimeout(searchTimer.current); }, []);
 
   useEffect(() => {
     if (!drawerOpen) return;
@@ -94,7 +93,7 @@ export function ClientsView({ subscriptions, freeSlots, invoices, events, initia
     };
   }, [drawerOpen]);
 
-  const counts = useMemo(() => {
+  const pageCounts = useMemo(() => {
     const c = { active: 0, warning: 0, danger: 0, grace: 0, visible: 0 };
     for (const sub of subscriptions) {
       const b = bucket(sub, today);
@@ -103,6 +102,7 @@ export function ClientsView({ subscriptions, freeSlots, invoices, events, initia
     }
     return c;
   }, [subscriptions, today]);
+  const counts = summary ? { active:summary.active,warning:summary.warning,danger:summary.danger,grace:summary.grace,visible:summary.visible } : pageCounts;
 
   const rows = useMemo(() => {
     let r = subscriptions.filter((s) => bucket(s, today) === filter);
@@ -136,9 +136,8 @@ export function ClientsView({ subscriptions, freeSlots, invoices, events, initia
     }
     return r;
   }, [subscriptions, filter, query, sortBy, today]);
-  const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
-  const paginatedRows = rows.slice((page - 1) * pageSize, page * pageSize);
-  useEffect(() => { setPage(1); }, [filter, query, sortBy]);
+  const pageCount = Math.max(1, Math.ceil((totalRows ?? rows.length) / pageSize));
+  const paginatedRows = rows;
 
   const topClient = useMemo(() => {
     const totals = new Map<string, { name: string; total: number }>();
@@ -156,6 +155,7 @@ export function ClientsView({ subscriptions, freeSlots, invoices, events, initia
     }
     return best;
   }, [subscriptions]);
+  const displayedTopClient = summary?.topClient ?? topClient;
 
   const uniqueClientIds = useMemo(() => {
     const s = new Set<string>();
@@ -163,12 +163,13 @@ export function ClientsView({ subscriptions, freeSlots, invoices, events, initia
     return s;
   }, [subscriptions]);
 
-  const totalRevenue = useMemo(
+  const pageRevenue = useMemo(
     () => subscriptions.reduce((sum, s) => sum + (s.price ?? 0), 0),
     [subscriptions]
   );
+  const totalRevenue = summary?.totalRevenue ?? pageRevenue;
 
-  const ltvAvg = uniqueClientIds.size > 0 ? Math.round(totalRevenue / uniqueClientIds.size) : 0;
+  const ltvAvg = (summary?.clients ?? uniqueClientIds.size) > 0 ? Math.round(totalRevenue / (summary?.clients ?? uniqueClientIds.size)) : 0;
 
   const newThisMonth = useMemo(() => {
     const now = new Date();
@@ -182,6 +183,7 @@ export function ClientsView({ subscriptions, freeSlots, invoices, events, initia
     }
     return ids.size;
   }, [subscriptions]);
+  const displayedNewThisMonth = summary?.acquired ?? newThisMonth;
 
   const selectedSub = useMemo(
     () => subscriptions.find((s) => s.id === selectedId) ?? null,
@@ -307,9 +309,9 @@ export function ClientsView({ subscriptions, freeSlots, invoices, events, initia
           >
             <StatCell
               label="Meilleur client"
-              value={topClient ? topClient.total.toLocaleString("en-US").replace(/,/g, " ") : "—"}
-              suffix={topClient ? "FCFA" : undefined}
-              sub={topClient?.name}
+              value={displayedTopClient ? displayedTopClient.total.toLocaleString("en-US").replace(/,/g, " ") : "—"}
+              suffix={displayedTopClient ? "FCFA" : undefined}
+              sub={displayedTopClient?.name}
               accent
             />
             <StatCell
@@ -325,9 +327,9 @@ export function ClientsView({ subscriptions, freeSlots, invoices, events, initia
             />
             <StatCell
               label="Acquisition"
-              value={`+${newThisMonth}`}
+              value={`+${displayedNewThisMonth}`}
               sub="ce mois"
-              tone={newThisMonth > 0 ? "success" : "neutral"}
+              tone={displayedNewThisMonth > 0 ? "success" : "neutral"}
             />
           </div>
         </div>
@@ -360,10 +362,10 @@ export function ClientsView({ subscriptions, freeSlots, invoices, events, initia
               boxShadow: "inset 0 1px 0 rgba(255,255,255,0.03)",
             }}
           >
-            <FilterPill label="Actifs"   count={counts.active}  active={filter === "active"}  onClick={() => setFilter("active")}  tone="success" />
-            <FilterPill label="À relancer" count={counts.warning} active={filter === "warning"} onClick={() => setFilter("warning")} tone="warning" />
-            <FilterPill label="Expirés"  count={counts.danger}  active={filter === "danger"}  onClick={() => setFilter("danger")}  tone="danger" />
-            <FilterPill label="En grâce" count={counts.grace}   active={filter === "grace"}   onClick={() => setFilter("grace")}   tone="warning" />
+            <FilterPill label="Actifs" count={counts.active} active={filter === "active"} onClick={() => {setFilter("active");navigate({filter:"active"});}} tone="success" />
+            <FilterPill label="À relancer" count={counts.warning} active={filter === "warning"} onClick={() => {setFilter("warning");navigate({filter:"warning"});}} tone="warning" />
+            <FilterPill label="Expirés" count={counts.danger} active={filter === "danger"} onClick={() => {setFilter("danger");navigate({filter:"danger"});}} tone="danger" />
+            <FilterPill label="En grâce" count={counts.grace} active={filter === "grace"} onClick={() => {setFilter("grace");navigate({filter:"grace"});}} tone="warning" />
           </div>
 
           <div className="mobile-search-field" style={{ position: "relative", width: 260 }}>
@@ -381,7 +383,7 @@ export function ClientsView({ subscriptions, freeSlots, invoices, events, initia
             />
             <input
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {const value=e.target.value;setQuery(value);if(searchTimer.current)clearTimeout(searchTimer.current);searchTimer.current=setTimeout(()=>navigate({query:value}),350);}}
               placeholder="Rechercher nom, téléphone, service…"
               style={{
                 paddingLeft: 32,
@@ -397,7 +399,7 @@ export function ClientsView({ subscriptions, freeSlots, invoices, events, initia
 
           <SegmentedControl
             value={sortBy}
-            onChange={setSortBy}
+            onChange={(value) => {setSortBy(value);navigate({sort:value});}}
             options={[
               { id: "recent",   label: "Récents" },
               { id: "echeance", label: "Échéance" },
@@ -508,7 +510,7 @@ export function ClientsView({ subscriptions, freeSlots, invoices, events, initia
               </div>
             </div>
           )}
-          {pageCount > 1 && <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8, padding: "8px 24px 18px" }}><button type="button" className="secondary" disabled={page === 1} onClick={() => setPage((value) => value - 1)}>← Précédent</button><span style={{ color: "var(--sr-fg-subtle)", fontSize: 11 }}>Page {page} / {pageCount}</span><button type="button" className="secondary" disabled={page === pageCount} onClick={() => setPage((value) => value + 1)}>Suivant →</button></div>}
+          {pageCount > 1 && <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8, padding: "8px 24px 18px" }}><button type="button" className="secondary" disabled={serverPage === 1} onClick={() => navigate({page:serverPage-1})}>← Précédent</button><span style={{ color: "var(--sr-fg-subtle)", fontSize: 11 }}>Page {serverPage} / {pageCount}</span><button type="button" className="secondary" disabled={serverPage >= pageCount} onClick={() => navigate({page:serverPage+1})}>Suivant →</button></div>}
         </div>
       </div>
 

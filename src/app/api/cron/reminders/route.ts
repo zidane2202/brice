@@ -27,17 +27,20 @@ async function sendPush(
         body
       );
       sent++;
+      await supabase.from("push_delivery_logs").insert({ user_id: userId, status: "sent" });
     } catch (error) {
       const status = (error as { statusCode?: number }).statusCode;
       if (status === 404 || status === 410) {
         await supabase.from("push_subscriptions").delete().eq("id", id);
       }
+      await supabase.from("push_delivery_logs").insert({ user_id: userId, status: status === 404 || status === 410 ? "expired" : "failed" });
     }
   }
   return sent;
 }
 
 export async function GET(request: Request) {
+  const startedAt = new Date().toISOString();
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -153,9 +156,11 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({
+  const result = {
     clientSent,
     planRemindSent,
     autoSuspended,
-  });
+  };
+  await supabase.from("system_job_runs").insert({ job_name: "reminders", status: "success", details: result, started_at: startedAt });
+  return NextResponse.json(result);
 }
