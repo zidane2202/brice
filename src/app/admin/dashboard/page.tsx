@@ -13,7 +13,7 @@ async function getAdminStats() {
   const in15Days = new Date(now.getTime() + 15 * 86400000).toISOString().slice(0, 10);
   const [profilesResult, subsResult, authResult, paymentsResult] = await Promise.all([
     supabase.from("user_profiles").select("user_id, plan, suspended, plan_renews_on, created_at").eq("role", "reseller"),
-    supabase.from("client_subscriptions").select("user_id, price, status, created_at"),
+    supabase.from("client_subscriptions").select("user_id, price, status, end_date, created_at"),
     supabase.auth.admin.listUsers(),
     supabase.from("platform_payments").select("amount, occurred_on").gte("occurred_on", firstOfMonth.slice(0, 10)),
   ]);
@@ -22,7 +22,7 @@ async function getAdminStats() {
   const subs = subsResult.data ?? [];
   const users = authResult.data?.users ?? [];
 
-  const activeSubs = subs.filter((s) => s.status === "active");
+  const activeSubs = subs.filter((s) => s.status === "grace" || (s.status === "active" && s.end_date >= today));
   const totalRevenue = activeSubs.reduce((sum, s) => sum + (s.price ?? 0), 0);
 
   const newThisMonth = profiles.filter((p) => p.created_at >= firstOfMonth).length;

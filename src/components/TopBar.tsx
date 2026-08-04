@@ -2,6 +2,8 @@
 
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/Icon";
+import Link from "next/link";
+import { PwaInstallButton } from "@/components/PwaInstallButton";
 
 const LABELS: Record<string, string> = {
   dashboard: "Dashboard",
@@ -106,15 +108,17 @@ export function TopBar() {
         </span>
       </div>
 
-      <button
-        type="button"
+      <PwaInstallButton />
+
+      <Link
+        href="/profil#section-notifications"
         className="secondary topbar-notification"
-        title="Notifications"
+        title="Configurer les notifications"
         aria-label="Notifications"
-        style={{ width: 30, minHeight: 30, height: 30, padding: 0, justifyContent: "center" }}
+        style={{ width: 30, minHeight: 30, height: 30, padding: 0, justifyContent: "center", display: "inline-flex", alignItems: "center" }}
       >
         <Icon name="bell" size={13} />
-      </button>
+      </Link>
     </header>
   );
 }

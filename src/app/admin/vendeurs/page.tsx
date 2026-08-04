@@ -22,12 +22,13 @@ async function getResellers() {
 
   const { data: subCounts } = await supabase
     .from("client_subscriptions")
-    .select("user_id")
-    .eq("status", "active")
+    .select("user_id, status, end_date")
+    .in("status", ["active", "grace"])
     .in("user_id", userIds);
 
+  const today = new Date().toISOString().slice(0, 10);
   const countMap = new Map<string, number>();
-  (subCounts ?? []).forEach((s) => {
+  (subCounts ?? []).filter((s) => s.status === "grace" || s.end_date >= today).forEach((s) => {
     countMap.set(s.user_id, (countMap.get(s.user_id) ?? 0) + 1);
   });
 
@@ -60,7 +61,7 @@ export default async function ResellerListPage() {
                 <th>Téléphone</th>
                 <th>Ville</th>
                 <th>Plan</th>
-                <th>Clients actifs</th>
+                <th>Clients en cours</th>
                 <th>Inscrit le</th>
                 <th></th>
               </tr>

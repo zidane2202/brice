@@ -112,7 +112,7 @@ async function getResellerDetail(userId: string) {
   })[];
   const subscriptions = (subsRes.data ?? []) as unknown as ClientSubscription[];
   const activeClients = subscriptions.filter(
-    (s) => s.status === "active" && s.end_date >= today
+    (s) => s.status === "grace" || (s.status === "active" && s.end_date >= today)
   ).length;
   const activeAccounts = accounts.filter(
     (a) => a.status === "active" && a.end_date >= today
