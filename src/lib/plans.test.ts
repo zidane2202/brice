@@ -34,3 +34,10 @@ test("parsePlanLimitError", () => {
   assert.deepEqual(parsed, { code: PLAN_LIMIT_ACCOUNT, message: "Trop de comptes" });
   assert.equal(parsePlanLimitError("autre"), null);
 });
+
+test("extendPlanRenewal", async () => {
+  const { extendPlanRenewal } = await import("./plans");
+  assert.equal(extendPlanRenewal(null, "2026-08-01", 1), "2026-09-01");
+  assert.equal(extendPlanRenewal("2026-10-01", "2026-08-01", 1), "2026-11-01");
+  assert.equal(extendPlanRenewal("2026-07-01", "2026-08-01", 1), "2026-09-01");
+});

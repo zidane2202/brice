@@ -19,6 +19,8 @@ alter table public.user_profiles add column if not exists company_name text;
 alter table public.user_profiles add column if not exists logo_url text;
 alter table public.user_profiles add column if not exists extra_provider_accounts int not null default 0;
 alter table public.user_profiles add column if not exists suspended boolean not null default false;
+alter table public.user_profiles add column if not exists plan_renews_on date;
+alter table public.user_profiles add column if not exists plan_renewal_notified_on date;
 
 -- Encaissements plateforme (cash reçu manuellement : Pro / Business / extras)
 create table if not exists public.platform_payments (

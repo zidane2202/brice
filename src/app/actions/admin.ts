@@ -7,10 +7,15 @@ import {
   isPlatformPaymentKind,
   suggestedPlanForKind,
 } from "@/lib/platform-payments";
+import { extendPlanRenewal } from "@/lib/plans";
 import { revalidatePath } from "next/cache";
 
 const PLANS = new Set(["free", "pro", "business"]);
 const ROLES = new Set(["reseller", "admin"]);
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
 
 export async function updateResellerPlanRole(formData: FormData) {
   const actor = await getUser();
@@ -24,6 +29,7 @@ export async function updateResellerPlanRole(formData: FormData) {
   const role = String(formData.get("role") ?? "").trim();
   const extrasRaw = String(formData.get("extra_provider_accounts") ?? "0").trim();
   const extras = Math.max(0, parseInt(extrasRaw || "0", 10) || 0);
+  const renewsRaw = String(formData.get("plan_renews_on") ?? "").trim();
 
   if (!userId) throw new Error("Vendeur manquant");
   if (!PLANS.has(plan)) throw new Error("Plan invalide");
@@ -36,12 +42,17 @@ export async function updateResellerPlanRole(formData: FormData) {
   const supabase = createSupabaseAdmin();
   const { data: target, error: findErr } = await supabase
     .from("user_profiles")
-    .select("user_id, role")
+    .select("user_id, role, plan_renews_on")
     .eq("user_id", userId)
     .maybeSingle();
 
   if (findErr) throw new Error(findErr.message);
   if (!target) throw new Error("Vendeur introuvable");
+
+  const paid = plan === "pro" || plan === "business";
+  const planRenewsOn = paid
+    ? renewsRaw || target.plan_renews_on || extendPlanRenewal(null, todayStr(), 1)
+    : null;
 
   const { error } = await supabase
     .from("user_profiles")
@@ -49,6 +60,8 @@ export async function updateResellerPlanRole(formData: FormData) {
       plan,
       role,
       extra_provider_accounts: plan === "pro" ? extras : 0,
+      plan_renews_on: planRenewsOn,
+      plan_renewal_notified_on: null,
     })
     .eq("user_id", userId);
 
@@ -109,8 +122,7 @@ export async function recordPlatformPayment(formData: FormData) {
   const kindRaw = String(formData.get("kind") ?? "").trim();
   const note = String(formData.get("note") ?? "").trim();
   const occurredOn =
-    String(formData.get("occurred_on") ?? "").trim() ||
-    new Date().toISOString().slice(0, 10);
+    String(formData.get("occurred_on") ?? "").trim() || todayStr();
   const applyPlan =
     String(formData.get("apply_plan") ?? "") === "on" ||
     String(formData.get("apply_plan") ?? "") === "true";
@@ -147,7 +159,7 @@ export async function recordPlatformPayment(formData: FormData) {
   const supabase = createSupabaseAdmin();
   const { data: target, error: findErr } = await supabase
     .from("user_profiles")
-    .select("user_id, plan, extra_provider_accounts")
+    .select("user_id, plan, extra_provider_accounts, plan_renews_on")
     .eq("user_id", resellerId)
     .maybeSingle();
 
@@ -165,12 +177,19 @@ export async function recordPlatformPayment(formData: FormData) {
       extras = currentExtras + add;
     }
 
+    const paid = plan === "pro" || plan === "business";
+    const planRenewsOn = paid
+      ? extendPlanRenewal(target.plan_renews_on, occurredOn, 1)
+      : null;
+
     const { error: upErr } = await supabase
       .from("user_profiles")
       .update({
         plan,
         extra_provider_accounts: plan === "pro" ? extras : 0,
         suspended: false,
+        plan_renews_on: planRenewsOn,
+        plan_renewal_notified_on: null,
       })
       .eq("user_id", resellerId);
 

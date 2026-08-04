@@ -1,3 +1,5 @@
+import { addMonths } from "@/lib/dates";
+
 export type PlanId = "free" | "pro" | "business";
 
 export const PLAN_PRICES_FCFA = {
@@ -70,6 +72,17 @@ export function estimateMrrFcfa(
   if (id === "free") return 0;
   if (id === "business") return PLAN_PRICES_FCFA.business;
   return PLAN_PRICES_FCFA.pro + Math.max(0, extraProviderAccounts) * PLAN_PRICES_FCFA.extraAccount;
+}
+
+/** Next SaaS renewal: +months from max(anchor, current renewal). */
+export function extendPlanRenewal(
+  currentRenewsOn: string | null | undefined,
+  anchorDate: string,
+  months = 1
+): string {
+  const base =
+    currentRenewsOn && currentRenewsOn > anchorDate ? currentRenewsOn : anchorDate;
+  return addMonths(base, months);
 }
 
 /** Prefixed errors so UI can open upgrade modal */

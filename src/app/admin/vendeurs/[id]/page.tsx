@@ -29,6 +29,7 @@ type ProfileRow = {
   logo_url: string | null;
   extra_provider_accounts: number;
   suspended: boolean | null;
+  plan_renews_on: string | null;
   created_at: string;
 };
 
@@ -38,7 +39,7 @@ async function getResellerDetail(userId: string) {
   const { data: profile } = await supabase
     .from("user_profiles")
     .select(
-      "user_id, role, plan, first_name, last_name, company_name, phone, city, logo_url, extra_provider_accounts, suspended, created_at"
+      "user_id, role, plan, first_name, last_name, company_name, phone, city, logo_url, extra_provider_accounts, suspended, plan_renews_on, created_at"
     )
     .eq("user_id", userId)
     .maybeSingle();
@@ -222,6 +223,7 @@ export default async function ResellerDetailPage({
           plan={profile.plan}
           role={profile.role}
           extraProviderAccounts={Number(profile.extra_provider_accounts ?? 0)}
+          planRenewsOn={profile.plan_renews_on}
           isSelf={actor?.id === profile.user_id}
         />
       </div>

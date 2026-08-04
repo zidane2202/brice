@@ -29,7 +29,7 @@ async function getFinanceData() {
     supabase
       .from("user_profiles")
       .select(
-        "user_id, plan, extra_provider_accounts, suspended, first_name, last_name, created_at"
+        "user_id, plan, extra_provider_accounts, suspended, first_name, last_name, created_at, plan_renews_on"
       )
       .eq("role", "reseller")
       .order("created_at", { ascending: false }),
@@ -64,6 +64,7 @@ async function getFinanceData() {
       extras,
       suspended,
       mrr: estimateMrrFcfa(plan, extras, suspended),
+      plan_renews_on: p.plan_renews_on as string | null,
     };
   });
 
@@ -266,6 +267,7 @@ export default async function AdminFinancesPage() {
                 <th>Vendeur</th>
                 <th>Plan</th>
                 <th>Extras</th>
+                <th>Échéance</th>
                 <th>MRR</th>
                 <th>Statut</th>
                 <th></th>
@@ -274,7 +276,7 @@ export default async function AdminFinancesPage() {
             <tbody>
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="empty">
+                  <td colSpan={7} className="empty">
                     Aucun vendeur.
                   </td>
                 </tr>
@@ -289,6 +291,7 @@ export default async function AdminFinancesPage() {
                     <span className="status active">{r.plan}</span>
                   </td>
                   <td>{r.plan === "pro" ? r.extras : "—"}</td>
+                  <td>{r.plan_renews_on ?? "—"}</td>
                   <td>{formatFcfa(r.mrr)} FCFA</td>
                   <td>
                     {r.suspended ? (

@@ -8,6 +8,7 @@ type Props = {
   plan: string;
   role: string;
   extraProviderAccounts?: number;
+  planRenewsOn?: string | null;
   isSelf: boolean;
 };
 
@@ -16,6 +17,7 @@ export function ResellerSettingsForm({
   plan,
   role,
   extraProviderAccounts = 0,
+  planRenewsOn = null,
   isSelf,
 }: Props) {
   const [isPending, startTransition] = useTransition();
@@ -71,6 +73,16 @@ export function ResellerSettingsForm({
             type="number"
             min={0}
             defaultValue={extraProviderAccounts}
+          />
+        </label>
+      )}
+      {(currentPlan === "pro" || currentPlan === "business") && (
+        <label>
+          Échéance pack SaaS
+          <input
+            name="plan_renews_on"
+            type="date"
+            defaultValue={planRenewsOn ?? ""}
           />
         </label>
       )}
