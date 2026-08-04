@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
 import { ProviderGlyph } from "@/components/ProviderGlyph";
@@ -492,7 +493,7 @@ export function ClientsView({ subscriptions, freeSlots, invoices }: Props) {
         </div>
       </div>
 
-      {drawerOpen && selectedSub && (
+      {drawerOpen && selectedSub && typeof document !== "undefined" && createPortal(
         <div
           className="client-modal-backdrop"
           role="presentation"
@@ -508,7 +509,8 @@ export function ClientsView({ subscriptions, freeSlots, invoices }: Props) {
             invoices={selectedInvoices}
             onClose={() => setDrawerOpen(false)}
           />
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
