@@ -20,6 +20,30 @@ alter table public.user_profiles add column if not exists logo_url text;
 alter table public.user_profiles add column if not exists extra_provider_accounts int not null default 0;
 alter table public.user_profiles add column if not exists suspended boolean not null default false;
 
+-- Encaissements plateforme (cash reçu manuellement : Pro / Business / extras)
+create table if not exists public.platform_payments (
+  id uuid primary key default gen_random_uuid(),
+  reseller_user_id uuid not null references auth.users(id) on delete cascade,
+  amount numeric(12,2) not null check (amount > 0),
+  kind text not null check (kind in (
+    'pro_monthly',
+    'business_monthly',
+    'extra_accounts',
+    'other'
+  )),
+  note text,
+  occurred_on date not null default (current_date),
+  recorded_by uuid not null references auth.users(id),
+  applied_plan text,
+  applied_extras int,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists platform_payments_occurred_idx
+  on public.platform_payments(occurred_on desc);
+create index if not exists platform_payments_reseller_idx
+  on public.platform_payments(reseller_user_id, occurred_on desc);
+
 -- Storage (créer aussi dans le dashboard Supabase) :
 -- Bucket public: logos
 -- Path: {user_id}/logo.{ext}

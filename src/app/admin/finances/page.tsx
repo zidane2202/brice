@@ -1,5 +1,7 @@
+import { RecordPlatformPaymentForm } from "@/components/admin/RecordPlatformPaymentForm";
 import { SuspendToggle } from "@/components/admin/SuspendToggle";
 import { StatsCard } from "@/components/StatsCard";
+import { PLATFORM_PAYMENT_KIND_LABELS, type PlatformPaymentKind } from "@/lib/platform-payments";
 import {
   estimateMrrFcfa,
   normalizePlan,
@@ -18,21 +20,39 @@ function formatFcfa(n: number) {
 
 async function getFinanceData() {
   const supabase = createSupabaseAdmin();
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    .toISOString()
+    .slice(0, 10);
 
-  const { data: profiles, error } = await supabase
-    .from("user_profiles")
-    .select(
-      "user_id, plan, extra_provider_accounts, suspended, first_name, last_name, created_at"
-    )
-    .eq("role", "reseller")
-    .order("created_at", { ascending: false });
+  const [profilesRes, paymentsRes, authResult] = await Promise.all([
+    supabase
+      .from("user_profiles")
+      .select(
+        "user_id, plan, extra_provider_accounts, suspended, first_name, last_name, created_at"
+      )
+      .eq("role", "reseller")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("platform_payments")
+      .select(
+        "id, reseller_user_id, amount, kind, note, occurred_on, recorded_by, applied_plan, created_at"
+      )
+      .order("occurred_on", { ascending: false })
+      .limit(100),
+    supabase.auth.admin.listUsers(),
+  ]);
 
-  if (error) throw new Error(error.message);
+  if (profilesRes.error) throw new Error(profilesRes.error.message);
+  // Table may not exist yet before SQL migration
+  const paymentsError = paymentsRes.error;
+  const payments = paymentsError ? [] : paymentsRes.data ?? [];
 
-  const { data: authUsers } = await supabase.auth.admin.listUsers();
-  const emailMap = new Map((authUsers?.users ?? []).map((u) => [u.id, u.email ?? "—"]));
+  const emailMap = new Map(
+    (authResult.data?.users ?? []).map((u) => [u.id, u.email ?? "—"])
+  );
 
-  const rows = (profiles ?? []).map((p) => {
+  const rows = (profilesRes.data ?? []).map((p) => {
     const plan = normalizePlan(p.plan);
     const extras = Number(p.extra_provider_accounts ?? 0);
     const suspended = Boolean(p.suspended);
@@ -55,7 +75,33 @@ async function getFinanceData() {
     mrr += r.mrr;
   }
 
-  return { rows, counts, mrr };
+  const cashThisMonth = payments
+    .filter((p) => p.occurred_on >= monthStart)
+    .reduce((sum, p) => sum + Number(p.amount ?? 0), 0);
+
+  const resellerOptions = rows.map((r) => ({
+    userId: r.user_id,
+    label: `${r.name} (${r.email})`,
+  }));
+
+  const journal = payments.map((p) => ({
+    ...p,
+    resellerLabel:
+      rows.find((r) => r.user_id === p.reseller_user_id)?.name ??
+      emailMap.get(p.reseller_user_id) ??
+      p.reseller_user_id.slice(0, 8),
+    recorderEmail: emailMap.get(p.recorded_by) ?? "—",
+  }));
+
+  return {
+    rows,
+    counts,
+    mrr,
+    cashThisMonth,
+    resellerOptions,
+    journal,
+    paymentsError: paymentsError?.message ?? null,
+  };
 }
 
 const CATALOGUE: {
@@ -85,7 +131,8 @@ const CATALOGUE: {
 ];
 
 export default async function AdminFinancesPage() {
-  const { rows, counts, mrr } = await getFinanceData();
+  const { rows, counts, mrr, cashThisMonth, resellerOptions, journal, paymentsError } =
+    await getFinanceData();
 
   return (
     <>
@@ -100,10 +147,70 @@ export default async function AdminFinancesPage() {
 
       <div className="stats-grid">
         <StatsCard label="MRR estimé (FCFA)" value={formatFcfa(mrr)} accent />
+        <StatsCard label="Encaissé ce mois" value={formatFcfa(cashThisMonth)} />
         <StatsCard label="Pro" value={counts.pro} />
         <StatsCard label="Business" value={counts.business} />
         <StatsCard label="Free" value={counts.free} />
         <StatsCard label="Suspendus" value={counts.suspended} />
+      </div>
+
+      {paymentsError && (
+        <div className="panel" style={{ marginBottom: 20, borderColor: "var(--sr-danger-border)" }}>
+          <p style={{ margin: 0, color: "var(--sr-danger)", fontSize: 13 }}>
+            Table <code>platform_payments</code> absente ou inaccessible. Exécute le SQL du schéma
+            sur Supabase. ({paymentsError})
+          </p>
+        </div>
+      )}
+
+      <div className="panel" style={{ marginBottom: 20 }}>
+        <h2>Enregistrer un encaissement</h2>
+        <RecordPlatformPaymentForm resellers={resellerOptions} />
+      </div>
+
+      <div className="panel" style={{ marginBottom: 20 }}>
+        <h2>Journal d’encaissements</h2>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Vendeur</th>
+                <th>Motif</th>
+                <th>Montant</th>
+                <th>Note</th>
+                <th>Plan appliqué</th>
+                <th>Par</th>
+              </tr>
+            </thead>
+            <tbody>
+              {journal.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="empty">
+                    Aucun encaissement enregistré.
+                  </td>
+                </tr>
+              )}
+              {journal.map((p) => (
+                <tr key={p.id}>
+                  <td>{p.occurred_on}</td>
+                  <td>
+                    <Link href={`/admin/vendeurs/${p.reseller_user_id}`} className="btn-link">
+                      {p.resellerLabel}
+                    </Link>
+                  </td>
+                  <td>
+                    {PLATFORM_PAYMENT_KIND_LABELS[p.kind as PlatformPaymentKind] ?? p.kind}
+                  </td>
+                  <td>{formatFcfa(Number(p.amount))} FCFA</td>
+                  <td>{p.note || "—"}</td>
+                  <td>{p.applied_plan ?? "—"}</td>
+                  <td style={{ fontSize: 12 }}>{p.recorderEmail}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="panel" style={{ marginBottom: 20 }}>
@@ -191,7 +298,14 @@ export default async function AdminFinancesPage() {
                     )}
                   </td>
                   <td>
-                    <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "flex-end" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 10,
+                        alignItems: "center",
+                        justifyContent: "flex-end",
+                      }}
+                    >
                       <Link href={`/admin/vendeurs/${r.user_id}`} className="btn-link">
                         Pack →
                       </Link>

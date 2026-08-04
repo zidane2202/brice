@@ -1,7 +1,9 @@
+import { RecordPlatformPaymentForm } from "@/components/admin/RecordPlatformPaymentForm";
 import { ResellerSettingsForm } from "@/components/admin/ResellerSettingsForm";
 import { SuspendToggle } from "@/components/admin/SuspendToggle";
 import { KpiCard } from "@/components/KpiCard";
 import { computeBalance, formatFcfa } from "@/lib/comptabilite";
+import { PLATFORM_PAYMENT_KIND_LABELS, type PlatformPaymentKind } from "@/lib/platform-payments";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
 import type {
@@ -51,6 +53,7 @@ async function getResellerDetail(userId: string) {
     incomeRes,
     txRes,
     invoicesRes,
+    paymentsRes,
   ] = await Promise.all([
     supabase.auth.admin.getUserById(userId),
     supabase
@@ -94,6 +97,12 @@ async function getResellerDetail(userId: string) {
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(10),
+    supabase
+      .from("platform_payments")
+      .select("id, amount, kind, note, occurred_on, applied_plan, created_at")
+      .eq("reseller_user_id", userId)
+      .order("occurred_on", { ascending: false })
+      .limit(20),
   ]);
 
   const today = new Date().toISOString().slice(0, 10);
@@ -114,6 +123,7 @@ async function getResellerDetail(userId: string) {
   );
   const transactions = (txRes.data ?? []) as Transaction[];
   const invoices = (invoicesRes.data ?? []) as Invoice[];
+  const payments = paymentsRes.error ? [] : paymentsRes.data ?? [];
 
   return {
     profile: profile as ProfileRow,
@@ -127,6 +137,7 @@ async function getResellerDetail(userId: string) {
     invoiceCount: invoices.length,
     transactions,
     invoices,
+    payments,
   };
 }
 
@@ -151,6 +162,7 @@ export default async function ResellerDetailPage({
     totalIncome,
     transactions,
     invoices,
+    payments,
   } = data;
 
   const displayName =
@@ -212,6 +224,48 @@ export default async function ResellerDetailPage({
           extraProviderAccounts={Number(profile.extra_provider_accounts ?? 0)}
           isSelf={actor?.id === profile.user_id}
         />
+      </div>
+
+      <div className="panel" style={{ marginBottom: 20 }}>
+        <h2 style={{ marginTop: 0 }}>Encaissement plateforme</h2>
+        <RecordPlatformPaymentForm
+          resellerUserId={profile.user_id}
+          defaultPlan={profile.plan}
+          defaultExtras={Number(profile.extra_provider_accounts ?? 0)}
+        />
+        <div className="table-wrap" style={{ marginTop: 16 }}>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Motif</th>
+                <th>Montant</th>
+                <th>Note</th>
+                <th>Plan appliqué</th>
+              </tr>
+            </thead>
+            <tbody>
+              {payments.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="empty">
+                    Aucun encaissement.
+                  </td>
+                </tr>
+              )}
+              {payments.map((p) => (
+                <tr key={p.id}>
+                  <td>{p.occurred_on}</td>
+                  <td>
+                    {PLATFORM_PAYMENT_KIND_LABELS[p.kind as PlatformPaymentKind] ?? p.kind}
+                  </td>
+                  <td>{formatFcfa(Number(p.amount))} FCFA</td>
+                  <td>{p.note || "—"}</td>
+                  <td>{p.applied_plan ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="panel" style={{ marginBottom: 20 }}>
