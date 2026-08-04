@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { deleteClientSubscription, updateClientDetails, updateClientMeta, updateClientPin } from "@/app/actions/clients";
 import {
   generateInvoiceForSubscription,
@@ -10,6 +10,7 @@ import {
 } from "@/app/actions/subscriptions";
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ProviderGlyph } from "@/components/ProviderGlyph";
 import { RailGlyph, RAIL_NAMES } from "@/components/RailGlyph";
 import { addDays, formatDate, toDateInputValue } from "@/lib/dates";
@@ -901,9 +902,19 @@ function PinControl({ clientId, initialPin }: { clientId: string; initialPin: st
 
 function CancelButton({ subId }: { subId: string }) {
   const [confirming, setConfirming] = useState(false);
+  const [pending, startTransition] = useTransition();
 
-  if (!confirming) {
-    return (
+  function confirmDelete() {
+    const formData = new FormData();
+    formData.set("id", subId);
+    startTransition(async () => {
+      await deleteClientSubscription(formData);
+      setConfirming(false);
+    });
+  }
+
+  return (
+    <>
       <button
         type="button"
         onClick={() => setConfirming(true)}
@@ -919,57 +930,18 @@ function CancelButton({ subId }: { subId: string }) {
       >
         <Icon name="x" size={12} /> Supprimer
       </button>
-    );
-  }
-
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 6,
-        padding: "0 8px",
-        height: 32,
-        border: "1px solid var(--sr-danger-border)",
-        background: "var(--sr-danger-bg)",
-        borderRadius: 6,
-      }}
-    >
-      <Icon name="alert" size={13} style={{ color: "var(--sr-danger)" }} />
-      <span style={{ font: "500 11px/1 var(--font-geist-sans)", color: "var(--sr-danger)", whiteSpace: "nowrap" }}>
-        Sûr ?
-      </span>
-      <form action={deleteClientSubscription} style={{ margin: 0 }}>
-        <input type="hidden" name="id" value={subId} />
-        <button
-          type="submit"
-          style={{
-            minHeight: 24,
-            height: 24,
-            paddingInline: 8,
-            fontSize: "0.72rem",
-            background: "var(--sr-danger)",
-            border: "1px solid var(--sr-danger)",
-            color: "#fff",
-          }}
-        >
-          Supprimer
-        </button>
-      </form>
-      <button
-        type="button"
-        onClick={() => setConfirming(false)}
-        className="secondary"
-        style={{
-          minHeight: 24,
-          height: 24,
-          paddingInline: 8,
-          fontSize: "0.72rem",
-        }}
-      >
-        Retour
-      </button>
-    </div>
+      <ConfirmDialog
+        open={confirming}
+        title="Supprimer définitivement ce profil ?"
+        description="Cette action supprimera l’abonnement, ses transactions et ses factures associées."
+        detail="Cette action est irréversible."
+        confirmLabel="Supprimer définitivement"
+        tone="danger"
+        pending={pending}
+        onCancel={() => setConfirming(false)}
+        onConfirm={confirmDelete}
+      />
+    </>
   );
 }
 

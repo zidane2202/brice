@@ -8,6 +8,7 @@ import {
   type PlatformPaymentKind,
 } from "@/lib/platform-payments";
 import { useMemo, useState, useTransition } from "react";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 type ResellerOption = { userId: string; label: string; plan: string; activePro?: boolean };
 
@@ -209,80 +210,22 @@ export function RecordPlatformPaymentForm({
         <p style={{ margin: 0, color: "var(--sr-danger)", fontSize: 13 }}>{error}</p>
       )}
       {confirmation && (
-        <ConfirmationModal
-          confirmation={confirmation}
+        <ConfirmDialog
+          open
+          title="Confirmer l’encaissement"
+          description="Vérifiez les informations avant de valider cette opération financière."
+          rows={[
+            { label: "Vendeur", value: confirmation.reseller },
+            { label: "Motif", value: confirmation.kind },
+            { label: "Montant", value: confirmation.amount, accent: true },
+          ]}
+          detail={confirmation.detail}
+          confirmLabel="Confirmer l’encaissement"
+          pending={pending}
           onCancel={() => setConfirmation(null)}
           onConfirm={confirmSubmit}
         />
       )}
     </form>
-  );
-}
-
-function ConfirmationModal({
-  confirmation,
-  onCancel,
-  onConfirm,
-}: {
-  confirmation: Confirmation;
-  onCancel: () => void;
-  onConfirm: () => void;
-}) {
-  return (
-    <div
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onCancel();
-      }}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 1000,
-        display: "grid",
-        placeItems: "center",
-        padding: 20,
-        background: "rgba(0,0,0,.72)",
-        backdropFilter: "blur(5px)",
-      }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="payment-confirm-title"
-        style={{
-          width: "min(440px, 100%)",
-          padding: 22,
-          borderRadius: 14,
-          border: "1px solid var(--sr-border)",
-          background: "var(--sr-surface)",
-          boxShadow: "0 24px 80px rgba(0,0,0,.55)",
-        }}
-      >
-        <div style={{ width: 42, height: 42, display: "grid", placeItems: "center", borderRadius: 10, background: "rgba(41,220,133,.12)", color: "var(--sr-mint-300)", fontSize: 20, marginBottom: 16 }}>✓</div>
-        <h3 id="payment-confirm-title" style={{ margin: 0, fontSize: 19 }}>Confirmer l’encaissement</h3>
-        <p style={{ margin: "7px 0 18px", color: "var(--sr-fg-subtle)", fontSize: 13 }}>
-          Vérifiez les informations avant de valider cette opération financière.
-        </p>
-        <div style={{ padding: 14, borderRadius: 9, background: "var(--sr-bg)", border: "1px solid var(--sr-border-subtle)", display: "grid", gap: 10 }}>
-          <ModalRow label="Vendeur" value={confirmation.reseller} />
-          <ModalRow label="Motif" value={confirmation.kind} />
-          <ModalRow label="Montant" value={confirmation.amount} accent />
-        </div>
-        {confirmation.detail && <p style={{ margin: "14px 0 0", color: "var(--sr-mint-300)", fontSize: 12 }}>{confirmation.detail}</p>}
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
-          <button type="button" className="secondary" onClick={onCancel}>Annuler</button>
-          <button type="button" onClick={onConfirm}>Confirmer l’encaissement</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ModalRow({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
-  return (
-    <div style={{ display: "flex", justifyContent: "space-between", gap: 16, fontSize: 13 }}>
-      <span style={{ color: "var(--sr-fg-subtle)" }}>{label}</span>
-      <strong style={{ color: accent ? "var(--sr-mint-300)" : "var(--sr-fg-strong)", textAlign: "right" }}>{value}</strong>
-    </div>
   );
 }

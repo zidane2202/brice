@@ -7,6 +7,7 @@ import { ProviderGlyph } from "@/components/ProviderGlyph";
 import { RAIL_NAMES, RailGlyph } from "@/components/RailGlyph";
 import { toDateInputValue } from "@/lib/dates";
 import type { AccountSlot } from "@/lib/types";
+import { ConfirmDialog, type ConfirmDialogRow } from "@/components/ui/ConfirmDialog";
 
 type FreeSlot = AccountSlot & { account: { id: string; service_name: string } };
 
@@ -23,6 +24,7 @@ export function NewClientForm({ freeSlots, onClose }: Props) {
     clientName: string;
     clientPhone: string | null;
   } | null>(null);
+  const [confirmation, setConfirmation] = useState<{ formData: FormData; rows: ConfirmDialogRow[] } | null>(null);
   const today = toDateInputValue();
 
   async function handleSubmit(formData: FormData) {
@@ -37,9 +39,20 @@ export function NewClientForm({ freeSlots, onClose }: Props) {
     const slotName = selectedSlot
       ? `${selectedSlot.account.service_name} · ${selectedSlot.label || `Profil ${selectedSlot.slot_number}`}`
       : "profil sélectionné";
-    if (!window.confirm(`Confirmer la vente ?\n\n${clientName}\n${slotName}\n${amount.toLocaleString("fr-FR")} FCFA`)) {
-      return;
-    }
+    setConfirmation({
+      formData,
+      rows: [
+        { label: "Client", value: clientName },
+        { label: "Profil", value: slotName },
+        { label: "Montant", value: `${amount.toLocaleString("fr-FR")} FCFA`, accent: true },
+      ],
+    });
+  }
+
+  function confirmSale() {
+    if (!confirmation) return;
+    const formData = confirmation.formData;
+    setConfirmation(null);
     startTransition(async () => {
       try {
         const result = await addClientWithSubscription(formData);
@@ -72,6 +85,17 @@ export function NewClientForm({ freeSlots, onClose }: Props) {
         overflow: "hidden",
       }}
     >
+      <ConfirmDialog
+        open={Boolean(confirmation)}
+        title="Confirmer la vente"
+        description="Vérifiez les informations avant d’inscrire le client et de générer la transaction."
+        rows={confirmation?.rows}
+        detail="La transaction et la facture seront créées automatiquement."
+        confirmLabel="Confirmer la vente"
+        pending={isPending}
+        onCancel={() => setConfirmation(null)}
+        onConfirm={confirmSale}
+      />
       <div
         style={{
           padding: "14px 18px",
