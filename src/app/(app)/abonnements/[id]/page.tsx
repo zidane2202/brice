@@ -37,7 +37,7 @@ async function getAccount(id: string, userId: string) {
         : [];
     const current =
       subs.find(
-        (s) => (s.status === "active" || s.status === "grace") && s.end_date >= today
+        (s) => s.status === "grace" || (s.status === "active" && s.end_date >= today)
       ) ?? null;
     return { ...slot, active_subscription: current };
   });

@@ -24,7 +24,7 @@ async function getAccounts(userId: string) {
       }).account_slots ?? [];
     const used = slots.filter((slot) =>
       (slot.client_subscriptions ?? []).some(
-        (s) => (s.status === "active" || s.status === "grace") && s.end_date >= today
+        (s) => s.status === "grace" || (s.status === "active" && s.end_date >= today)
       )
     ).length;
     return {

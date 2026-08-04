@@ -40,12 +40,49 @@ export async function addClientWithSubscription(
   // Verify the slot belongs to an account owned by this user
   const { data: slot } = await supabase
     .from("account_slots")
-    .select("id, account_id, provider_accounts(user_id)")
+    .select("id, account_id, provider_accounts(user_id, service_name)")
     .eq("id", slotId)
     .single();
 
-  const accountOwner = (slot?.provider_accounts as unknown as { user_id: string } | null)?.user_id;
+  const account = slot?.provider_accounts as unknown as { user_id: string; service_name: string } | null;
+  const accountOwner = account?.user_id;
   if (!slot || accountOwner !== user.id) throw new Error("Slot invalide");
+
+  const today = toDateInputValue();
+  const { data: occupyingSubs } = await supabase
+    .from("client_subscriptions")
+    .select("id, status, end_date, client:clients(first_name, last_name)")
+    .eq("slot_id", slotId)
+    .eq("user_id", user.id)
+    .in("status", ["active", "grace"]);
+
+  const occupyingSub = (occupyingSubs ?? []).find((s) =>
+    s.status === "grace" || (s.status === "active" && s.end_date >= today)
+  );
+  if (occupyingSub) {
+    const existingClient = occupyingSub.client as unknown as { first_name?: string; last_name?: string | null } | null;
+    const existingName = [existingClient?.first_name, existingClient?.last_name].filter(Boolean).join(" ") || "un client";
+    throw new Error(`Ce profil est déjà occupé par ${existingName}. Action annulée.`);
+  }
+
+  const clientName = [firstName, lastName].filter(Boolean).join(" ");
+  const serviceNameForDuplicate = account?.service_name ?? "Profil";
+  const transactionLabel = `Vente ${serviceNameForDuplicate} — ${clientName}`;
+  const recentCutoff = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+  const { data: recentDuplicate } = await supabase
+    .from("transactions")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("kind", "income")
+    .eq("source", "new_profile")
+    .eq("amount", price)
+    .eq("label", transactionLabel)
+    .gte("created_at", recentCutoff)
+    .limit(1);
+
+  if ((recentDuplicate ?? []).length > 0) {
+    throw new Error("Action identique opérée à l’instant. Attendez quelques secondes avant de réessayer.");
+  }
 
   const { data: client, error: clientError } = await supabase
     .from("clients")
@@ -80,7 +117,6 @@ export async function addClientWithSubscription(
 
   if (subError) throw new Error(subError.message);
 
-  const clientName = [firstName, lastName].filter(Boolean).join(" ");
   const clientPhone = opt(formData, "phone");
   let invoiceCode: string | null = null;
 
@@ -103,7 +139,7 @@ export async function addClientWithSubscription(
       amount: price,
       client_id: client.id,
       subscription_id: sub.id,
-      label: `Vente ${serviceName} · ${clientName}`,
+      label: transactionLabel,
     });
     const result = await createInvoice(supabase, {
       userId: user.id,
@@ -145,6 +181,90 @@ export async function updateClientMeta(formData: FormData) {
 
   if (error) throw new Error(error.message);
   revalidatePath("/clients");
+}
+
+export async function updateClientDetails(formData: FormData) {
+  const user = await getUser();
+  if (!user) throw new Error("Non authentifié");
+
+  const clientId = req(formData, "id");
+  const subscriptionId = opt(formData, "subscription_id");
+  const firstName = req(formData, "first_name");
+  const lastName = opt(formData, "last_name");
+  const email = opt(formData, "email");
+  const phone = opt(formData, "phone");
+  const pinCode = opt(formData, "pin_code");
+  const paymentRail = opt(formData, "payment_rail");
+  const notes = opt(formData, "notes");
+  const priceRaw = String(formData.get("price") ?? "").trim();
+  const price = priceRaw ? parseFloat(priceRaw) : null;
+
+  if (priceRaw && (!Number.isFinite(price) || (price ?? 0) <= 0)) {
+    throw new Error("Le montant payé doit être supérieur à 0");
+  }
+
+  const supabase = createSupabaseAdmin();
+  const { error: clientError } = await supabase
+    .from("clients")
+    .update({
+      first_name: firstName,
+      last_name: lastName,
+      email,
+      phone,
+      pin_code: pinCode,
+      payment_rail: paymentRail,
+      notes,
+    })
+    .eq("id", clientId)
+    .eq("user_id", user.id);
+
+  if (clientError) throw new Error(clientError.message);
+
+  if (subscriptionId && price) {
+    const { data: sub } = await supabase
+      .from("client_subscriptions")
+      .select("id, slot:account_slots(account:provider_accounts(service_name))")
+      .eq("id", subscriptionId)
+      .eq("user_id", user.id)
+      .single();
+
+    const serviceName =
+      ((sub?.slot as unknown as { account?: { service_name?: string } } | null)?.account?.service_name) ?? "Profil";
+    const clientName = [firstName, lastName].filter(Boolean).join(" ");
+    const label = `Vente ${serviceName} — ${clientName}`;
+
+    const { error: subError } = await supabase
+      .from("client_subscriptions")
+      .update({ price })
+      .eq("id", subscriptionId)
+      .eq("user_id", user.id);
+
+    if (subError) throw new Error(subError.message);
+
+    await supabase
+      .from("transactions")
+      .update({ amount: price, label })
+      .eq("subscription_id", subscriptionId)
+      .eq("user_id", user.id)
+      .eq("source", "new_profile");
+
+    await supabase
+      .from("invoices")
+      .update({
+        amount: price,
+        client_name: clientName,
+        client_phone: phone,
+        client_email: email,
+        payment_rail: paymentRail,
+      })
+      .eq("subscription_id", subscriptionId)
+      .eq("user_id", user.id)
+      .eq("kind", "new");
+  }
+
+  revalidatePath("/clients");
+  revalidatePath("/abonnements");
+  revalidatePath("/dashboard");
 }
 
 export async function updateClientPin(formData: FormData) {
@@ -295,6 +415,18 @@ export async function deleteClientSubscription(formData: FormData) {
 
   const clientId = sub.client_id as string;
 
+  await supabase
+    .from("transactions")
+    .delete()
+    .eq("subscription_id", id)
+    .eq("user_id", user.id);
+
+  await supabase
+    .from("invoices")
+    .delete()
+    .eq("subscription_id", id)
+    .eq("user_id", user.id);
+
   const { error: deleteError } = await supabase
     .from("client_subscriptions")
     .delete()
@@ -344,11 +476,24 @@ export async function bulkDeleteSubscriptions(formData: FormData) {
   if (!subs || subs.length === 0) return;
 
   const clientIds = Array.from(new Set(subs.map((s) => s.client_id as string).filter(Boolean)));
+  const subIds = subs.map((s) => s.id as string);
+
+  await supabase
+    .from("transactions")
+    .delete()
+    .in("subscription_id", subIds)
+    .eq("user_id", user.id);
+
+  await supabase
+    .from("invoices")
+    .delete()
+    .in("subscription_id", subIds)
+    .eq("user_id", user.id);
 
   const { error: deleteError } = await supabase
     .from("client_subscriptions")
     .delete()
-    .in("id", subs.map((s) => s.id))
+    .in("id", subIds)
     .eq("user_id", user.id);
 
   if (deleteError) throw new Error(deleteError.message);

@@ -26,6 +26,15 @@ export function SlotTable({ slots }: Props) {
             const isUrgent = !isExpired && daysLeft !== null && daysLeft >= 0 && daysLeft <= 3;
             const effectiveStatus =
               sub && isExpired && sub.status === "active" ? "expired" : sub?.status;
+            const endLabel =
+              effectiveStatus === "grace"
+                ? "En grâce"
+                : daysLeft !== null && daysLeft >= 0
+                  ? `J-${daysLeft}`
+                  : daysLeft !== null
+                    ? "Expiré"
+                    : "";
+
             return (
               <tr key={slot.id} className={isUrgent ? "urgent-row" : ""}>
                 <td><strong>{slot.label || `Profil ${slot.slot_number}`}</strong></td>
@@ -44,7 +53,7 @@ export function SlotTable({ slots }: Props) {
                 <td>{sub ? formatDate(sub.start_date) : "—"}</td>
                 <td>
                   {sub
-                    ? <><strong>{formatDate(sub.end_date)}</strong><span>{daysLeft !== null && daysLeft >= 0 ? `J-${daysLeft}` : daysLeft !== null ? "Expiré" : ""}</span></>
+                    ? <><strong>{formatDate(sub.end_date)}</strong><span>{endLabel}</span></>
                     : "—"
                   }
                 </td>

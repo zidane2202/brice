@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { deleteClientSubscription, updateClientMeta, updateClientPin } from "@/app/actions/clients";
+import { deleteClientSubscription, updateClientDetails, updateClientMeta, updateClientPin } from "@/app/actions/clients";
 import {
   generateInvoiceForSubscription,
   removeGraceStatus,
@@ -42,7 +42,7 @@ export function ClientDrawer({ sub, lifetime, cyclesCount, history, invoices, on
 
   return (
     <aside
-      className="sr-scroll"
+      className="sr-scroll client-drawer"
       style={{
         width: 380,
         flex: "0 0 380px",
@@ -55,6 +55,7 @@ export function ClientDrawer({ sub, lifetime, cyclesCount, history, invoices, on
       }}
     >
       <div
+        className="client-drawer-header"
         style={{
           padding: "14px 18px",
           borderBottom: "1px solid var(--sr-border-subtle)",
@@ -68,6 +69,7 @@ export function ClientDrawer({ sub, lifetime, cyclesCount, history, invoices, on
         }}
       >
         <div
+          className="client-drawer-title"
           style={{
             font: "500 10px/1 var(--font-geist-sans)",
             letterSpacing: "0.08em",
@@ -81,15 +83,17 @@ export function ClientDrawer({ sub, lifetime, cyclesCount, history, invoices, on
         <button
           type="button"
           onClick={onClose}
-          className="secondary"
+          className="secondary client-drawer-close"
           style={{ width: 28, minHeight: 28, height: 28, padding: 0, justifyContent: "center" }}
           aria-label="Fermer"
         >
+          <span className="client-drawer-close-label">Retour aux clients</span>
           <Icon name="x" size={13} />
         </button>
       </div>
 
       <div
+        className="client-drawer-hero"
         style={{
           padding: "20px 18px 18px",
           borderBottom: "1px solid var(--sr-border-subtle)",
@@ -99,7 +103,7 @@ export function ClientDrawer({ sub, lifetime, cyclesCount, history, invoices, on
           background: "linear-gradient(180deg, rgba(41,220,133,0.04), transparent 80%)",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <div className="client-drawer-identity" style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <Avatar name={fullName} size={56} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div
@@ -237,6 +241,21 @@ export function ClientDrawer({ sub, lifetime, cyclesCount, history, invoices, on
             <GraceControl subId={sub.id} status={sub.status} graceUntil={sub.grace_until} endDate={sub.end_date} />
           </div>
         </div>
+      </Section>
+
+      <Section title="Modifier les infos">
+        <ClientDetailsForm
+          clientId={client.id}
+          subscriptionId={sub.id}
+          firstName={client.first_name}
+          lastName={client.last_name ?? ""}
+          phone={client.phone ?? ""}
+          email={client.email ?? ""}
+          pinCode={client.pin_code ?? ""}
+          paymentRail={client.payment_rail ?? ""}
+          price={sub.price ?? 0}
+          notes={client.notes ?? ""}
+        />
       </Section>
 
       <Section title="Valeur client">
@@ -490,6 +509,130 @@ function MiniStat({ label, value, suffix, tone }: { label: string; value: string
         {suffix && <span style={{ color: "var(--sr-fg-subtle)", fontWeight: 400 }}>{suffix}</span>}
       </div>
     </div>
+  );
+}
+
+function ClientDetailsForm({
+  clientId,
+  subscriptionId,
+  firstName,
+  lastName,
+  phone,
+  email,
+  pinCode,
+  paymentRail,
+  price,
+  notes,
+}: {
+  clientId: string;
+  subscriptionId: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string;
+  pinCode: string;
+  paymentRail: string;
+  price: number;
+  notes: string;
+}) {
+  const [rail, setRail] = useState(paymentRail);
+
+  return (
+    <form
+      action={updateClientDetails}
+      style={{
+        padding: 14,
+        background: "var(--sr-surface)",
+        border: "1px solid var(--sr-border-subtle)",
+        borderRadius: 8,
+        boxShadow: "var(--sr-hairline-top)",
+        display: "grid",
+        gap: 10,
+      }}
+    >
+      <input type="hidden" name="id" value={clientId} />
+      <input type="hidden" name="subscription_id" value={subscriptionId} />
+      <input type="hidden" name="payment_rail" value={rail} />
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <EditField label="Prénom">
+          <input name="first_name" defaultValue={firstName} required />
+        </EditField>
+        <EditField label="Nom">
+          <input name="last_name" defaultValue={lastName} />
+        </EditField>
+      </div>
+
+      <EditField label="Téléphone WhatsApp">
+        <input name="phone" type="tel" defaultValue={phone} placeholder="+237..." />
+      </EditField>
+
+      <EditField label="Email">
+        <input name="email" type="email" defaultValue={email} placeholder="client@email.com" />
+      </EditField>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <EditField label="PIN">
+          <input name="pin_code" defaultValue={pinCode} inputMode="numeric" />
+        </EditField>
+        <EditField label="Montant payé">
+          <input name="price" type="number" min={1} step={1} defaultValue={price || ""} required />
+        </EditField>
+      </div>
+
+      <EditField label="Paiement">
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {RAIL_NAMES.map((name) => {
+            const selected = rail === name;
+            return (
+              <button
+                key={name}
+                type="button"
+                onClick={() => setRail(name)}
+                className="secondary"
+                style={{
+                  minHeight: 30,
+                  height: 30,
+                  paddingInline: 9,
+                  fontSize: "0.75rem",
+                  background: selected ? "var(--sr-surface-3)" : "var(--sr-bg)",
+                  borderColor: selected ? "var(--sr-border-strong)" : "var(--sr-border-subtle)",
+                }}
+              >
+                <RailGlyph rail={name} size={16} />
+                {name}
+              </button>
+            );
+          })}
+        </div>
+      </EditField>
+
+      <EditField label="Notes privées">
+        <textarea name="notes" defaultValue={notes} rows={3} />
+      </EditField>
+
+      <button type="submit" style={{ minHeight: 36, height: 36 }}>
+        <Icon name="check" size={13} /> Enregistrer les modifications
+      </button>
+    </form>
+  );
+}
+
+function EditField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label style={{ display: "grid", gap: 6, minWidth: 0 }}>
+      <span
+        style={{
+          font: "500 10px/1 var(--font-geist-sans)",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          color: "var(--sr-fg-muted)",
+        }}
+      >
+        {label}
+      </span>
+      {children}
+    </label>
   );
 }
 
