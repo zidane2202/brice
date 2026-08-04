@@ -37,7 +37,7 @@ async function getFinanceData() {
     supabase
       .from("platform_payments")
       .select(
-        "id, reseller_user_id, amount, kind, note, occurred_on, recorded_by, applied_plan, created_at"
+        "id, reseller_user_id, amount, kind, note, occurred_on, recorded_by, applied_plan, applied_extras, created_at"
       )
       .order("occurred_on", { ascending: false })
       .limit(100),
@@ -151,6 +151,8 @@ export default async function AdminFinancesPage({ searchParams }: { searchParams
   const { q = "", kind = "all", from = "", to = "" } = await searchParams;
   const needle = q.trim().toLowerCase();
   const filteredJournal = journal.filter((payment) => (!needle || `${payment.resellerLabel} ${payment.note ?? ""} ${payment.id}`.toLowerCase().includes(needle)) && (kind === "all" || payment.kind === kind) && (!from || payment.occurred_on >= from) && (!to || payment.occurred_on <= to));
+  const actionLabels: Record<string,string> = { platform_payment_recorded:"Encaissement enregistré",platform_payment_reversed:"Encaissement annulé",reseller_suspended:"Vendeur suspendu",reseller_unsuspended:"Vendeur réactivé",reseller_settings_updated:"Réglages vendeur modifiés" };
+  const detailLabels: Record<string,string> = { kind:"Motif",note:"Note",amount:"Montant",occurredOn:"Date",appliedPlan:"Plan",appliedExtras:"Comptes extras",reason:"Motif d’annulation",paymentId:"Référence" };
 
   return (
     <>
@@ -200,6 +202,7 @@ export default async function AdminFinancesPage({ searchParams }: { searchParams
                 <th>Montant</th>
                 <th>Note</th>
                 <th>Plan appliqué</th>
+                <th>Extras après paiement</th>
                 <th>Par</th>
                 <th></th>
               </tr>
@@ -207,7 +210,7 @@ export default async function AdminFinancesPage({ searchParams }: { searchParams
             <tbody>
               {filteredJournal.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="empty">
+                  <td colSpan={10} className="empty">
                     Aucun encaissement enregistré.
                   </td>
                 </tr>
@@ -227,8 +230,9 @@ export default async function AdminFinancesPage({ searchParams }: { searchParams
                   <td style={{ textDecoration: p.reversal ? "line-through" : "none", color: p.reversal ? "var(--sr-fg-subtle)" : undefined }}>{formatFcfa(Number(p.amount))} FCFA</td>
                   <td>{p.note || "—"}</td>
                   <td>{p.applied_plan ?? "—"}</td>
+                  <td>{p.kind === "extra_accounts" ? `${p.applied_extras ?? 0} compte(s)` : "—"}</td>
                   <td style={{ fontSize: 12 }}>{p.recorderEmail}</td>
-                  <td>{p.reversal ? <span className="status cancelled" title={p.reversal.reason}>Annulé</span> : <ReversePlatformPaymentButton paymentId={p.id} label={`${p.resellerLabel} · ${formatFcfa(Number(p.amount))} FCFA`} />}</td>
+                  <td><div className="journal-row-actions"><Link className="secondary receipt-link" href={`/admin/finances/recu/${p.id}`} target="_blank">Reçu</Link>{p.reversal ? <span className="status cancelled" title={p.reversal.reason}>Annulé</span> : <ReversePlatformPaymentButton paymentId={p.id} label={`${p.resellerLabel} · ${formatFcfa(Number(p.amount))} FCFA`} />}</div></td>
                 </tr>
               ))}
             </tbody>
@@ -241,22 +245,9 @@ export default async function AdminFinancesPage({ searchParams }: { searchParams
         <p style={{ color: "var(--sr-fg-subtle)", fontSize: 12, margin: "0 0 14px" }}>
           Historique des encaissements, suspensions et modifications sensibles.
         </p>
-        <div className="table-wrap">
-          <table>
-            <thead><tr><th>Date</th><th>Action</th><th>Cible</th><th>Administrateur</th><th>Détails</th></tr></thead>
-            <tbody>
-              {audit.length === 0 && <tr><td colSpan={5} className="empty">Aucune entrée d’audit. Exécutez le schéma Supabase mis à jour si nécessaire.</td></tr>}
-              {audit.map((entry) => (
-                <tr key={entry.id}>
-                  <td>{new Date(entry.created_at).toLocaleString("fr-FR")}</td>
-                  <td><strong>{entry.action}</strong></td>
-                  <td>{entry.target_user_id ? emailMap.get(entry.target_user_id) ?? entry.target_user_id.slice(0, 8) : "—"}</td>
-                  <td>{emailMap.get(entry.actor_user_id) ?? entry.actor_user_id.slice(0, 8)}</td>
-                  <td style={{ maxWidth: 320, fontSize: 11 }}>{JSON.stringify(entry.details)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="audit-list">
+          {audit.length === 0 && <div className="empty">Aucune entrée d’audit. Exécutez le schéma Supabase mis à jour si nécessaire.</div>}
+          {audit.map((entry) => { const details=entry.details && typeof entry.details==="object" ? entry.details as Record<string,unknown> : {}; return <article className="audit-entry" key={entry.id}><div className="audit-entry-head"><div><strong>{actionLabels[entry.action]??entry.action.replaceAll("_"," ")}</strong><time>{new Date(entry.created_at).toLocaleString("fr-FR",{dateStyle:"medium",timeStyle:"short"})}</time></div><span className="audit-target">{entry.target_user_id ? emailMap.get(entry.target_user_id) ?? entry.target_user_id.slice(0,8) : "Système"}</span></div><dl className="audit-details"><div><dt>Administrateur</dt><dd>{emailMap.get(entry.actor_user_id)??entry.actor_user_id.slice(0,8)}</dd></div>{Object.entries(details).filter(([,value])=>value!==null&&value!==""&&value!==false).map(([key,value])=><div key={key}><dt>{detailLabels[key]??key}</dt><dd>{key==="amount"?`${formatFcfa(Number(value))} FCFA`:key==="kind"?(PLATFORM_PAYMENT_KIND_LABELS[value as PlatformPaymentKind]??String(value)):typeof value==="boolean"?(value?"Oui":"Non"):String(value)}</dd></div>)}</dl></article>; })}
         </div>
       </div>
 

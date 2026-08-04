@@ -5,6 +5,7 @@ import { Syne, Figtree } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import "./globals.css";
+import { RuntimeI18n } from "@/components/RuntimeI18n";
 
 const landingDisplay = Syne({
   subsets: ["latin"],
@@ -45,7 +46,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     >
       <body className="antialiased">
         <a href="#app-content" className="skip-link">Aller au contenu principal</a>
-        <NextIntlClientProvider messages={messages}>{children}</NextIntlClientProvider>
+        <NextIntlClientProvider messages={messages}><RuntimeI18n />{children}</NextIntlClientProvider>
       </body>
     </html>
   );

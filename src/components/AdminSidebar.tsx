@@ -4,26 +4,29 @@ import { logout } from "@/app/actions/auth";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/Icon";
-
-const navItems = [
-  { href: "/admin/dashboard", label: "Dashboard", icon: "dashboard" },
-  { href: "/admin/vendeurs", label: "Vendeurs", icon: "users" },
-  { href: "/admin/finances", label: "Finances", icon: "bill" },
-  { href: "/admin/support", label: "Support", icon: "alert" },
-  { href: "/admin/systeme", label: "Système", icon: "settings" },
-];
+import { LocaleSwitcher } from "@/components/LocaleSwitcher";
+import { useTranslations } from "next-intl";
 
 export function AdminSidebar() {
   const pathname = usePathname();
+  const t = useTranslations("Navigation");
+  const translatedNavItems = [
+    { href: "/admin/dashboard", label: t("dashboard"), icon: "dashboard" },
+    { href: "/admin/vendeurs", label: t("sellers"), icon: "users" },
+    { href: "/admin/finances", label: t("finances"), icon: "bill" },
+    { href: "/admin/support", label: t("supportShort"), icon: "alert" },
+    { href: "/admin/systeme", label: t("system"), icon: "settings" },
+  ];
 
   return (
     <aside className="sidebar sidebar--admin">
       <div className="sidebar-logo">
         <p className="eyebrow">SubResell</p>
         <span className="admin-badge">Admin</span>
+        <LocaleSwitcher className="app-locale-toggle admin-locale-toggle" />
       </div>
       <nav className="sidebar-nav">
-        {navItems.map((item) => (
+        {translatedNavItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}
@@ -35,7 +38,7 @@ export function AdminSidebar() {
         ))}
         <div className="sidebar-divider" />
         <Link href="/dashboard" className="sidebar-link sidebar-link--muted">
-          <Icon name="arrowRight" size={18} style={{ transform: "rotate(180deg)" }} /> App vendeur
+          <Icon name="arrowRight" size={18} style={{ transform: "rotate(180deg)" }} /> {t("sellerApp")}
         </Link>
       </nav>
       <form action={logout} className="sidebar-footer" style={{ width: "100%", margin: "auto 0 0", paddingTop: 12 }}>
@@ -58,7 +61,7 @@ export function AdminSidebar() {
             overflow: "hidden",
           }}
         >
-          <Icon name="logout" size={18} /> Déconnexion
+          <Icon name="logout" size={18} /> {t("logout")}
         </button>
       </form>
     </aside>

@@ -9,6 +9,7 @@ import { getUser } from "@/lib/supabase-server";
 import type { ClientSubscription, ProviderAccount, Transaction } from "@/lib/types";
 import Link from "next/link";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
+import { getTranslations } from "next-intl/server";
 
 export const dynamic = "force-dynamic";
 
@@ -133,6 +134,7 @@ async function getDashboardData(userId: string) {
 }
 
 export default async function DashboardPage() {
+  const t = await getTranslations("Dashboard");
   const user = await getUser();
   if (!user) return null;
 
@@ -162,59 +164,58 @@ export default async function DashboardPage() {
   return (
     <>
       <div className="dash-header">
-        <p className="dash-eyebrow">Vue d&apos;ensemble</p>
-        <h1>Dashboard</h1>
+        <p className="dash-eyebrow">{t("overview")}</p>
+        <h1>{t("title")}</h1>
         <p className="dash-header-sub">
           {activeAccounts > 0 ? (
             <>
-              <strong style={{ color: "var(--sr-fg)" }}>{activeAccounts}</strong> compte{activeAccounts > 1 ? "s" : ""} actif{activeAccounts > 1 ? "s" : ""},
-              {" "}
-              <strong style={{ color: "var(--sr-fg)" }}>{usedSlots}</strong> profil{usedSlots > 1 ? "s" : ""} vendu{usedSlots > 1 ? "s" : ""}
+              <strong style={{ color: "var(--sr-fg)" }}>{activeAccounts}</strong> {t("activeAccounts")}, {" "}
+              <strong style={{ color: "var(--sr-fg)" }}>{usedSlots}</strong> {t("soldProfiles")}
               {urgentTotal > 0 ? (
                 <>
                   {". "}
                   <strong style={{ color: "var(--sr-warning)" }}>
                     {urgentTotal} relance{urgentTotal > 1 ? "s" : ""}
                   </strong>{" "}
-                  dans les 3 jours.
+                  {t("withinThreeDays")}
                 </>
               ) : (
-                ". Tout est à jour."
+                t("upToDate")
               )}
             </>
           ) : (
-            <>Ajoutez un premier compte fournisseur pour commencer.</>
+            <>{t("startHint")}</>
           )}
         </p>
       </div>
 
       <div className="stats-grid">
         <KpiCard
-          label="Solde"
+          label={t("balance")}
           value={balance}
           unit="FCFA"
           accent
           tone={balance < 0 ? "danger" : "neutral"}
-          sub={balance < 0 ? "en négatif" : "disponible"}
+          sub={balance < 0 ? t("negative") : t("available")}
         />
         <KpiCard
-          label="Revenus du mois"
+          label={t("monthlyRevenue")}
           value={monthlyRevenue}
           unit="FCFA"
         />
         <KpiCard
-          label="Profils occupés"
+          label={t("occupiedProfiles")}
           value={usedSlots}
           sub={`${freeSlots} libre${freeSlots > 1 ? "s" : ""} · détails dans Mes abonnements`}
         />
         <KpiCard
-          label="À relancer (≤ 3j)"
+          label={t("toRemind")}
           value={urgentTotal}
           tone={urgentTotal > 0 ? "warning" : "neutral"}
           sub={
             urgentTotal > 0
               ? `${urgent.length} client${urgent.length > 1 ? "s" : ""}, ${urgentAccounts.length} compte${urgentAccounts.length > 1 ? "s" : ""}`
-              : "rien d'urgent"
+              : t("nothingUrgent")
           }
         />
       </div>
@@ -222,16 +223,16 @@ export default async function DashboardPage() {
       <OnboardingChecklist hasProfile={Boolean(profile?.first_name || profile?.company_name)} accounts={activeAccounts} clients={usedSlots} />
 
       <section className="panel commercial-panel">
-        <div className="section-head"><div><p className="eyebrow">Pilotage</p><h2>Performance commerciale</h2></div></div>
-        <div className="commercial-kpis"><KpiCard label="Bénéfice net estimé" value={netProfit} unit="FCFA" tone={netProfit<0?"danger":"neutral"}/><KpiCard label="Taux de renouvellement" value={renewalRate} unit="%"/><KpiCard label="Prévision à 7 jours" value={forecast7} unit="FCFA"/><KpiCard label="Prévision à 30 jours" value={forecast30} unit="FCFA"/></div>
+        <div className="section-head"><div><p className="eyebrow">{t("management")}</p><h2>{t("commercialPerformance")}</h2></div></div>
+        <div className="commercial-kpis"><KpiCard label={t("netProfit")} value={netProfit} unit="FCFA" tone={netProfit<0?"danger":"neutral"}/><KpiCard label={t("renewalRate")} value={renewalRate} unit="%"/><KpiCard label={t("forecast7")} value={forecast7} unit="FCFA"/><KpiCard label={t("forecast30")} value={forecast30} unit="FCFA"/></div>
         <div className="service-profit-list">{serviceProfit.map(([service,revenue])=><div key={service}><span>{service}</span><strong>{revenue.toLocaleString("fr-FR")} FCFA</strong></div>)}{!serviceProfit.length&&<p className="empty-state">Les services les plus rentables apparaîtront après les premières ventes.</p>}</div>
       </section>
 
       <div className="panel" style={{ marginBottom: 20, padding: 12, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
-        <DashboardAction href={urgent.length ? "/clients?filter=warning" : "/clients"} label="Clients à relancer" value={urgent.length} tone={urgent.length ? "warning" : "neutral"} />
-        <DashboardAction href="/clients?filter=grace" label="Clients en grâce" value={graceClients.length} tone={graceClients.length ? "warning" : "neutral"} />
-        <DashboardAction href="/clients?filter=danger" label="Clients expirés" value={expiredClients.length} tone={expiredClients.length ? "danger" : "neutral"} />
-        <DashboardAction href="/abonnements" label="Profils disponibles" value={freeSlots} tone={freeSlots ? "success" : "neutral"} />
+        <DashboardAction href={urgent.length ? "/clients?filter=warning" : "/clients"} label={t("clientsToRemind")} value={urgent.length} tone={urgent.length ? "warning" : "neutral"} />
+        <DashboardAction href="/clients?filter=grace" label={t("graceClients")} value={graceClients.length} tone={graceClients.length ? "warning" : "neutral"} />
+        <DashboardAction href="/clients?filter=danger" label={t("expiredClients")} value={expiredClients.length} tone={expiredClients.length ? "danger" : "neutral"} />
+        <DashboardAction href="/abonnements" label={t("availableProfiles")} value={freeSlots} tone={freeSlots ? "success" : "neutral"} />
       </div>
 
       <div className="dash-grid-2">

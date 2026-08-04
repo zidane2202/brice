@@ -4,6 +4,15 @@
     "en": "EN",
     "label": "Language"
   },
+  "Navigation": {
+    "dashboard": "Dashboard", "subscriptions": "My subscriptions", "clients": "My clients", "archives": "Client archives", "reminders": "Reminders", "accounting": "Accounting", "profile": "My profile", "help": "Help", "support": "Human support", "supportShort": "Support", "workspace": "Operator workspace", "system": "System", "monthlyRevenue": "Revenue this month", "logout": "Sign out", "sellers": "Sellers", "finances": "Finances", "sellerApp": "Seller app"
+  },
+  "TopBar": {
+    "workspace": "Operator workspace", "dashboard": "Dashboard", "subscriptions": "My subscriptions", "clients": "My clients", "accounting": "Accounting", "report": "Report", "profile": "My profile", "help": "Help", "reminders": "Reminders", "support": "Support", "detail": "Details", "search": "Search…", "noResults": "No results."
+  },
+  "Dashboard": {
+    "overview":"Overview", "title":"Dashboard", "activeAccounts":"active account(s)", "soldProfiles":"profile(s) sold", "withinThreeDays":"within the next 3 days.", "upToDate":". Everything is up to date.", "startHint":"Add your first provider account to get started.", "balance":"Balance", "negative":"negative", "available":"available", "monthlyRevenue":"Revenue this month", "occupiedProfiles":"Occupied profiles", "toRemind":"To remind (≤ 3d)", "nothingUrgent":"nothing urgent", "management":"Management", "commercialPerformance":"Commercial performance", "netProfit":"Estimated net profit", "renewalRate":"Renewal rate", "forecast7":"7-day forecast", "forecast30":"30-day forecast", "clientsToRemind":"Clients to remind", "graceClients":"Clients in grace period", "expiredClients":"Expired clients", "availableProfiles":"Available profiles"
+  },
   "Landing": {
     "nav": {
       "login": "Sign in",

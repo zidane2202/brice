@@ -4,6 +4,15 @@
     "en": "EN",
     "label": "Langue"
   },
+  "Navigation": {
+    "dashboard": "Dashboard", "subscriptions": "Mes abonnements", "clients": "Mes clients", "archives": "Archives clients", "reminders": "Relances", "accounting": "Comptabilité", "profile": "Mon profil", "help": "Aide", "support": "Support humain", "supportShort": "Support", "workspace": "Espace opérateur", "system": "Système", "monthlyRevenue": "Revenu ce mois", "logout": "Déconnexion", "sellers": "Vendeurs", "finances": "Finances", "sellerApp": "App vendeur"
+  },
+  "TopBar": {
+    "workspace": "Espace opérateur", "dashboard": "Dashboard", "subscriptions": "Mes abonnements", "clients": "Mes clients", "accounting": "Comptabilité", "report": "Rapport", "profile": "Mon profil", "help": "Aide", "reminders": "Relances", "support": "Support", "detail": "Détail", "search": "Rechercher…", "noResults": "Aucun résultat."
+  },
+  "Dashboard": {
+    "overview":"Vue d’ensemble", "title":"Dashboard", "activeAccounts":"compte(s) actif(s)", "soldProfiles":"profil(s) vendu(s)", "withinThreeDays":"dans les 3 jours.", "upToDate":". Tout est à jour.", "startHint":"Ajoutez un premier compte fournisseur pour commencer.", "balance":"Solde", "negative":"en négatif", "available":"disponible", "monthlyRevenue":"Revenus du mois", "occupiedProfiles":"Profils occupés", "toRemind":"À relancer (≤ 3j)", "nothingUrgent":"rien d’urgent", "management":"Pilotage", "commercialPerformance":"Performance commerciale", "netProfit":"Bénéfice net estimé", "renewalRate":"Taux de renouvellement", "forecast7":"Prévision à 7 jours", "forecast30":"Prévision à 30 jours", "clientsToRemind":"Clients à relancer", "graceClients":"Clients en grâce", "expiredClients":"Clients expirés", "availableProfiles":"Profils disponibles"
+  },
   "Landing": {
     "nav": {
       "login": "Se connecter",

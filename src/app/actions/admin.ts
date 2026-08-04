@@ -249,7 +249,7 @@ export async function recordPlatformPayment(formData: FormData) {
     target.plan_renews_on = planRenewsOn;
   }
 
-  const { error } = await supabase.rpc("record_platform_payment_atomic", {
+  const { data: paymentId, error } = await supabase.rpc("record_platform_payment_atomic", {
     p_actor: actor.id,
     p_reseller: resellerId,
     p_amount: amount,
@@ -268,6 +268,7 @@ export async function recordPlatformPayment(formData: FormData) {
   revalidatePath("/admin/vendeurs");
   revalidatePath("/admin/finances");
   revalidatePath("/admin/dashboard");
+  return { paymentId: String(paymentId) };
 }
 
 export async function reversePlatformPayment(paymentId: string, reason: string) {

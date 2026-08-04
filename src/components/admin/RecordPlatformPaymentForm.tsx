@@ -42,6 +42,7 @@ export function RecordPlatformPaymentForm({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
+  const [receiptId, setReceiptId] = useState<string | null>(null);
   const [selectedResellerId, setSelectedResellerId] = useState(resellerUserId ?? "");
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
 
@@ -62,6 +63,7 @@ export function RecordPlatformPaymentForm({
   function handleSubmit(formData: FormData) {
     setError(null);
     setOk(false);
+    setReceiptId(null);
     const selectedReseller = resellerUserId
       ? "ce vendeur"
       : resellers.find((item) => item.userId === String(formData.get("reseller_user_id")))?.label ?? "ce vendeur";
@@ -87,7 +89,8 @@ export function RecordPlatformPaymentForm({
     setConfirmation(null);
     startTransition(async () => {
       try {
-        await recordPlatformPayment(formData);
+        const result = await recordPlatformPayment(formData);
+        setReceiptId(result.paymentId);
         setOk(true);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Erreur");
@@ -202,9 +205,7 @@ export function RecordPlatformPaymentForm({
             : "Enregistrer l’encaissement"}
       </button>
       {ok && (
-        <p style={{ margin: 0, color: "var(--sr-mint-300)", fontSize: 13 }}>
-          Paiement enregistré et abonnement mis à jour.
-        </p>
+        <div className="payment-success"><span>Paiement enregistré et abonnement mis à jour.</span>{receiptId && <a className="secondary" href={`/admin/finances/recu/${receiptId}`} target="_blank" rel="noreferrer">Voir le reçu</a>}</div>
       )}
       {error && (
         <p style={{ margin: 0, color: "var(--sr-danger)", fontSize: 13 }}>{error}</p>

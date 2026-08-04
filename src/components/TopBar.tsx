@@ -6,21 +6,13 @@ import { PwaInstallButton } from "@/components/PwaInstallButton";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { LocaleSwitcher } from "@/components/LocaleSwitcher";
+import { useTranslations } from "next-intl";
 
 type SearchResult = { id: string; type: string; title: string; subtitle: string; href: string };
 
-const LABELS: Record<string, string> = {
-  dashboard: "Dashboard",
-  abonnements: "Mes abonnements",
-  clients: "Mes clients",
-  comptabilite: "Comptabilité",
-  rapport: "Rapport",
-  profil: "Mon profil",
-  aide: "Aide",
-  admin: "Admin",
-};
-
 export function TopBar() {
+  const t = useTranslations("TopBar");
   const pathname = usePathname();
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -51,12 +43,13 @@ export function TopBar() {
   const segments = pathname.split("/").filter(Boolean);
   const first = segments[0];
 
-  const crumbs: string[] = ["Espace opérateur"];
+  const translatedLabels: Record<string,string> = { dashboard:t("dashboard"),abonnements:t("subscriptions"),clients:t("clients"),comptabilite:t("accounting"),rapport:t("report"),profil:t("profile"),aide:t("help"),relances:t("reminders"),support:t("support"),admin:"Admin" };
+  const crumbs: string[] = [t("workspace")];
   if (first) {
-    crumbs.push(LABELS[first] ?? first);
+    crumbs.push(translatedLabels[first] ?? first);
   }
   if (segments.length > 1 && segments[1]) {
-    crumbs.push(LABELS[segments[1]] ?? "Détail");
+    crumbs.push(translatedLabels[segments[1]] ?? t("detail"));
   }
 
   return (
@@ -116,7 +109,7 @@ export function TopBar() {
           value={query}
           onChange={(event) => { setQuery(event.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
-          placeholder="Rechercher…"
+          placeholder={t("search")}
           style={{
             paddingLeft: 32,
             paddingRight: 40,
@@ -144,7 +137,7 @@ export function TopBar() {
         {open && query.trim().length >= 2 && (
           <div style={{ position: "absolute", top: 36, right: 0, width: 360, maxHeight: 380, overflow: "auto", padding: 6, borderRadius: 10, border: "1px solid var(--sr-border)", background: "var(--sr-surface)", boxShadow: "0 18px 60px rgba(0,0,0,.48)", zIndex: 100 }}>
             {results.length === 0 ? (
-              <div style={{ padding: 14, color: "var(--sr-fg-subtle)", fontSize: 12 }}>Aucun résultat.</div>
+              <div style={{ padding: 14, color: "var(--sr-fg-subtle)", fontSize: 12 }}>{t("noResults")}</div>
             ) : results.map((result) => (
               <button key={`${result.type}-${result.id}`} type="button" className="secondary" onClick={() => { setOpen(false); setQuery(""); router.push(result.href); }} style={{ width: "100%", minHeight: 48, height: "auto", padding: "8px 10px", justifyContent: "flex-start", textAlign: "left", background: "transparent", borderColor: "transparent" }}>
                 <span style={{ width: 62, color: "var(--sr-mint-300)", fontSize: 9, textTransform: "uppercase" }}>{result.type}</span>
@@ -154,6 +147,8 @@ export function TopBar() {
           </div>
         )}
       </div>
+
+      <LocaleSwitcher className="app-locale-toggle" />
 
       <PwaInstallButton />
 

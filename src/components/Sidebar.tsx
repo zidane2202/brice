@@ -8,6 +8,7 @@ import { Avatar } from "@/components/Avatar";
 import { BrandMark } from "@/components/BrandMark";
 import { Icon } from "@/components/Icon";
 import { APP_VERSION } from "@/lib/version";
+import { useTranslations } from "next-intl";
 
 type IconName = "dashboard" | "seat" | "users" | "settings" | "zap" | "bill" | "alert";
 
@@ -43,6 +44,7 @@ export function Sidebar({
   logoUrl,
 }: Props) {
   const pathname = usePathname();
+  const t = useTranslations("Navigation");
   const [pendingHref, setPendingHref] = useState<string | null>(null);
   const displayName = userName || (userEmail ? userEmail.split("@")[0] : "Utilisateur");
   const brandName = companyName?.trim() || "subresell";
@@ -52,15 +54,15 @@ export function Sidebar({
   }, [pathname]);
 
   const navItems: NavItem[] = [
-    { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
-    { href: "/abonnements", label: "Mes abonnements", icon: "seat", badge: accountsCount },
-    { href: "/clients", label: "Mes clients", icon: "users", badge: clientsCount },
-    { href: "/clients/archives", label: "Archives clients", icon: "users" },
-    { href: "/relances", label: "Relances", icon: "alert" },
-    { href: "/comptabilite", label: "Comptabilité", icon: "bill" },
-    { href: "/profil", label: "Mon profil", icon: "settings" },
-    { href: "/aide", label: "Aide", icon: "alert" },
-    { href: "/support", label: "Support humain", icon: "alert" },
+    { href: "/dashboard", label: t("dashboard"), icon: "dashboard" },
+    { href: "/abonnements", label: t("subscriptions"), icon: "seat", badge: accountsCount },
+    { href: "/clients", label: t("clients"), icon: "users", badge: clientsCount },
+    { href: "/clients/archives", label: t("archives"), icon: "users" },
+    { href: "/relances", label: t("reminders"), icon: "alert" },
+    { href: "/comptabilite", label: t("accounting"), icon: "bill" },
+    { href: "/profil", label: t("profile"), icon: "settings" },
+    { href: "/aide", label: t("help"), icon: "alert" },
+    { href: "/support", label: t("support"), icon: "alert" },
   ];
 
   return (
@@ -68,10 +70,9 @@ export function Sidebar({
       <div className="sidebar-logo">
         <BrandMark logoUrl={logoUrl} name={brandName} size={24} />
         <p className="eyebrow">{brandName}</p>
-        <span className="beta-badge">Beta</span>
       </div>
 
-      <div className="sidebar-section-label">Espace opérateur</div>
+      <div className="sidebar-section-label">{t("workspace")}</div>
 
       <nav className="sidebar-nav">
         {navItems.map((item) => {
@@ -99,7 +100,7 @@ export function Sidebar({
         {isAdmin && (
           <>
             <div style={{ height: 12 }} />
-            <div className="sidebar-section-label">Système</div>
+            <div className="sidebar-section-label">{t("system")}</div>
             <Link
               href="/admin/dashboard"
               className={`sidebar-link sidebar-link--admin${pathname.startsWith("/admin") ? " sidebar-link--active" : ""}${pendingHref === "/admin/dashboard" && !pathname.startsWith("/admin") ? " sidebar-link--pending" : ""}`}
@@ -119,7 +120,7 @@ export function Sidebar({
 
       {monthlyRevenue != null && monthlyRevenue > 0 && (
         <div className="sidebar-mrr">
-          <div className="sidebar-mrr-label">Revenu ce mois</div>
+          <div className="sidebar-mrr-label">{t("monthlyRevenue")}</div>
           <div className="sidebar-mrr-value">
             {shortFCFA(monthlyRevenue)}
             <span className="sidebar-mrr-value-unit">FCFA</span>
@@ -156,8 +157,8 @@ export function Sidebar({
             <button
               type="submit"
               className="sidebar-logout"
-              title="Déconnexion"
-              aria-label="Déconnexion"
+              title={t("logout")}
+              aria-label={t("logout")}
             >
               <Icon name="logout" size={13} />
             </button>

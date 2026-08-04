@@ -8,6 +8,15 @@ test("la connexion est utilisable au clavier", async ({ page }) => {
   await expect(page.getByRole("button", { name: /connexion|connecter/i })).toBeVisible();
 });
 
+test("les pages publiques basculent entièrement en anglais", async ({ context, page }) => {
+  await context.addCookies([{ name: "locale", value: "en", domain: "127.0.0.1", path: "/" }]);
+  await page.goto("/login");
+  await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+  await expect(page.getByText("Welcome")).toBeVisible();
+  await expect(page.getByLabel("Password")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Forgot password?" })).toBeVisible();
+});
+
 test("le manifeste PWA est disponible", async ({ request }) => {
   const response = await request.get("/manifest.webmanifest");
   expect(response.ok()).toBeTruthy();

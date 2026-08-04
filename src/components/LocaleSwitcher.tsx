@@ -3,16 +3,19 @@
 import { setLocale } from "@/app/actions/locale";
 import { useLocale, useTranslations } from "next-intl";
 import { useTransition } from "react";
+import { useRouter } from "next/navigation";
 
 export function LocaleSwitcher({ className }: { className?: string }) {
   const locale = useLocale();
   const t = useTranslations("LocaleSwitcher");
   const [pending, startTransition] = useTransition();
+  const router = useRouter();
   const next = locale === "fr" ? "en" : "fr";
 
   function switchLocale() {
     startTransition(async () => {
       await setLocale(next);
+      router.refresh();
     });
   }
 
