@@ -11,6 +11,7 @@ import {
 } from "@/lib/plans";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import Link from "next/link";
+import { ReversePlatformPaymentButton } from "@/components/admin/ReversePlatformPaymentButton";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ async function getFinanceData() {
     .toISOString()
     .slice(0, 10);
 
-  const [profilesRes, paymentsRes, authResult, auditRes] = await Promise.all([
+  const [profilesRes, paymentsRes, authResult, auditRes, reversalsRes] = await Promise.all([
     supabase
       .from("user_profiles")
       .select(
@@ -46,6 +47,7 @@ async function getFinanceData() {
       .select("id, actor_user_id, target_user_id, action, details, created_at")
       .order("created_at", { ascending: false })
       .limit(30),
+    supabase.from("platform_payment_reversals").select("payment_id,amount,reason,created_at").order("created_at", { ascending: false }),
   ]);
 
   if (profilesRes.error) throw new Error(profilesRes.error.message);
@@ -81,9 +83,11 @@ async function getFinanceData() {
     mrr += r.mrr;
   }
 
+  const reversedThisMonth = (reversalsRes.data ?? []).filter((row) => row.created_at.slice(0, 10) >= monthStart).reduce((sum, row) => sum + Number(row.amount ?? 0), 0);
   const cashThisMonth = payments
     .filter((p) => p.occurred_on >= monthStart)
-    .reduce((sum, p) => sum + Number(p.amount ?? 0), 0);
+    .reduce((sum, p) => sum + Number(p.amount ?? 0), 0) - reversedThisMonth;
+  const reversalMap = new Map((reversalsRes.data ?? []).map((row) => [row.payment_id, row]));
 
   const resellerOptions = rows.map((r) => ({
     userId: r.user_id,
@@ -99,6 +103,7 @@ async function getFinanceData() {
       emailMap.get(p.reseller_user_id) ??
       p.reseller_user_id.slice(0, 8),
     recorderEmail: emailMap.get(p.recorded_by) ?? "—",
+    reversal: reversalMap.get(p.id) ?? null,
   }));
 
   return {
@@ -140,9 +145,12 @@ const CATALOGUE: {
   },
 ];
 
-export default async function AdminFinancesPage() {
+export default async function AdminFinancesPage({ searchParams }: { searchParams: Promise<{ q?: string; kind?: string; from?: string; to?: string }> }) {
   const { rows, counts, mrr, cashThisMonth, resellerOptions, journal, paymentsError, audit, emailMap } =
     await getFinanceData();
+  const { q = "", kind = "all", from = "", to = "" } = await searchParams;
+  const needle = q.trim().toLowerCase();
+  const filteredJournal = journal.filter((payment) => (!needle || `${payment.resellerLabel} ${payment.note ?? ""} ${payment.id}`.toLowerCase().includes(needle)) && (kind === "all" || payment.kind === kind) && (!from || payment.occurred_on >= from) && (!to || payment.occurred_on <= to));
 
   return (
     <>
@@ -180,6 +188,7 @@ export default async function AdminFinancesPage() {
 
       <div className="panel" style={{ marginBottom: 20 }}>
         <h2>Journal d’encaissements</h2>
+        <form method="get" className="fields" style={{ gridTemplateColumns: "2fr 1fr 1fr 1fr auto", marginBottom: 14 }}><label>Recherche<input type="search" name="q" defaultValue={q} placeholder="Vendeur, note, référence…" /></label><label>Motif<select name="kind" defaultValue={kind}><option value="all">Tous</option>{Object.entries(PLATFORM_PAYMENT_KIND_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label>Du<input type="date" name="from" defaultValue={from} /></label><label>Au<input type="date" name="to" defaultValue={to} /></label><button type="submit" style={{ alignSelf: "end" }}>Filtrer</button></form>
         <div className="table-wrap">
           <table>
             <thead>
@@ -192,17 +201,18 @@ export default async function AdminFinancesPage() {
                 <th>Note</th>
                 <th>Plan appliqué</th>
                 <th>Par</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
-              {journal.length === 0 && (
+              {filteredJournal.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="empty">
+                  <td colSpan={9} className="empty">
                     Aucun encaissement enregistré.
                   </td>
                 </tr>
               )}
-              {journal.map((p) => (
+              {filteredJournal.map((p) => (
                 <tr key={p.id}>
                   <td>{p.occurred_on}</td>
                   <td style={{ fontFamily: "var(--font-geist-mono)", fontSize: 11 }}>SR-{p.id.slice(0, 8).toUpperCase()}</td>
@@ -214,10 +224,11 @@ export default async function AdminFinancesPage() {
                   <td>
                     {PLATFORM_PAYMENT_KIND_LABELS[p.kind as PlatformPaymentKind] ?? p.kind}
                   </td>
-                  <td>{formatFcfa(Number(p.amount))} FCFA</td>
+                  <td style={{ textDecoration: p.reversal ? "line-through" : "none", color: p.reversal ? "var(--sr-fg-subtle)" : undefined }}>{formatFcfa(Number(p.amount))} FCFA</td>
                   <td>{p.note || "—"}</td>
                   <td>{p.applied_plan ?? "—"}</td>
                   <td style={{ fontSize: 12 }}>{p.recorderEmail}</td>
+                  <td>{p.reversal ? <span className="status cancelled" title={p.reversal.reason}>Annulé</span> : <ReversePlatformPaymentButton paymentId={p.id} label={`${p.resellerLabel} · ${formatFcfa(Number(p.amount))} FCFA`} />}</td>
                 </tr>
               ))}
             </tbody>

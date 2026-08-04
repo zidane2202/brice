@@ -7,14 +7,28 @@ import { Icon } from "@/components/Icon";
 const columns = ["first_name", "last_name", "phone", "email", "service", "profile", "start_date", "duration_months", "price", "payment_rail", "pin_code"];
 type Row = Record<string, string>;
 
+function parseLine(line: string, separator: string) {
+  const values: string[] = []; let value = ""; let quoted = false;
+  for (let index = 0; index < line.length; index++) {
+    const char = line[index];
+    if (char === '"' && quoted && line[index + 1] === '"') { value += '"'; index++; }
+    else if (char === '"') quoted = !quoted;
+    else if (char === separator && !quoted) { values.push(value.trim()); value = ""; }
+    else value += char;
+  }
+  values.push(value.trim()); return values;
+}
+
+const headerAliases: Record<string, string> = { prenom: "first_name", prénom: "first_name", nom: "last_name", telephone: "phone", téléphone: "phone", email: "email", service: "service", profil: "profile", date_debut: "start_date", durée: "duration_months", duree: "duration_months", montant: "price", moyen_paiement: "payment_rail", pin: "pin_code" };
+
 function parseCsv(text: string) {
   const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim());
   if (lines.length < 2) throw new Error("Le fichier ne contient aucune donnée.");
   const separator = lines[0].includes(";") ? ";" : ",";
-  const headers = lines[0].split(separator).map((value) => value.trim().replace(/^"|"$/g, ""));
+  const headers = parseLine(lines[0], separator).map((value) => { const normalized = value.trim().toLowerCase().replace(/\s+/g, "_"); return headerAliases[normalized] ?? normalized; });
   const missing = columns.filter((column) => !headers.includes(column));
   if (missing.length) throw new Error(`Colonnes manquantes : ${missing.join(", ")}`);
-  return lines.slice(1, 101).map((line) => Object.fromEntries(headers.map((header, index) => [header, (line.split(separator)[index] ?? "").trim().replace(/^"|"$/g, "")])));
+  return lines.slice(1, 101).map((line) => { const values = parseLine(line, separator); return Object.fromEntries(headers.map((header, index) => [header, values[index] ?? ""])); });
 }
 
 export function ClientCsvImport() {

@@ -8,6 +8,7 @@ import { useActionState } from "react";
 import { NotificationSettings } from "@/components/profil/NotificationSettings";
 import { InstallApp } from "@/components/profil/InstallApp";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { RestoreBackup } from "@/components/profil/RestoreBackup";
 
 type Section = { id: string; label: string; icon: string; danger?: boolean };
 
@@ -917,6 +918,7 @@ function DangerSection() {
           </button>
         }
       />
+      <DangerRow title="Restaurer une sauvegarde" hint="Réimporte une sauvegarde JSON SubResell sans modifier votre plan." action={<RestoreBackup />} />
       {error && <p style={{ color: "var(--sr-danger)", padding: "0 20px 14px", margin: 0, fontSize: 12 }}>{error}</p>}
       <ConfirmDialog open={deleteOpen} title="Supprimer définitivement votre compte ?" description="Tous les clients, abonnements, comptes fournisseurs, transactions et factures seront supprimés immédiatement. Téléchargez d'abord votre export si nécessaire." confirmLabel="Supprimer définitivement" tone="danger" pending={pending} onCancel={() => setDeleteOpen(false)} onConfirm={() => startTransition(async () => { setError(""); const result = await deleteOwnAccount(); if (result?.error) { setError(result.error); setDeleteOpen(false); } })} />
     </PrSection>

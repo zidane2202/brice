@@ -51,6 +51,7 @@ export type Client = {
   notes: string | null;
   pin_code: string | null;
   created_at: string;
+  archived_at?: string | null;
 };
 
 export type TransactionKind = "income" | "outflow";
@@ -107,6 +108,9 @@ export type Invoice = {
   payment_rail: string | null;
   reseller_name: string | null;
   created_at: string;
+  status: "paid" | "cancelled" | "refunded";
+  payment_reference: string | null;
+  receipt_url: string | null;
 };
 
 export type ClientSubscription = {

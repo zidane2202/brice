@@ -46,6 +46,18 @@ create index if not exists platform_payments_occurred_idx
 create index if not exists platform_payments_reseller_idx
   on public.platform_payments(reseller_user_id, occurred_on desc);
 
+create table if not exists public.platform_payment_reversals (
+  id uuid primary key default gen_random_uuid(),
+  payment_id uuid not null unique references public.platform_payments(id) on delete restrict,
+  reseller_user_id uuid not null references auth.users(id) on delete cascade,
+  amount numeric(12,2) not null check (amount > 0),
+  reason text not null check (length(reason) between 3 and 300),
+  reversed_by uuid not null references auth.users(id),
+  created_at timestamptz not null default now()
+);
+create index if not exists platform_payment_reversals_reseller_idx on public.platform_payment_reversals(reseller_user_id, created_at desc);
+alter table public.platform_payment_reversals enable row level security;
+
 -- Journal immuable des opérations administratives sensibles
 create table if not exists public.admin_audit_logs (
   id uuid primary key default gen_random_uuid(),
@@ -65,6 +77,7 @@ create index if not exists admin_audit_logs_target_idx
 -- Bucket public: logos
 -- Path: {user_id}/logo.{ext}
 -- Policies: owner-only write ; public read
+insert into storage.buckets (id, name, public) values ('receipts', 'receipts', false) on conflict (id) do nothing;
 
 -- Comptes provider (ex: "Mon Netflix Premium")
 create table if not exists public.provider_accounts (
@@ -154,6 +167,11 @@ create table if not exists public.invoices (
 create unique index if not exists invoices_user_number_idx on public.invoices(user_id, number);
 create index if not exists invoices_user_created_idx on public.invoices(user_id, created_at desc);
 create index if not exists invoices_client_idx on public.invoices(client_id);
+alter table public.invoices add column if not exists status text not null default 'paid';
+alter table public.invoices drop constraint if exists invoices_status_check;
+alter table public.invoices add constraint invoices_status_check check (status in ('paid','cancelled','refunded'));
+alter table public.invoices add column if not exists payment_reference text;
+alter table public.invoices add column if not exists receipt_url text;
 
 -- Historique des transactions financières (entrées / sorties)
 create table if not exists public.transactions (
@@ -231,6 +249,22 @@ create index if not exists provider_accounts_user_id_idx on public.provider_acco
 create index if not exists client_subscriptions_user_id_end_date_idx on public.client_subscriptions(user_id, end_date);
 create index if not exists client_subscriptions_slot_id_idx on public.client_subscriptions(slot_id);
 create index if not exists clients_user_id_idx on public.clients(user_id);
+alter table public.clients add column if not exists archived_at timestamptz;
+
+create table if not exists public.client_events (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  client_id uuid not null references public.clients(id) on delete cascade,
+  subscription_id uuid references public.client_subscriptions(id) on delete set null,
+  type text not null,
+  title text not null,
+  details jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+create index if not exists client_events_client_created_idx on public.client_events(client_id, created_at desc);
+alter table public.client_events enable row level security;
+drop policy if exists "users see own client events" on public.client_events;
+create policy "users see own client events" on public.client_events for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create index if not exists account_slots_account_id_idx on public.account_slots(account_id);
 create index if not exists client_subscriptions_user_id_status_idx on public.client_subscriptions(user_id, status);
 create index if not exists client_subscriptions_client_id_idx on public.client_subscriptions(client_id);

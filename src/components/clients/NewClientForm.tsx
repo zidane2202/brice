@@ -385,6 +385,12 @@ export function NewClientForm({ freeSlots, onClose }: Props) {
           </div>
           <input type="hidden" name="payment_rail" value={rail} />
         </NewField>
+        <NewField label="Référence de paiement" hint="optionnel">
+          <input name="payment_reference" maxLength={100} placeholder="Réf. MoMo / Orange Money" />
+        </NewField>
+        <NewField label="Justificatif" hint="image ou PDF, 5 Mo max">
+          <input name="receipt" type="file" accept="image/png,image/jpeg,image/webp,application/pdf" style={{ paddingTop: 7 }} />
+        </NewField>
       </div>
 
       <div

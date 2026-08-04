@@ -267,6 +267,10 @@ button:hover {
 button:active { transform: translateY(1px); }
 button:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
 
+:focus-visible { outline: 2px solid var(--sr-mint-300); outline-offset: 3px; }
+.skip-link { position: fixed; left: 12px; top: 10px; z-index: 9999; padding: 9px 13px; border-radius: 7px; background: var(--sr-mint-500); color: var(--sr-mint-ink); font-weight: 700; transform: translateY(-160%); transition: transform .15s; }
+.skip-link:focus { transform: translateY(0); }
+
 button.secondary {
   background: var(--sr-glass);
   color: var(--sr-fg);

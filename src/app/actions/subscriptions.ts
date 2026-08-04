@@ -5,6 +5,7 @@ import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
 import { addMonths, toDateInputValue } from "@/lib/dates";
 import { createInvoice } from "@/lib/invoices";
+import { recordClientEvent } from "@/lib/client-events";
 
 function req(fd: FormData, key: string) {
   return String(fd.get(key) ?? "").trim();
@@ -99,6 +100,7 @@ export async function renewClientSubscription(formData: FormData) {
       paymentRail: client?.payment_rail ?? null,
     });
   }
+  if (sub) await recordClientEvent(supabase, { userId: user.id, clientId: sub.client_id, subscriptionId: id, type: "subscription_renewed", title: "Abonnement renouvelé", details: { periodStart: baseDate, periodEnd: newEndDate, amount: sub.price } });
 
   revalidatePath("/clients");
   revalidatePath("/dashboard");
@@ -111,13 +113,16 @@ export async function cancelClientSubscription(formData: FormData) {
   const id = req(formData, "id");
   const supabase = createSupabaseAdmin();
 
-  const { error } = await supabase
+  const { data: cancelled, error } = await supabase
     .from("client_subscriptions")
     .update({ status: "cancelled", grace_until: null })
     .eq("id", id)
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .select("client_id")
+    .single();
 
   if (error) throw new Error(error.message);
+  await recordClientEvent(supabase, { userId: user.id, clientId: cancelled.client_id, subscriptionId: id, type: "subscription_cancelled", title: "Abonnement annulé" });
   revalidatePath("/clients");
 }
 
@@ -129,13 +134,16 @@ export async function setGraceStatus(formData: FormData) {
   const graceUntil = req(formData, "grace_until");
   const supabase = createSupabaseAdmin();
 
-  const { error } = await supabase
+  const { data: graceSub, error } = await supabase
     .from("client_subscriptions")
     .update({ status: "grace", grace_until: graceUntil })
     .eq("id", id)
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .select("client_id")
+    .single();
 
   if (error) throw new Error(error.message);
+  await recordClientEvent(supabase, { userId: user.id, clientId: graceSub.client_id, subscriptionId: id, type: "grace_started", title: "Période de grâce activée", details: { graceUntil } });
   revalidatePath("/abonnements");
   revalidatePath("/clients");
   revalidatePath("/dashboard");
@@ -214,4 +222,15 @@ export async function removeGraceStatus(formData: FormData) {
   revalidatePath("/abonnements");
   revalidatePath("/clients");
   revalidatePath("/dashboard");
+}
+
+export async function updateInvoiceStatus(formData: FormData) {
+  const user = await getUser();
+  if (!user) throw new Error("Non authentifié");
+  const id = req(formData, "invoice_id");
+  const status = req(formData, "status");
+  if (!new Set(["paid", "cancelled", "refunded"]).has(status)) throw new Error("Statut de facture invalide");
+  const { error } = await createSupabaseAdmin().from("invoices").update({ status }).eq("id", id).eq("user_id", user.id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/clients"); revalidatePath("/facture", "layout");
 }

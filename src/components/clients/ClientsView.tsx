@@ -26,6 +26,7 @@ type Props = {
   invoices: Invoice[];
   initialClientId?: string | null;
   initialFilter?: FilterKey;
+  events: Array<{ id: string; client_id: string; subscription_id: string | null; type: string; title: string; details: Record<string, unknown>; created_at: string }>;
 };
 
 const STATUS_META: Record<
@@ -47,7 +48,7 @@ function bucket(sub: ClientSubscription, today: string): FilterKey {
   return "active";
 }
 
-export function ClientsView({ subscriptions, freeSlots, invoices, initialClientId = null, initialFilter }: Props) {
+export function ClientsView({ subscriptions, freeSlots, invoices, events, initialClientId = null, initialFilter }: Props) {
   const today = toDateInputValue();
   const [filter, setFilter] = useState<FilterKey>(initialFilter ?? "active");
   const [query, setQuery] = useState("");
@@ -56,6 +57,8 @@ export function ClientsView({ subscriptions, freeSlots, invoices, initialClientI
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const pageSize = 25;
 
   useEffect(() => {
     const matchingSubscription = subscriptions.find((sub) => sub.client_id === initialClientId);
@@ -133,6 +136,9 @@ export function ClientsView({ subscriptions, freeSlots, invoices, initialClientI
     }
     return r;
   }, [subscriptions, filter, query, sortBy, today]);
+  const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
+  const paginatedRows = rows.slice((page - 1) * pageSize, page * pageSize);
+  useEffect(() => { setPage(1); }, [filter, query, sortBy]);
 
   const topClient = useMemo(() => {
     const totals = new Map<string, { name: string; total: number }>();
@@ -460,12 +466,12 @@ export function ClientsView({ subscriptions, freeSlots, invoices, initialClientI
                 Aucun client ne correspond à ce filtre.
               </div>
             ) : (
-              rows.map((sub, i) => (
+              paginatedRows.map((sub, i) => (
                 <Row
                   key={sub.id}
                   sub={sub}
                   today={today}
-                  last={i === rows.length - 1}
+                  last={i === paginatedRows.length - 1}
                   isPicked={picked.has(sub.id)}
                   isSelected={selectedId === sub.id && drawerOpen}
                   onPick={() => togglePick(sub.id)}
@@ -502,6 +508,7 @@ export function ClientsView({ subscriptions, freeSlots, invoices, initialClientI
               </div>
             </div>
           )}
+          {pageCount > 1 && <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8, padding: "8px 24px 18px" }}><button type="button" className="secondary" disabled={page === 1} onClick={() => setPage((value) => value - 1)}>← Précédent</button><span style={{ color: "var(--sr-fg-subtle)", fontSize: 11 }}>Page {page} / {pageCount}</span><button type="button" className="secondary" disabled={page === pageCount} onClick={() => setPage((value) => value + 1)}>Suivant →</button></div>}
         </div>
       </div>
 
@@ -513,12 +520,14 @@ export function ClientsView({ subscriptions, freeSlots, invoices, initialClientI
             if (event.target === event.currentTarget) setDrawerOpen(false);
           }}
         >
-          <ClientDrawer
+      <ClientDrawer
             sub={selectedSub}
             lifetime={selectedLifetime}
             cyclesCount={selectedCycles}
             history={selectedHistory}
-            invoices={selectedInvoices}
+        invoices={selectedInvoices}
+            events={events.filter((event) => event.client_id === selectedSub.client_id)}
+            mergeCandidates={Array.from(new Map(subscriptions.filter((item) => item.client && item.client_id !== selectedSub.client_id && !item.client.archived_at).map((item) => [item.client_id, { id: item.client_id, name: [item.client!.first_name, item.client!.last_name].filter(Boolean).join(" ") }])).values())}
             onClose={() => setDrawerOpen(false)}
           />
         </div>,

@@ -7,8 +7,9 @@ import { useEffect, useState } from "react";
 import { Avatar } from "@/components/Avatar";
 import { BrandMark } from "@/components/BrandMark";
 import { Icon } from "@/components/Icon";
+import { APP_VERSION } from "@/lib/version";
 
-type IconName = "dashboard" | "seat" | "users" | "settings" | "zap" | "bill";
+type IconName = "dashboard" | "seat" | "users" | "settings" | "zap" | "bill" | "alert";
 
 type NavItem = { href: string; label: string; icon: IconName; badge?: number };
 
@@ -56,6 +57,7 @@ export function Sidebar({
     { href: "/clients", label: "Mes clients", icon: "users", badge: clientsCount },
     { href: "/comptabilite", label: "Comptabilité", icon: "bill" },
     { href: "/profil", label: "Mon profil", icon: "settings" },
+    { href: "/aide", label: "Aide", icon: "alert" },
   ];
 
   return (
@@ -140,6 +142,7 @@ export function Sidebar({
       )}
 
       <div className="sidebar-footer">
+        <div style={{ padding: "0 10px 5px", color: "var(--sr-fg-disabled)", fontSize: 9 }}>SubResell v{APP_VERSION}</div>
         <div className="sidebar-account">
           <Avatar name={displayName} size={28} />
           <div className="sidebar-account-info">

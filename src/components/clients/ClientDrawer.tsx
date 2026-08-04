@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { deleteClientSubscription, updateClientDetails, updateClientMeta, updateClientPin } from "@/app/actions/clients";
+import { archiveClient, deleteClientSubscription, mergeClients, updateClientDetails, updateClientMeta, updateClientPin } from "@/app/actions/clients";
 import {
   generateInvoiceForSubscription,
   removeGraceStatus,
   renewClientSubscription,
   setGraceStatus,
+  updateInvoiceStatus,
 } from "@/app/actions/subscriptions";
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
@@ -22,6 +23,8 @@ type Props = {
   cyclesCount: number;
   history: ClientSubscription[];
   invoices: Invoice[];
+  events: Array<{ id: string; type: string; title: string; details: Record<string, unknown>; created_at: string }>;
+  mergeCandidates: Array<{ id: string; name: string }>;
   onClose: () => void;
 };
 
@@ -31,7 +34,7 @@ const STATUS_LABEL: Record<ClientSubscription["status"], { tone: string; label: 
   cancelled: { tone: "danger",  label: "Expiré",        dot: "var(--sr-danger)"   },
 };
 
-export function ClientDrawer({ sub, lifetime, cyclesCount, history, invoices, onClose }: Props) {
+export function ClientDrawer({ sub, lifetime, cyclesCount, history, invoices, events, mergeCandidates, onClose }: Props) {
   const client = sub.client;
   if (!client) return null;
   const status = STATUS_LABEL[sub.status];
@@ -40,6 +43,10 @@ export function ClientDrawer({ sub, lifetime, cyclesCount, history, invoices, on
   const slotLabel = sub.slot?.label || `Profil ${sub.slot?.slot_number ?? ""}`;
   const [editingNotes, setEditingNotes] = useState(false);
   const [rail, setRail] = useState<string>(client.payment_rail ?? "");
+  const [mergeTarget, setMergeTarget] = useState("");
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [manageError, setManageError] = useState("");
+  const [managing, startManaging] = useTransition();
 
   return (
     <aside
@@ -377,6 +384,16 @@ export function ClientDrawer({ sub, lifetime, cyclesCount, history, invoices, on
         </Section>
       )}
 
+      {events.length > 0 && <Section title="Activité détaillée"><div style={{ display: "grid", gap: 6 }}>{events.map((event) => <div key={event.id} style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid var(--sr-border-subtle)", background: "var(--sr-surface)" }}><div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}><strong style={{ fontSize: 12 }}>{event.title}</strong><span style={{ color: "var(--sr-fg-disabled)", fontSize: 9, whiteSpace: "nowrap" }}>{new Date(event.created_at).toLocaleString("fr-FR")}</span></div>{Object.keys(event.details ?? {}).length > 0 && <div style={{ marginTop: 5, color: "var(--sr-fg-subtle)", fontSize: 10 }}>{Object.entries(event.details).map(([key, value]) => `${key}: ${String(value ?? "—")}`).join(" · ")}</div>}</div>)}</div></Section>}
+
+      <Section title="Gestion du client">
+        <div style={{ padding: 12, borderRadius: 8, border: "1px solid var(--sr-border-subtle)", background: "var(--sr-surface)", display: "grid", gap: 10 }}>
+          <div style={{ display: "flex", gap: 8 }}><select value={mergeTarget} onChange={(event) => setMergeTarget(event.target.value)} aria-label="Client destinataire de la fusion" style={{ flex: 1 }}><option value="">Fusionner avec…</option>{mergeCandidates.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}</select><button type="button" className="secondary" disabled={!mergeTarget || managing} onClick={() => startManaging(async () => { try { setManageError(""); await mergeClients(client.id, mergeTarget); onClose(); } catch (error) { setManageError(error instanceof Error ? error.message : "Fusion impossible"); } })}>Fusionner</button></div>
+          <button type="button" className="danger" disabled={managing} onClick={() => setArchiveOpen(true)}>Archiver ce client</button>
+          {manageError && <p style={{ margin: 0, color: "var(--sr-danger)", fontSize: 11 }}>{manageError}</p>}
+        </div>
+      </Section>
+      <ConfirmDialog open={archiveOpen} title="Archiver ce client ?" description="Ses abonnements actifs seront arrêtés et ses profils libérés. Son historique sera conservé." confirmLabel="Archiver" tone="danger" pending={managing} onCancel={() => setArchiveOpen(false)} onConfirm={() => startManaging(async () => { try { await archiveClient(client.id); setArchiveOpen(false); onClose(); } catch (error) { setManageError(error instanceof Error ? error.message : "Archivage impossible"); setArchiveOpen(false); } })} />
       <div style={{ height: 24, flex: "0 0 24px" }} />
     </aside>
   );
@@ -748,6 +765,13 @@ function InvoiceRow({ invoice, clientPhone }: { invoice: Invoice; clientPhone: s
           {invoice.kind === "new" ? "Vente" : "Renouvellement"} · {formatDate(invoice.created_at)} · {invoice.amount.toLocaleString("en-US").replace(/,/g, " ")} FCFA
         </div>
       </div>
+      <form action={updateInvoiceStatus} style={{ margin: 0 }}>
+        <input type="hidden" name="invoice_id" value={invoice.id} />
+        <select name="status" defaultValue={invoice.status ?? "paid"} onChange={(event) => event.currentTarget.form?.requestSubmit()} aria-label="Statut de la facture" style={{ width: 105, minHeight: 28, height: 28, padding: "0 6px", fontSize: 10 }}>
+          <option value="paid">Payée</option><option value="cancelled">Annulée</option><option value="refunded">Remboursée</option>
+        </select>
+      </form>
+      {invoice.receipt_url && <a href={`/api/receipts/${invoice.id}`} target="_blank" rel="noopener noreferrer" className="secondary" title="Voir le justificatif" style={{ width: 28, height: 28, minHeight: 28, padding: 0, display: "grid", placeItems: "center", textDecoration: "none" }}><Icon name="inbox" size={12} /></a>}
       <a
         href={`/facture/${invoice.code}`}
         target="_blank"

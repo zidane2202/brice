@@ -9,7 +9,6 @@ function digitsOnly(phone: string): string {
 }
 
 export function InvoiceActions({ invoice }: { invoice: Invoice }) {
-  const handlePrint = () => window.print();
   const [url, setUrl] = useState("");
 
   useEffect(() => {
@@ -28,10 +27,10 @@ export function InvoiceActions({ invoice }: { invoice: Invoice }) {
 
   return (
     <div className="invoice-actions">
-      <button type="button" onClick={handlePrint} className="invoice-action invoice-action-primary">
+      <a href={`/api/invoices/${invoice.code}/pdf`} className="invoice-action invoice-action-primary">
         <Icon name="download" size={14} />
         Télécharger PDF
-      </button>
+      </a>
       <a
         href={waHref}
         target="_blank"

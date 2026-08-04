@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 const scriptPolicy = process.env.NODE_ENV === "development"
@@ -8,6 +9,7 @@ const scriptPolicy = process.env.NODE_ENV === "development"
 
 const nextConfig: NextConfig = {
   devIndicators: false,
+  allowedDevOrigins: ["127.0.0.1"],
   async headers() {
     return [{ source: "/(.*)", headers: [
       { key: "X-Content-Type-Options", value: "nosniff" },
@@ -19,4 +21,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withNextIntl(nextConfig);
+export default withSentryConfig(withNextIntl(nextConfig), { silent: true });

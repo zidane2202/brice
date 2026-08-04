@@ -74,7 +74,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       />
       <div style={{ display: "flex", flexDirection: "column", minWidth: 0, minHeight: "100vh" }}>
         <TopBar />
-        <main className="app-main">{children}</main>
+        <main id="app-content" className="app-main">{children}</main>
       </div>
       <PushManager enabled={canUsePush(normalizePlan(profile?.plan))} />
       <SupportChat />

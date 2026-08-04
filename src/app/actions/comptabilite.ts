@@ -115,5 +115,8 @@ export async function reverseTransaction(transactionId: string, reason: string) 
     reversed_transaction_id: original.id, reversal_reason: cleanReason,
   });
   if (error) throw new Error(error.message);
+  if (original.subscription_id) {
+    await db.from("invoices").update({ status: "cancelled" }).eq("subscription_id", original.subscription_id).eq("user_id", user.id);
+  }
   revalidatePath("/comptabilite"); revalidatePath("/dashboard");
 }

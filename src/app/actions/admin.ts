@@ -269,3 +269,19 @@ export async function recordPlatformPayment(formData: FormData) {
   revalidatePath("/admin/finances");
   revalidatePath("/admin/dashboard");
 }
+
+export async function reversePlatformPayment(paymentId: string, reason: string) {
+  const actor = await getUser();
+  const actorProfile = await getUserProfile();
+  if (!actor || actorProfile?.role !== "admin") throw new Error("Accès refusé");
+  const cleanReason = reason.trim();
+  if (cleanReason.length < 3 || cleanReason.length > 300) throw new Error("Le motif doit contenir entre 3 et 300 caractères.");
+  const db = createSupabaseAdmin();
+  const { data: payment, error: paymentError } = await db.from("platform_payments").select("id,reseller_user_id,amount,kind,applied_plan").eq("id", paymentId).single();
+  if (paymentError || !payment) throw new Error("Encaissement introuvable.");
+  const { error } = await db.from("platform_payment_reversals").insert({ payment_id: payment.id, reseller_user_id: payment.reseller_user_id, amount: payment.amount, reason: cleanReason, reversed_by: actor.id });
+  if (error?.code === "23505") throw new Error("Cet encaissement est déjà annulé.");
+  if (error) throw new Error(error.message);
+  await logAdminAction({ actorId: actor.id, targetUserId: payment.reseller_user_id, action: "platform_payment_reversed", details: { paymentId, amount: payment.amount, kind: payment.kind, reason: cleanReason, planWasApplied: payment.applied_plan } });
+  revalidatePath("/admin/finances"); revalidatePath("/admin/dashboard"); revalidatePath(`/admin/vendeurs/${payment.reseller_user_id}`);
+}

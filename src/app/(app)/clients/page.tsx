@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 async function getData(userId: string) {
   const supabase = createSupabaseAdmin();
 
-  const [subsResult, slotsResult, invoicesResult] = await Promise.all([
+  const [subsResult, slotsResult, invoicesResult, eventsResult] = await Promise.all([
     supabase
       .from("client_subscriptions")
       .select(`
@@ -34,6 +34,7 @@ async function getData(userId: string) {
       .select("*")
       .eq("user_id", userId)
       .order("number", { ascending: false }),
+    supabase.from("client_events").select("id,client_id,subscription_id,type,title,details,created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(1000),
   ]);
 
   if (subsResult.error) throw new Error(subsResult.error.message);
@@ -51,9 +52,10 @@ async function getData(userId: string) {
   );
 
   return {
-    subscriptions: (subsResult.data ?? []) as unknown as ClientSubscription[],
+    subscriptions: ((subsResult.data ?? []) as unknown as ClientSubscription[]).filter((subscription) => !subscription.client?.archived_at),
     freeSlots: freeSlots as unknown as (AccountSlot & { account: { id: string; service_name: string } })[],
     invoices: (invoicesResult.data ?? []) as unknown as Invoice[],
+    events: eventsResult.data ?? [],
   };
 }
 
@@ -62,8 +64,8 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
   if (!user) return null;
   const { client, filter } = await searchParams;
 
-  const { subscriptions, freeSlots, invoices } = await getData(user.id);
+  const { subscriptions, freeSlots, invoices, events } = await getData(user.id);
 
   const initialFilter = ["active", "warning", "danger", "grace"].includes(filter ?? "") ? filter as "active" | "warning" | "danger" | "grace" : undefined;
-  return <ClientsView subscriptions={subscriptions} freeSlots={freeSlots} invoices={invoices} initialClientId={client ?? null} initialFilter={initialFilter} />;
+  return <ClientsView subscriptions={subscriptions} freeSlots={freeSlots} invoices={invoices} events={events} initialClientId={client ?? null} initialFilter={initialFilter} />;
 }

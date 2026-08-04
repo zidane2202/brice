@@ -5,6 +5,7 @@ import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
 import { addMonths, toDateInputValue } from "@/lib/dates";
 import { createInvoice } from "@/lib/invoices";
+import { recordClientEvent } from "@/lib/client-events";
 
 function req(fd: FormData, key: string) {
   const v = String(fd.get(key) ?? "").trim();
@@ -52,6 +53,10 @@ export async function addClientWithSubscription(
       const duplicateName = [duplicate.first_name, duplicate.last_name].filter(Boolean).join(" ");
       throw new Error(`Un client existe déjà avec ${phone ? "ce numéro" : "cet e-mail"} (${duplicateName}). Ouvrez sa fiche au lieu de créer un doublon.`);
     }
+  }
+  const receiptInput = formData.get("receipt");
+  if (receiptInput instanceof File && receiptInput.size > 0 && (receiptInput.size > 5 * 1024 * 1024 || !["image/png", "image/jpeg", "image/webp", "application/pdf"].includes(receiptInput.type))) {
+    throw new Error("Justificatif invalide (image/PDF, 5 Mo maximum).");
   }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !Number.isInteger(durationMonths) || durationMonths < 1 || durationMonths > 24) {
     throw new Error("Date ou durée invalide (1 à 24 mois).");
@@ -191,6 +196,19 @@ export async function addClientWithSubscription(
       throw error;
     }
     invoiceCode = result?.code ?? null;
+    if (result) {
+      const paymentReference = opt(formData, "payment_reference");
+      const receipt = formData.get("receipt");
+      let receiptPath: string | null = null;
+      if (receipt instanceof File && receipt.size > 0) {
+        const extension = receipt.name.split(".").pop()?.replace(/[^a-z0-9]/gi, "").slice(0, 8) || "bin";
+        receiptPath = `${user.id}/${client.id}/${result.code}.${extension}`;
+        const { error: uploadError } = await supabase.storage.from("receipts").upload(receiptPath, Buffer.from(await receipt.arrayBuffer()), { contentType: receipt.type, upsert: false });
+        if (uploadError) { console.error("[receipt-upload]", uploadError.message); receiptPath = null; }
+      }
+      await supabase.from("invoices").update({ payment_reference: paymentReference, receipt_url: receiptPath }).eq("code", result.code).eq("user_id", user.id);
+    }
+    await recordClientEvent(supabase, { userId: user.id, clientId: client.id, subscriptionId: sub.id, type: "sale_created", title: "Nouvel abonnement enregistré", details: { service: serviceName, amount: price, startDate, endDate } });
   }
 
   revalidatePath("/clients");
@@ -231,6 +249,35 @@ export async function importClientsCsv(rows: CsvClientRow[]) {
   return { imported: results.filter((item) => item.ok).length, failed: results.filter((item) => !item.ok).length, results };
 }
 
+export async function archiveClient(clientId: string) {
+  const user = await getUser(); if (!user) throw new Error("Non authentifié");
+  const db = createSupabaseAdmin();
+  const { error } = await db.from("clients").update({ archived_at: new Date().toISOString() }).eq("id", clientId).eq("user_id", user.id);
+  if (error) throw new Error(error.message);
+  await db.from("client_subscriptions").update({ status: "cancelled", grace_until: null }).eq("client_id", clientId).eq("user_id", user.id).in("status", ["active", "grace"]);
+  await recordClientEvent(db, { userId: user.id, clientId, type: "client_archived", title: "Client archivé" });
+  revalidatePath("/clients"); revalidatePath("/dashboard"); revalidatePath("/abonnements");
+}
+
+export async function mergeClients(sourceClientId: string, targetClientId: string) {
+  const user = await getUser(); if (!user) throw new Error("Non authentifié");
+  if (!sourceClientId || !targetClientId || sourceClientId === targetClientId) throw new Error("Sélection de fusion invalide");
+  const db = createSupabaseAdmin();
+  const { data: clients } = await db.from("clients").select("id,first_name,last_name,notes").eq("user_id", user.id).in("id", [sourceClientId, targetClientId]);
+  if ((clients ?? []).length !== 2) throw new Error("Client introuvable");
+  const source = clients!.find((client) => client.id === sourceClientId)!; const target = clients!.find((client) => client.id === targetClientId)!;
+  for (const table of ["client_subscriptions", "transactions", "invoices", "client_events"] as const) {
+    const { error } = await db.from(table).update({ client_id: targetClientId }).eq("client_id", sourceClientId).eq("user_id", user.id);
+    if (error) throw new Error(error.message);
+  }
+  const notes = [target.notes, source.notes && `Fusion de ${[source.first_name, source.last_name].filter(Boolean).join(" ")} : ${source.notes}`].filter(Boolean).join("\n\n") || null;
+  await db.from("clients").update({ notes }).eq("id", targetClientId).eq("user_id", user.id);
+  const { error: deleteError } = await db.from("clients").delete().eq("id", sourceClientId).eq("user_id", user.id);
+  if (deleteError) throw new Error(deleteError.message);
+  await recordClientEvent(db, { userId: user.id, clientId: targetClientId, type: "clients_merged", title: "Doublon fusionné", details: { sourceName: [source.first_name, source.last_name].filter(Boolean).join(" ") } });
+  revalidatePath("/clients"); revalidatePath("/dashboard");
+}
+
 export async function updateClientMeta(formData: FormData) {
   const user = await getUser();
   if (!user) throw new Error("Non authentifié");
@@ -247,6 +294,7 @@ export async function updateClientMeta(formData: FormData) {
     .eq("user_id", user.id);
 
   if (error) throw new Error(error.message);
+  await recordClientEvent(supabase, { userId: user.id, clientId: id, type: "notes_updated", title: "Notes ou moyen de paiement modifiés" });
   revalidatePath("/clients");
 }
 
@@ -328,6 +376,8 @@ export async function updateClientDetails(formData: FormData) {
       .eq("user_id", user.id)
       .eq("kind", "new");
   }
+
+  await recordClientEvent(supabase, { userId: user.id, clientId, subscriptionId, type: "client_updated", title: "Informations du client modifiées", details: { amount: price, paymentRail } });
 
   revalidatePath("/clients");
   revalidatePath("/abonnements");

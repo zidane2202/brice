@@ -18,7 +18,7 @@ async function getResellers() {
   if (userIds.length === 0) return [];
 
   const { data: authUsers } = await supabase.auth.admin.listUsers();
-  const emailMap = new Map((authUsers?.users ?? []).map((u) => [u.id, u.email]));
+  const authMap = new Map((authUsers?.users ?? []).map((u) => [u.id, { email: u.email, lastSignInAt: u.last_sign_in_at }]));
 
   const { data: subCounts } = await supabase
     .from("client_subscriptions")
@@ -34,7 +34,8 @@ async function getResellers() {
 
   return (profiles ?? []).map((p) => ({
     ...p,
-    email: emailMap.get(p.user_id) ?? "—",
+    email: authMap.get(p.user_id)?.email ?? "—",
+    last_sign_in_at: authMap.get(p.user_id)?.lastSignInAt ?? null,
     active_clients: countMap.get(p.user_id) ?? 0,
   }));
 }
@@ -70,12 +71,13 @@ export default async function ResellerListPage({ searchParams }: { searchParams:
                 <th>Plan</th>
                 <th>Clients en cours</th>
                 <th>Inscrit le</th>
+                <th>Dernière connexion</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
               {resellers.length === 0 && (
-                <tr><td colSpan={8} className="empty">Aucun vendeur inscrit.</td></tr>
+                <tr><td colSpan={9} className="empty">Aucun vendeur inscrit.</td></tr>
               )}
               {resellers.map((r) => (
                 <tr key={r.user_id}>
@@ -92,6 +94,7 @@ export default async function ResellerListPage({ searchParams }: { searchParams:
                   <td><span className="status active">{r.plan}</span></td>
                   <td>{r.active_clients}</td>
                   <td>{new Date(r.created_at).toLocaleDateString("fr-FR")}</td>
+                  <td>{r.last_sign_in_at ? new Date(r.last_sign_in_at).toLocaleString("fr-FR") : "Jamais"}</td>
                   <td>
                     <Link href={`/admin/vendeurs/${r.user_id}`} className="btn-link">
                       Voir →

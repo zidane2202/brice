@@ -1,6 +1,6 @@
 {
   "name": "brice-app",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -8,22 +8,29 @@
     "start": "next start",
     "lint": "eslint",
     "test": "node --test --experimental-strip-types src/lib/*.test.ts",
+    "test:e2e": "playwright test",
     "migrate:credentials": "node --env-file=.env.local scripts/migrate-provider-credentials.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
+    "@sentry/nextjs": "^10.69.0",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.105.3",
+    "esquery": "^1.7.0",
     "geist": "^1.7.0",
     "next": "^16.3.0",
     "next-intl": "^4.13.4",
+    "pdf-lib": "^1.17.1",
+    "qrcode": "^1.5.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "web-push": "^3.6.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/web-push": "^3.6.4",

@@ -44,6 +44,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       className={`${GeistSans.variable} ${GeistMono.variable} ${landingDisplay.variable} ${landingBody.variable}`}
     >
       <body className="antialiased">
+        <a href="#app-content" className="skip-link">Aller au contenu principal</a>
         <NextIntlClientProvider messages={messages}>{children}</NextIntlClientProvider>
       </body>
     </html>
