@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isAllowedLogoMime, resolveBrandLogoUrl, resolveBrandName } from "./branding";
+import { isAllowedLogoMime, resolveBrandLogoUrl, resolveBrandName } from "./branding.ts";
 
 test("resolveBrandName prefers company_name", () => {
   assert.equal(resolveBrandName({ company_name: " Acme " }, "subresell"), "Acme");

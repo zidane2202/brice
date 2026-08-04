@@ -21,6 +21,10 @@ export function InvoiceActions({ invoice }: { invoice: Invoice }) {
   const waHref = waNumber
     ? `https://wa.me/${waNumber}?text=${encodeURIComponent(text)}`
     : `https://wa.me/?text=${encodeURIComponent(text)}`;
+  const share = async () => {
+    if (navigator.share) await navigator.share({ title: `Facture n° ${String(invoice.number).padStart(4, "0")}`, text, url });
+    else await navigator.clipboard.writeText(url);
+  };
 
   return (
     <div className="invoice-actions">
@@ -37,6 +41,9 @@ export function InvoiceActions({ invoice }: { invoice: Invoice }) {
         <Icon name="send" size={14} />
         Envoyer via WhatsApp
       </a>
+      <button type="button" onClick={share} className="invoice-action invoice-action-secondary">
+        <Icon name="send" size={14} /> Partager
+      </button>
     </div>
   );
 }

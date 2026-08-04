@@ -33,6 +33,7 @@ const SOURCE_META: Record<
     iconBg: "var(--sr-danger-bg)",
     iconColor: "var(--sr-danger)",
   },
+  reversal: { label: "Annulation", iconBg: "var(--sr-danger-bg)", iconColor: "var(--sr-danger)" },
 };
 
 function relTime(iso: string): string {

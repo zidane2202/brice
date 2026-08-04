@@ -58,7 +58,8 @@ export type TransactionSource =
   | "new_profile"
   | "profile_renewal"
   | "account_renewal"
-  | "manual_expense";
+  | "manual_expense"
+  | "reversal";
 export type TransactionFunding = "balance" | "personal";
 export type ExpenseCategory =
   | "account_renewal"
@@ -83,6 +84,8 @@ export type Transaction = {
   category: ExpenseCategory | null;
   occurred_on: string; // YYYY-MM-DD
   created_at: string;
+  reversed_transaction_id?: string | null;
+  reversal_reason?: string | null;
 };
 
 export type Invoice = {

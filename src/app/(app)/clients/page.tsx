@@ -57,11 +57,13 @@ async function getData(userId: string) {
   };
 }
 
-export default async function ClientsPage() {
+export default async function ClientsPage({ searchParams }: { searchParams: Promise<{ client?: string; filter?: string }> }) {
   const user = await getUser();
   if (!user) return null;
+  const { client, filter } = await searchParams;
 
   const { subscriptions, freeSlots, invoices } = await getData(user.id);
 
-  return <ClientsView subscriptions={subscriptions} freeSlots={freeSlots} invoices={invoices} />;
+  const initialFilter = ["active", "warning", "danger", "grace"].includes(filter ?? "") ? filter as "active" | "warning" | "danger" | "grace" : undefined;
+  return <ClientsView subscriptions={subscriptions} freeSlots={freeSlots} invoices={invoices} initialClientId={client ?? null} initialFilter={initialFilter} />;
 }

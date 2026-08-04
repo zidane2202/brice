@@ -15,6 +15,7 @@ import {
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 async function requirePlanForBranding(userId: string) {
   const supabase = createSupabaseAdmin();
@@ -146,4 +147,16 @@ export async function removeCompanyLogo() {
   revalidatePath("/profil");
   revalidatePath("/", "layout");
   return { success: true };
+}
+
+export async function deleteOwnAccount() {
+  const user = await getUser();
+  if (!user) return { error: "Non authentifié" };
+  const supabase = createSupabaseAdmin();
+  await supabase.storage.from(LOGO_BUCKET).remove([
+    `${user.id}/logo.png`, `${user.id}/logo.jpg`, `${user.id}/logo.webp`,
+  ]);
+  const { error } = await supabase.auth.admin.deleteUser(user.id);
+  if (error) return { error: error.message };
+  redirect("/login?deleted=1");
 }

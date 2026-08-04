@@ -1,4 +1,4 @@
-import { addDays } from "@/lib/dates";
+import { addDays } from "./dates.ts";
 
 export type PlanId = "free" | "pro" | "business";
 

@@ -14,6 +14,7 @@ const SOURCE_LABELS: Record<TransactionSource, string> = {
   profile_renewal: "Renouvellement profil",
   account_renewal: "Renouvellement compte",
   manual_expense: "Dépense manuelle",
+  reversal: "Annulation",
 };
 
 export function categoryLabel(c: ExpenseCategory | null | undefined): string {

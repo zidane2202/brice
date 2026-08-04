@@ -95,3 +95,25 @@ export async function addManualExpense(formData: FormData) {
   revalidatePath("/comptabilite");
   revalidatePath("/dashboard");
 }
+
+export async function reverseTransaction(transactionId: string, reason: string) {
+  const user = await getUser();
+  if (!user) throw new Error("Non authentifié");
+  const cleanReason = reason.trim();
+  if (cleanReason.length < 3 || cleanReason.length > 300) throw new Error("Indiquez une raison entre 3 et 300 caractères.");
+  const db = createSupabaseAdmin();
+  const { data: original, error: findError } = await db.from("transactions").select("*").eq("id", transactionId).eq("user_id", user.id).single();
+  if (findError || !original) throw new Error("Écriture introuvable.");
+  if (original.source === "reversal") throw new Error("Une annulation ne peut pas être annulée.");
+  const { data: existing } = await db.from("transactions").select("id").eq("reversed_transaction_id", transactionId).maybeSingle();
+  if (existing) throw new Error("Cette écriture est déjà annulée.");
+  const { error } = await db.from("transactions").insert({
+    user_id: user.id, kind: original.kind === "income" ? "outflow" : "income", source: "reversal",
+    funded_by: original.funded_by, affects_balance: original.affects_balance, amount: original.amount,
+    client_id: original.client_id, subscription_id: original.subscription_id, account_id: original.account_id,
+    label: `Annulation · ${original.label}`, category: original.category, occurred_on: new Date().toISOString().slice(0, 10),
+    reversed_transaction_id: original.id, reversal_reason: cleanReason,
+  });
+  if (error) throw new Error(error.message);
+  revalidatePath("/comptabilite"); revalidatePath("/dashboard");
+}

@@ -198,6 +198,39 @@ export async function addClientWithSubscription(
   return { invoiceCode, clientName, clientPhone };
 }
 
+type CsvClientRow = { first_name?: string; last_name?: string; phone?: string; email?: string; service?: string; profile?: string; start_date?: string; duration_months?: string | number; price?: string | number; payment_rail?: string; pin_code?: string };
+
+export async function importClientsCsv(rows: CsvClientRow[]) {
+  const user = await getUser();
+  if (!user) throw new Error("Non authentifié");
+  if (!Array.isArray(rows) || rows.length < 1 || rows.length > 100) throw new Error("Le fichier doit contenir entre 1 et 100 lignes.");
+  const db = createSupabaseAdmin();
+  const { data: slots, error } = await db.from("account_slots").select("id,label,slot_number,provider_accounts!inner(user_id,service_name,status)").eq("provider_accounts.user_id", user.id).eq("provider_accounts.status", "active");
+  if (error) throw new Error(error.message);
+  const results: Array<{ line: number; ok: boolean; message: string }> = [];
+  for (let index = 0; index < rows.length; index++) {
+    const row = rows[index];
+    const service = String(row.service ?? "").trim().toLowerCase();
+    const profile = String(row.profile ?? "").trim().toLowerCase();
+    const slot = (slots ?? []).find((item) => {
+      const account = item.provider_accounts as unknown as { service_name: string };
+      const label = (item.label || `Profil ${item.slot_number}`).toLowerCase();
+      return account.service_name.toLowerCase() === service && label === profile;
+    });
+    if (!slot) { results.push({ line: index + 2, ok: false, message: "Service ou profil introuvable" }); continue; }
+    const fd = new FormData();
+    Object.entries({ ...row, slot_id: slot.id }).forEach(([key, value]) => fd.set(key, String(value ?? "")));
+    try {
+      await addClientWithSubscription(fd);
+      results.push({ line: index + 2, ok: true, message: "Client importé" });
+    } catch (caught) {
+      results.push({ line: index + 2, ok: false, message: caught instanceof Error ? caught.message : "Échec de l’import" });
+    }
+  }
+  revalidatePath("/clients");
+  return { imported: results.filter((item) => item.ok).length, failed: results.filter((item) => !item.ok).length, results };
+}
+
 export async function updateClientMeta(formData: FormData) {
   const user = await getUser();
   if (!user) throw new Error("Non authentifié");

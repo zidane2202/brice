@@ -7,6 +7,8 @@ import { daysUntil } from "@/lib/dates";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
 import type { ClientSubscription, ProviderAccount, Transaction } from "@/lib/types";
+import Link from "next/link";
+import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +59,8 @@ async function getDashboardData(userId: string) {
   const activeClients = subscriptions.filter(
     (s) => s.status === "active" && s.end_date >= today
   );
+  const expiredClients = subscriptions.filter((s) => s.status === "cancelled" || (s.status !== "grace" && s.end_date < today));
+  const graceClients = subscriptions.filter((s) => s.status === "grace");
   const urgent = activeClients.filter((s) => {
     const d = daysUntil(s.end_date);
     return d >= 0 && d <= 3;
@@ -105,6 +109,8 @@ async function getDashboardData(userId: string) {
     monthlyRevenue,
     transactions,
     balance,
+    expiredClients,
+    graceClients,
   };
 }
 
@@ -123,8 +129,12 @@ export default async function DashboardPage() {
     monthlyRevenue,
     transactions,
     balance,
+    expiredClients,
+    graceClients,
   } = await getDashboardData(user.id);
   const urgentTotal = urgent.length + urgentAccounts.length;
+  const supabase = createSupabaseAdmin();
+  const { data: profile } = await supabase.from("user_profiles").select("first_name,company_name").eq("user_id", user.id).maybeSingle();
 
   return (
     <>
@@ -186,6 +196,15 @@ export default async function DashboardPage() {
         />
       </div>
 
+      <OnboardingChecklist hasProfile={Boolean(profile?.first_name || profile?.company_name)} accounts={activeAccounts} clients={usedSlots} />
+
+      <div className="panel" style={{ marginBottom: 20, padding: 12, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
+        <DashboardAction href={urgent.length ? "/clients?filter=warning" : "/clients"} label="Clients à relancer" value={urgent.length} tone={urgent.length ? "warning" : "neutral"} />
+        <DashboardAction href="/clients?filter=grace" label="Clients en grâce" value={graceClients.length} tone={graceClients.length ? "warning" : "neutral"} />
+        <DashboardAction href="/clients?filter=danger" label="Clients expirés" value={expiredClients.length} tone={expiredClients.length ? "danger" : "neutral"} />
+        <DashboardAction href="/abonnements" label="Profils disponibles" value={freeSlots} tone={freeSlots ? "success" : "neutral"} />
+      </div>
+
       <div className="dash-grid-2">
         <div className="panel">
           <div className="section-head">
@@ -240,4 +259,9 @@ export default async function DashboardPage() {
       </div>
     </>
   );
+}
+
+function DashboardAction({ href, label, value, tone }: { href: string; label: string; value: number; tone: "warning" | "danger" | "success" | "neutral" }) {
+  const color = tone === "danger" ? "var(--sr-danger)" : tone === "warning" ? "var(--sr-warning)" : tone === "success" ? "var(--sr-success)" : "var(--sr-fg)";
+  return <Link href={href} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 14px", borderRadius: 8, border: "1px solid var(--sr-border-subtle)", background: "var(--sr-bg)", textDecoration: "none", color: "var(--sr-fg)" }}><span style={{ fontSize: 12 }}>{label}</span><strong style={{ color, fontSize: 18 }}>{value} →</strong></Link>;
 }

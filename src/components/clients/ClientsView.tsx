@@ -11,6 +11,7 @@ import { FilterPill, SegmentedControl } from "@/components/ui/FilterPill";
 import { BulkActionBar } from "@/components/clients/BulkActionBar";
 import { ClientDrawer } from "@/components/clients/ClientDrawer";
 import { NewClientForm } from "@/components/clients/NewClientForm";
+import { ClientCsvImport } from "@/components/clients/ClientCsvImport";
 import { formatDate, daysUntil, toDateInputValue } from "@/lib/dates";
 import type { AccountSlot, ClientSubscription, Invoice } from "@/lib/types";
 
@@ -23,6 +24,8 @@ type Props = {
   subscriptions: ClientSubscription[];
   freeSlots: FreeSlot[];
   invoices: Invoice[];
+  initialClientId?: string | null;
+  initialFilter?: FilterKey;
 };
 
 const STATUS_META: Record<
@@ -44,9 +47,9 @@ function bucket(sub: ClientSubscription, today: string): FilterKey {
   return "active";
 }
 
-export function ClientsView({ subscriptions, freeSlots, invoices }: Props) {
+export function ClientsView({ subscriptions, freeSlots, invoices, initialClientId = null, initialFilter }: Props) {
   const today = toDateInputValue();
-  const [filter, setFilter] = useState<FilterKey>("active");
+  const [filter, setFilter] = useState<FilterKey>(initialFilter ?? "active");
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortKey>("recent");
   const [picked, setPicked] = useState<Set<string>>(new Set());
@@ -55,11 +58,19 @@ export function ClientsView({ subscriptions, freeSlots, invoices }: Props) {
   const [formOpen, setFormOpen] = useState(false);
 
   useEffect(() => {
+    const matchingSubscription = subscriptions.find((sub) => sub.client_id === initialClientId);
+    if (matchingSubscription) {
+      setSelectedId(matchingSubscription.id);
+      setDrawerOpen(true);
+    }
+  }, [initialClientId, subscriptions]);
+
+  useEffect(() => {
     const savedFilter = localStorage.getItem("subresell-clients-filter") as FilterKey | null;
     const savedSort = localStorage.getItem("subresell-clients-sort") as SortKey | null;
-    if (savedFilter && ["active", "warning", "danger", "grace"].includes(savedFilter)) setFilter(savedFilter);
+    if (!initialFilter && savedFilter && ["active", "warning", "danger", "grace"].includes(savedFilter)) setFilter(savedFilter);
     if (savedSort && ["recent", "echeance", "ltv"].includes(savedSort)) setSortBy(savedSort);
-  }, []);
+  }, [initialFilter]);
 
   useEffect(() => {
     localStorage.setItem("subresell-clients-filter", filter);
@@ -261,6 +272,7 @@ export function ClientsView({ subscriptions, freeSlots, invoices }: Props) {
             </div>
 
             <div style={{ display: "flex", gap: 8 }}>
+              <ClientCsvImport />
               <button type="button" className="secondary" onClick={exportCsv} disabled={subscriptions.length === 0}>
                 <Icon name="download" size={14} /> Exporter CSV
               </button>

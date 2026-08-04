@@ -3,10 +3,11 @@
 import { useEffect, useState, useTransition } from "react";
 import { Icon } from "@/components/Icon";
 import { BrandMark } from "@/components/BrandMark";
-import { removeCompanyLogo, updateProfile, uploadCompanyLogo } from "@/app/actions/profile";
+import { deleteOwnAccount, removeCompanyLogo, updateProfile, uploadCompanyLogo } from "@/app/actions/profile";
 import { useActionState } from "react";
 import { NotificationSettings } from "@/components/profil/NotificationSettings";
 import { InstallApp } from "@/components/profil/InstallApp";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 type Section = { id: string; label: string; icon: string; danger?: boolean };
 
@@ -892,15 +893,18 @@ function PlanSection({ plan }: { plan: string }) {
 }
 
 function DangerSection() {
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState("");
   return (
     <PrSection id="danger" danger title="Zone de danger" subtitle="Ces actions sont irréversibles. À utiliser avec précaution.">
       <DangerRow
         title="Exporter toutes mes données"
-        hint="Téléchargez un fichier CSV avec clients, comptes fournisseurs, paiements."
+        hint="Téléchargez une archive JSON complète et réutilisable de vos données."
         action={
-          <button type="button" className="secondary" style={{ minHeight: 30, height: 30, fontSize: "0.78rem" }}>
+          <a href="/api/account/export" className="secondary" style={{ minHeight: 30, height: 30, fontSize: "0.78rem", display: "inline-flex", alignItems: "center", gap: 6, padding: "0 12px", textDecoration: "none" }}>
             <Icon name="download" size={12} /> Exporter
-          </button>
+          </a>
         }
       />
       <DangerRow
@@ -908,11 +912,13 @@ function DangerSection() {
         hint="Toutes vos données seront effacées sous 30 jours. Action irréversible."
         last
         action={
-          <button type="button" className="danger" style={{ minHeight: 30, height: 30, fontSize: "0.78rem" }}>
+          <button type="button" className="danger" onClick={() => setDeleteOpen(true)} style={{ minHeight: 30, height: 30, fontSize: "0.78rem" }}>
             Supprimer le compte
           </button>
         }
       />
+      {error && <p style={{ color: "var(--sr-danger)", padding: "0 20px 14px", margin: 0, fontSize: 12 }}>{error}</p>}
+      <ConfirmDialog open={deleteOpen} title="Supprimer définitivement votre compte ?" description="Tous les clients, abonnements, comptes fournisseurs, transactions et factures seront supprimés immédiatement. Téléchargez d'abord votre export si nécessaire." confirmLabel="Supprimer définitivement" tone="danger" pending={pending} onCancel={() => setDeleteOpen(false)} onConfirm={() => startTransition(async () => { setError(""); const result = await deleteOwnAccount(); if (result?.error) { setError(result.error); setDeleteOpen(false); } })} />
     </PrSection>
   );
 }

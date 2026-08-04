@@ -187,7 +187,7 @@ export default async function ResellerDetailPage({
         </div>
       </div>
 
-      <div className="stats-grid" style={{ marginBottom: 20 }}>
+      <div className="stats-grid stats-grid-five" style={{ marginBottom: 20 }}>
         <KpiCard label="Clients actifs" value={activeClients} tone="success" />
         <KpiCard label="Comptes actifs" value={activeAccounts} tone="info" />
         <KpiCard label="Solde caisse" value={balance} unit="FCFA" accent />

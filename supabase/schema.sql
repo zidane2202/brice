@@ -180,8 +180,12 @@ alter table public.transactions add constraint transactions_source_check
     'new_profile',
     'profile_renewal',
     'account_renewal',
-    'manual_expense'
+    'manual_expense',
+    'reversal'
   ));
+alter table public.transactions add column if not exists reversed_transaction_id uuid references public.transactions(id) on delete restrict;
+alter table public.transactions add column if not exists reversal_reason text;
+create unique index if not exists transactions_one_reversal_idx on public.transactions(reversed_transaction_id) where reversed_transaction_id is not null;
 
 alter table public.transactions add column if not exists category text;
 alter table public.transactions drop constraint if exists transactions_category_check;
@@ -306,6 +310,23 @@ create table if not exists public.rate_limits (
   hits integer not null default 0,
   window_started_at timestamptz not null default now()
 );
+
+create table if not exists public.user_notifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  type text not null,
+  title text not null,
+  body text not null,
+  url text not null default '/dashboard',
+  dedup_key text not null,
+  read_at timestamptz,
+  created_at timestamptz not null default now(),
+  unique(user_id, dedup_key)
+);
+create index if not exists user_notifications_user_created_idx on public.user_notifications(user_id, created_at desc);
+alter table public.user_notifications enable row level security;
+drop policy if exists "users see own notifications" on public.user_notifications;
+create policy "users see own notifications" on public.user_notifications for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 alter table public.rate_limits enable row level security;
 
 create or replace function public.consume_rate_limit(p_key text, p_limit integer, p_window_seconds integer)
@@ -353,6 +374,9 @@ $$;
 drop trigger if exists admin_audit_logs_immutable on public.admin_audit_logs;
 create trigger admin_audit_logs_immutable before update or delete on public.admin_audit_logs
 for each row execute function public.prevent_audit_log_changes();
+
+-- Conserve l'identifiant historique après suppression d'un vendeur sans modifier le journal.
+alter table public.admin_audit_logs drop constraint if exists admin_audit_logs_target_user_id_fkey;
 
 create or replace function public.record_platform_payment_atomic(
   p_actor uuid, p_reseller uuid, p_amount numeric, p_kind text, p_note text,

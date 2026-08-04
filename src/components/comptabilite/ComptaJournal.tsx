@@ -10,6 +10,8 @@ import {
 } from "@/lib/comptabilite";
 import type { ExpenseCategory, Transaction } from "@/lib/types";
 import { useMemo, useState } from "react";
+import { useTransition } from "react";
+import { reverseTransaction } from "@/app/actions/comptabilite";
 
 type Props = {
   transactions: Transaction[];
@@ -31,6 +33,11 @@ export function ComptaJournal({
   const [kind, setKind] = useState<"all" | "income" | "outflow">("all");
   const [category, setCategory] = useState<ExpenseCategory | "all">("all");
   const [q, setQ] = useState("");
+  const [toReverse, setToReverse] = useState<Transaction | null>(null);
+  const [reason, setReason] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [pending, startTransition] = useTransition();
+  const reversedIds = useMemo(() => new Set(transactions.map((item) => item.reversed_transaction_id).filter(Boolean)), [transactions]);
 
   const filtered = useMemo(
     () => filterJournal(transactions, { from, to, kind, category, q }),
@@ -128,6 +135,7 @@ export function ComptaJournal({
                 <th style={{ padding: "8px 6px", borderBottom: "1px solid var(--sr-border-subtle)" }}>Type</th>
                 <th style={{ padding: "8px 6px", borderBottom: "1px solid var(--sr-border-subtle)", textAlign: "right" }}>Montant</th>
                 <th style={{ padding: "8px 6px", borderBottom: "1px solid var(--sr-border-subtle)" }}>Source</th>
+                <th style={{ padding: "8px 6px", borderBottom: "1px solid var(--sr-border-subtle)" }}></th>
               </tr>
             </thead>
             <tbody>
@@ -160,12 +168,14 @@ export function ComptaJournal({
                   <td style={{ padding: "8px 6px", borderBottom: "1px solid var(--sr-border-subtle)" }}>
                     {sourceLabel(t.source)}
                   </td>
+                  <td style={{ padding: "8px 6px", borderBottom: "1px solid var(--sr-border-subtle)", textAlign: "right" }}>{t.source !== "reversal" && !reversedIds.has(t.id) && <button type="button" className="secondary" onClick={() => { setToReverse(t); setReason(""); setActionError(""); }} style={{ minHeight: 26, height: 26, fontSize: 10 }}>Annuler</button>}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
+      {toReverse && <div style={{ position: "fixed", inset: 0, zIndex: 1200, display: "grid", placeItems: "center", padding: 20, background: "rgba(0,0,0,.72)" }}><div style={{ width: "min(440px,100%)", padding: 22, borderRadius: 14, background: "var(--sr-surface)", border: "1px solid var(--sr-danger-border)" }}><h3 style={{ marginTop: 0 }}>Annuler cette écriture ?</h3><p style={{ color: "var(--sr-fg-subtle)", fontSize: 12 }}>{toReverse.label} · {formatFcfa(Number(toReverse.amount))} FCFA. Une écriture inverse sera créée et l’historique sera conservé.</p><label>Raison<textarea value={reason} onChange={(event) => setReason(event.target.value)} maxLength={300} placeholder="Ex. vente enregistrée par erreur" /></label>{actionError && <p style={{ color: "var(--sr-danger)", fontSize: 12 }}>{actionError}</p>}<div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 18 }}><button type="button" className="secondary" disabled={pending} onClick={() => setToReverse(null)}>Fermer</button><button type="button" className="danger" disabled={pending || reason.trim().length < 3} onClick={() => startTransition(async () => { try { await reverseTransaction(toReverse.id, reason); setToReverse(null); } catch (error) { setActionError(error instanceof Error ? error.message : "Annulation impossible"); } })}>{pending ? "Traitement…" : "Créer l’écriture inverse"}</button></div></div></div>}
     </div>
   );
 }

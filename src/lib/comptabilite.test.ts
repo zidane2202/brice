@@ -7,8 +7,8 @@ import {
   filterJournal,
   monthBounds,
   formatFcfa,
-} from "./comptabilite";
-import type { Transaction } from "./types";
+} from "./comptabilite.ts";
+import type { Transaction } from "./types.ts";
 
 function tx(
   partial: Partial<Transaction> & Pick<Transaction, "kind" | "amount" | "occurred_on">

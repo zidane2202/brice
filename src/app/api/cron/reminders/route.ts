@@ -92,6 +92,7 @@ export async function GET(request: Request) {
         body: names.slice(0, 3).join(", ") + (names.length > 3 ? ` +${names.length - 3}` : ""),
         url: "/clients",
       });
+      await supabase.from("user_notifications").upsert({ user_id: userId, type: "client_reminder", title: `${subs.length} client(s) à relancer`, body: names.slice(0, 3).join(", ") + (names.length > 3 ? ` +${names.length - 3}` : ""), url: "/clients", dedup_key: `client-reminder-${today}` }, { onConflict: "user_id,dedup_key" });
 
       await supabase
         .from("client_subscriptions")
@@ -120,6 +121,7 @@ export async function GET(request: Request) {
       url: "/profil",
     });
     planRemindSent += n;
+    await supabase.from("user_notifications").upsert({ user_id: row.user_id, type: "plan_expiry", title: "Pack bientôt à renouveler", body: `Votre plan ${row.plan} expire le ${row.plan_renews_on}.`, url: "/profil#section-plan", dedup_key: `plan-expiry-${row.plan_renews_on}` }, { onConflict: "user_id,dedup_key" });
     await supabase
       .from("user_profiles")
       .update({ plan_renewal_notified_on: today })
@@ -147,6 +149,7 @@ export async function GET(request: Request) {
         body: "Votre pack a expiré. Contactez le support pour réactiver.",
         url: "/profil",
       });
+      await supabase.from("user_notifications").upsert({ user_id: row.user_id, type: "account_suspended", title: "Compte SubResell suspendu", body: "Votre pack a expiré. Contactez le support pour le réactiver.", url: "/profil#section-plan", dedup_key: `suspended-${row.plan_renews_on}` }, { onConflict: "user_id,dedup_key" });
     }
   }
 

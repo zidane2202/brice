@@ -349,7 +349,7 @@ export function ClientDrawer({ sub, lifetime, cyclesCount, history, invoices, on
       </Section>
 
       {history.length > 0 && (
-        <Section title="Historique">
+        <Section title="Chronologie des abonnements">
           <div
             style={{
               padding: "10px 14px",
