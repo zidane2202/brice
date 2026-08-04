@@ -919,7 +919,7 @@ function CancelButton({ subId }: { subId: string }) {
         type="button"
         onClick={() => setConfirming(true)}
         className="secondary"
-        title="Supprimer dÃ©finitivement ce profil"
+        title="Supprimer définitivement ce profil"
         style={{
           minHeight: 32,
           height: 32,

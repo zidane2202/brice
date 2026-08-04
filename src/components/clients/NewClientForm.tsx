@@ -31,7 +31,7 @@ export function NewClientForm({ freeSlots, onClose }: Props) {
     setErrorMsg(null);
     const amount = Number(formData.get("price"));
     if (!Number.isFinite(amount) || amount <= 0) {
-      setErrorMsg("Le montant payÃ© par le client est obligatoire.");
+      setErrorMsg("Le montant payé par le client est obligatoire.");
       return;
     }
     const selectedSlot = freeSlots.find((slot) => slot.id === String(formData.get("slot_id")));
@@ -412,7 +412,7 @@ export function NewClientForm({ freeSlots, onClose }: Props) {
             size={13}
             style={{ color: errorMsg ? "var(--sr-danger)" : "var(--sr-fg-subtle)" }}
           />
-          {errorMsg ?? "Le montant payÃ© est obligatoire pour crÃ©er le profil et gÃ©nÃ©rer la facture."}
+          {errorMsg ?? "Le montant payé est obligatoire pour créer le profil et générer la facture."}
         </div>
         <button
           type="button"

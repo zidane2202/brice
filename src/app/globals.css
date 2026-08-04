@@ -2157,8 +2157,8 @@ label { position: relative; }
   table-layout: fixed;
 }
 
-.invoice-table col.col-desc { width: 50%; }
-.invoice-table col.col-period { width: 30%; }
+.invoice-table col.col-desc { width: 42%; }
+.invoice-table col.col-period { width: 38%; }
 .invoice-table col.col-amount { width: 20%; }
 
 .invoice-table thead,

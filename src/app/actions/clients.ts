@@ -416,7 +416,7 @@ export async function bulkCancelSubscriptions(formData: FormData) {
 
 export async function deleteClientSubscription(formData: FormData) {
   const user = await getUser();
-  if (!user) throw new Error("Non authentifiÃ©");
+  if (!user) throw new Error("Non authentifié");
 
   const id = req(formData, "id");
   const supabase = createSupabaseAdmin();
@@ -475,7 +475,7 @@ export async function deleteClientSubscription(formData: FormData) {
 
 export async function bulkDeleteSubscriptions(formData: FormData) {
   const user = await getUser();
-  if (!user) throw new Error("Non authentifiÃ©");
+  if (!user) throw new Error("Non authentifié");
 
   const idsRaw = String(formData.get("ids") ?? "");
   const ids = idsRaw.split(",").map((s) => s.trim()).filter(Boolean);

@@ -103,7 +103,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ code: 
                   {invoice.service_name}
                 </div>
                 <div className="invoice-service-meta">
-                  {invoice.service_slot ?? "Profil"} · {kindLabel}
+                  {kindLabel}
                 </div>
               </div>
             </div>
@@ -126,9 +126,8 @@ export default async function InvoicePage({ params }: { params: Promise<{ code: 
               <tr>
                 <td>
                   Abonnement {invoice.service_name}
-                  {invoice.service_slot ? ` : ${invoice.service_slot}` : ""}
                 </td>
-                <td>
+                <td style={{ whiteSpace: "nowrap" }}>
                   {formatDate(invoice.period_start)} → {formatDate(invoice.period_end)}
                 </td>
                 <td className="num">{fmt(invoice.amount)} FCFA</td>
