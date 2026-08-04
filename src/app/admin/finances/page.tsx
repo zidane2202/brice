@@ -88,6 +88,8 @@ async function getFinanceData() {
   const resellerOptions = rows.map((r) => ({
     userId: r.user_id,
     label: `${r.name} (${r.email})`,
+    plan: r.plan,
+    activePro: r.plan === "pro" && !r.suspended && Boolean(r.plan_renews_on) && r.plan_renews_on! >= new Date().toISOString().slice(0, 10),
   }));
 
   const journal = payments.map((p) => ({

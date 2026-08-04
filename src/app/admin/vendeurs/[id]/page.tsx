@@ -243,6 +243,7 @@ export default async function ResellerDetailPage({
           resellerUserId={profile.user_id}
           defaultPlan={profile.plan}
           defaultExtras={Number(profile.extra_provider_accounts ?? 0)}
+          defaultActivePro={profile.plan === "pro" && !profile.suspended && Boolean(profile.plan_renews_on) && profile.plan_renews_on! >= new Date().toISOString().slice(0, 10)}
         />
         <div className="table-wrap" style={{ marginTop: 16 }}>
           <table>

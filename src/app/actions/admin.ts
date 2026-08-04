@@ -198,7 +198,7 @@ export async function recordPlatformPayment(formData: FormData) {
   const supabase = createSupabaseAdmin();
   const { data: target, error: findErr } = await supabase
     .from("user_profiles")
-    .select("user_id, plan, extra_provider_accounts, plan_renews_on")
+    .select("user_id, plan, extra_provider_accounts, plan_renews_on, suspended")
     .eq("user_id", resellerId)
     .maybeSingle();
 
@@ -223,6 +223,14 @@ export async function recordPlatformPayment(formData: FormData) {
 
   if (applyPlan) {
     if (kindRaw === "extra_accounts") {
+      const hasActivePro =
+        target.plan === "pro" &&
+        !target.suspended &&
+        Boolean(target.plan_renews_on) &&
+        target.plan_renews_on >= todayStr();
+      if (!hasActivePro) {
+        throw new Error("Les comptes extras nécessitent un pack Pro actif. Activez ou renouvelez d’abord le pack Pro.");
+      }
       const currentExtras = Number(target.extra_provider_accounts ?? 0);
       const add = extras > 0 ? extras : 1;
       plan = "pro";
@@ -230,9 +238,11 @@ export async function recordPlatformPayment(formData: FormData) {
     }
 
     const paid = plan === "pro" || plan === "business";
-    const planRenewsOn = paid
-      ? extendPlanRenewal(target.plan_renews_on, occurredOn)
-      : null;
+    const planRenewsOn = kindRaw === "extra_accounts"
+      ? target.plan_renews_on
+      : paid
+        ? extendPlanRenewal(target.plan_renews_on, occurredOn)
+        : null;
 
     const { error: upErr } = await supabase
       .from("user_profiles")
