@@ -1,12 +1,11 @@
 "use client";
 
-import { supportWhatsAppHref } from "@/lib/support";
 import { useEffect, useRef, useState } from "react";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
 const WELCOME =
-  "Bonjour ! Je suis l'assistant SubResell. Posez votre question sur les plans, comptes, clients ou factures. Pour un problème urgent, utilisez « Parler à un humain ».";
+  "Bonjour et bienvenue sur le support SubResell 👋 Comment pouvons-nous vous aider aujourd’hui ?";
 
 export function SupportChat() {
   const [open, setOpen] = useState(false);
@@ -17,13 +16,6 @@ export function SupportChat() {
     { role: "assistant", content: WELCOME },
   ]);
   const bottomRef = useRef<HTMLDivElement>(null);
-
-  const humanHref = supportWhatsAppHref(
-    "Bonjour, j'ai besoin de parler à un humain (support SubResell)."
-  );
-  const contactHref = supportWhatsAppHref(
-    "Bonjour, je souhaite vous contacter à propos de SubResell."
-  );
 
   useEffect(() => {
     if (open) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -64,7 +56,7 @@ export function SupportChat() {
           <div className="support-chat-head">
             <div>
               <strong>Support</strong>
-              <p>Assistant SubResell</p>
+              <p>Service client SubResell</p>
             </div>
             <button
               type="button"
@@ -74,15 +66,6 @@ export function SupportChat() {
             >
               ×
             </button>
-          </div>
-
-          <div className="support-chat-actions">
-            <a href={humanHref} target="_blank" rel="noreferrer" className="support-chat-chip">
-              Parler à un humain
-            </a>
-            <a href={contactHref} target="_blank" rel="noreferrer" className="support-chat-chip">
-              Nous contacter
-            </a>
           </div>
 
           <div className="support-chat-messages">

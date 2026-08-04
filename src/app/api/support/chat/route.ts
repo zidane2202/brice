@@ -21,7 +21,7 @@ export async function POST(request: Request) {
 
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json(
-      { error: "Support IA indisponible (clé manquante)." },
+      { error: "Le support est temporairement indisponible." },
       { status: 503 }
     );
   }
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
   } catch (err) {
     console.error("[support/chat]", err instanceof Error ? err.message : err);
     return NextResponse.json(
-      { error: "Le support IA a rencontré une erreur. Réessayez ou contactez un humain." },
+      { error: "Le support a rencontré une erreur. Veuillez réessayer dans quelques instants." },
       { status: 502 }
     );
   }
