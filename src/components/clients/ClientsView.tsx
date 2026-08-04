@@ -65,6 +65,20 @@ export function ClientsView({ subscriptions, freeSlots, invoices }: Props) {
     localStorage.setItem("subresell-clients-sort", sortBy);
   }, [filter, sortBy]);
 
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setDrawerOpen(false);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [drawerOpen]);
+
   const counts = useMemo(() => {
     const c = { active: 0, warning: 0, danger: 0, grace: 0, visible: 0 };
     for (const sub of subscriptions) {
@@ -479,14 +493,22 @@ export function ClientsView({ subscriptions, freeSlots, invoices }: Props) {
       </div>
 
       {drawerOpen && selectedSub && (
-        <ClientDrawer
-          sub={selectedSub}
-          lifetime={selectedLifetime}
-          cyclesCount={selectedCycles}
-          history={selectedHistory}
-          invoices={selectedInvoices}
-          onClose={() => setDrawerOpen(false)}
-        />
+        <div
+          className="client-modal-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setDrawerOpen(false);
+          }}
+        >
+          <ClientDrawer
+            sub={selectedSub}
+            lifetime={selectedLifetime}
+            cyclesCount={selectedCycles}
+            history={selectedHistory}
+            invoices={selectedInvoices}
+            onClose={() => setDrawerOpen(false)}
+          />
+        </div>
       )}
     </div>
   );

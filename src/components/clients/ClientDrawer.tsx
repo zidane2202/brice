@@ -45,14 +45,16 @@ export function ClientDrawer({ sub, lifetime, cyclesCount, history, invoices, on
     <aside
       className="sr-scroll client-drawer"
       style={{
-        width: 380,
-        flex: "0 0 380px",
-        borderLeft: "1px solid var(--sr-border-subtle)",
+        width: "min(880px, calc(100vw - 48px))",
+        maxHeight: "min(860px, calc(100dvh - 48px))",
+        border: "1px solid var(--sr-border)",
+        borderRadius: 14,
         background: "var(--sr-bg)",
         overflow: "auto",
         display: "flex",
         flexDirection: "column",
         position: "relative",
+        boxShadow: "0 28px 90px rgba(0,0,0,.62)",
       }}
     >
       <div
