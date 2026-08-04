@@ -1,4 +1,4 @@
-import { addMonths } from "@/lib/dates";
+import { addDays } from "@/lib/dates";
 
 export type PlanId = "free" | "pro" | "business";
 
@@ -74,15 +74,20 @@ export function estimateMrrFcfa(
   return PLAN_PRICES_FCFA.pro + Math.max(0, extraProviderAccounts) * PLAN_PRICES_FCFA.extraAccount;
 }
 
-/** Next SaaS renewal: +months from max(anchor, current renewal). */
+/** Next SaaS renewal: +30-day periods from max(anchor, current renewal). */
 export function extendPlanRenewal(
   currentRenewsOn: string | null | undefined,
   anchorDate: string,
-  months = 1
+  periods = 1
 ): string {
   const base =
     currentRenewsOn && currentRenewsOn > anchorDate ? currentRenewsOn : anchorDate;
-  return addMonths(base, months);
+  return addDays(base, periods * 30);
+}
+
+/** A new paid pack always starts for exactly 30 days from activation. */
+export function activatePlanFor30Days(activationDate: string): string {
+  return addDays(activationDate, 30);
 }
 
 /** Prefixed errors so UI can open upgrade modal */

@@ -27,10 +27,6 @@ export function RecordPlatformPaymentForm({
 }: Props) {
   const [kind, setKind] = useState<PlatformPaymentKind>("pro_monthly");
   const [amount, setAmount] = useState(String(defaultAmountForKind("pro_monthly")));
-  const [applyPlan, setApplyPlan] = useState(true);
-  const [plan, setPlan] = useState(
-    defaultPlan === "business" || defaultPlan === "pro" ? defaultPlan : "pro"
-  );
   const [extras, setExtras] = useState(String(defaultExtras || 0));
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -42,10 +38,7 @@ export function RecordPlatformPaymentForm({
     setKind(next);
     const def = defaultAmountForKind(next);
     if (def > 0) setAmount(String(def));
-    if (next === "pro_monthly") setPlan("pro");
-    if (next === "business_monthly") setPlan("business");
     if (next === "extra_accounts") {
-      setPlan("pro");
       if (!extras || extras === "0") setExtras("1");
     }
   }
@@ -53,6 +46,19 @@ export function RecordPlatformPaymentForm({
   function handleSubmit(formData: FormData) {
     setError(null);
     setOk(false);
+    const selectedReseller = resellerUserId
+      ? "ce vendeur"
+      : resellers.find((item) => item.userId === String(formData.get("reseller_user_id")))?.label ?? "ce vendeur";
+    const selectedKind = PLATFORM_PAYMENT_KIND_LABELS[kind];
+    const selectedAmount = Number(formData.get("amount") ?? 0).toLocaleString("fr-FR");
+    const activationText = kind === "pro_monthly" || kind === "business_monthly"
+      ? "\nLe pack sera activé ou prolongé de 30 jours."
+      : kind === "extra_accounts"
+        ? `\n${extras} compte(s) supplémentaire(s) seront ajouté(s).`
+        : "";
+    if (!window.confirm(`Confirmer l’encaissement ?\n\n${selectedReseller}\n${selectedKind} · ${selectedAmount} FCFA${activationText}`)) {
+      return;
+    }
     startTransition(async () => {
       try {
         await recordPlatformPayment(formData);
@@ -124,47 +130,42 @@ export function RecordPlatformPaymentForm({
         </label>
       </div>
 
-      <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <input
-          type="checkbox"
-          name="apply_plan"
-          value="true"
-          checked={applyPlan}
-          onChange={(e) => setApplyPlan(e.target.checked)}
-        />
-        Appliquer aussi le plan (et lever la suspension)
-      </label>
-
-      {applyPlan && (
-        <div className="fields two-cols">
+      {kind !== "other" && <input type="hidden" name="apply_plan" value="true" />}
+      {kind === "pro_monthly" && <input type="hidden" name="plan" value="pro" />}
+      {kind === "business_monthly" && <input type="hidden" name="plan" value="business" />}
+      {kind === "extra_accounts" && (
+        <>
+          <input type="hidden" name="plan" value="pro" />
           <label>
-            Plan
-            <select name="plan" value={plan} onChange={(e) => setPlan(e.target.value)}>
-              <option value="free">free</option>
-              <option value="pro">pro</option>
-              <option value="business">business</option>
-            </select>
+            Comptes supplémentaires à ajouter
+            <input
+              name="extra_provider_accounts"
+              type="number"
+              min={1}
+              value={extras}
+              onChange={(e) => setExtras(e.target.value)}
+            />
           </label>
-          {(plan === "pro" || kind === "extra_accounts") && (
-            <label>
-              {kind === "extra_accounts" ? "Extras à ajouter" : "Extras (total Pro)"}
-              <input
-                name="extra_provider_accounts"
-                type="number"
-                min={kind === "extra_accounts" ? 1 : 0}
-                value={extras}
-                onChange={(e) => setExtras(e.target.value)}
-              />
-            </label>
-          )}
-        </div>
+        </>
       )}
 
+      {kind === "pro_monthly" || kind === "business_monthly" ? (
+        <p style={{ margin: 0, fontSize: 12, color: "var(--sr-fg-subtle)" }}>
+          Le paiement activera ou renouvellera automatiquement le pack pour 30 jours et lèvera toute suspension.
+        </p>
+      ) : null}
+
       <button type="submit" className="primary" disabled={pending}>
-        {pending ? "Enregistrement…" : "Enregistrer l’encaissement"}
+        {pending
+          ? "Activation en cours…"
+          : kind === "pro_monthly" || kind === "business_monthly"
+            ? `Encaisser et ${defaultPlan === "free" ? "activer" : "renouveler"} 30 jours`
+            : "Enregistrer l’encaissement"}
       </button>
       {ok && (
-        <p style={{ margin: 0, color: "var(--sr-mint-300)", fontSize: 13 }}>Enregistré.</p>
+        <p style={{ margin: 0, color: "var(--sr-mint-300)", fontSize: 13 }}>
+          Paiement enregistré et abonnement mis à jour.
+        </p>
       )}
       {error && (
         <p style={{ margin: 0, color: "var(--sr-danger)", fontSize: 13 }}>{error}</p>

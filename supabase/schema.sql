@@ -46,6 +46,21 @@ create index if not exists platform_payments_occurred_idx
 create index if not exists platform_payments_reseller_idx
   on public.platform_payments(reseller_user_id, occurred_on desc);
 
+-- Journal immuable des opérations administratives sensibles
+create table if not exists public.admin_audit_logs (
+  id uuid primary key default gen_random_uuid(),
+  actor_user_id uuid not null references auth.users(id),
+  target_user_id uuid references auth.users(id) on delete set null,
+  action text not null,
+  details jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists admin_audit_logs_created_idx
+  on public.admin_audit_logs(created_at desc);
+create index if not exists admin_audit_logs_target_idx
+  on public.admin_audit_logs(target_user_id, created_at desc);
+
 -- Storage (créer aussi dans le dashboard Supabase) :
 -- Bucket public: logos
 -- Path: {user_id}/logo.{ext}
@@ -226,6 +241,7 @@ alter table public.client_subscriptions enable row level security;
 alter table public.transactions enable row level security;
 alter table public.invoices enable row level security;
 alter table public.push_subscriptions enable row level security;
+alter table public.admin_audit_logs enable row level security;
 
 -- Policies (service role bypass automatique)
 drop policy if exists "users see own profile" on public.user_profiles;

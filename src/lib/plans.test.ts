@@ -6,6 +6,7 @@ import {
   normalizePlan,
   parsePlanLimitError,
   PLAN_LIMIT_ACCOUNT,
+  activatePlanFor30Days,
   planLimitError,
 } from "./plans";
 
@@ -37,7 +38,11 @@ test("parsePlanLimitError", () => {
 
 test("extendPlanRenewal", async () => {
   const { extendPlanRenewal } = await import("./plans");
-  assert.equal(extendPlanRenewal(null, "2026-08-01", 1), "2026-09-01");
-  assert.equal(extendPlanRenewal("2026-10-01", "2026-08-01", 1), "2026-11-01");
-  assert.equal(extendPlanRenewal("2026-07-01", "2026-08-01", 1), "2026-09-01");
+  assert.equal(extendPlanRenewal(null, "2026-08-01"), "2026-08-31");
+  assert.equal(extendPlanRenewal("2026-10-01", "2026-08-01"), "2026-10-31");
+  assert.equal(extendPlanRenewal("2026-07-01", "2026-08-01"), "2026-08-31");
+});
+
+test("activatePlanFor30Days", () => {
+  assert.equal(activatePlanFor30Days("2026-02-01"), "2026-03-03");
 });

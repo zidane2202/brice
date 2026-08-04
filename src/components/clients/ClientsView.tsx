@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
 import { ProviderGlyph } from "@/components/ProviderGlyph";
@@ -53,6 +53,18 @@ export function ClientsView({ subscriptions, freeSlots, invoices }: Props) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
 
+  useEffect(() => {
+    const savedFilter = localStorage.getItem("subresell-clients-filter") as FilterKey | null;
+    const savedSort = localStorage.getItem("subresell-clients-sort") as SortKey | null;
+    if (savedFilter && ["active", "warning", "danger", "grace"].includes(savedFilter)) setFilter(savedFilter);
+    if (savedSort && ["recent", "echeance", "ltv"].includes(savedSort)) setSortBy(savedSort);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("subresell-clients-filter", filter);
+    localStorage.setItem("subresell-clients-sort", sortBy);
+  }, [filter, sortBy]);
+
   const counts = useMemo(() => {
     const c = { active: 0, warning: 0, danger: 0, grace: 0, visible: 0 };
     for (const sub of subscriptions) {
@@ -73,7 +85,10 @@ export function ClientsView({ subscriptions, freeSlots, invoices }: Props) {
           name.includes(q) ||
           (s.client?.phone ?? "").includes(q) ||
           (s.client?.email ?? "").toLowerCase().includes(q) ||
-          (s.slot?.account?.service_name ?? "").toLowerCase().includes(q)
+          (s.slot?.account?.service_name ?? "").toLowerCase().includes(q) ||
+          (s.slot?.label ?? "").toLowerCase().includes(q) ||
+          (s.client?.pin_code ?? "").toLowerCase().includes(q) ||
+          (s.client?.payment_rail ?? "").toLowerCase().includes(q)
         );
       });
     }
@@ -178,6 +193,29 @@ export function ClientsView({ subscriptions, freeSlots, invoices }: Props) {
     setPicked(checked ? new Set(rows.map((r) => r.id)) : new Set());
   };
 
+  const exportCsv = () => {
+    const header = ["Client", "Téléphone", "Email", "Service", "Profil", "Statut", "Échéance", "Montant", "Paiement"];
+    const lines = subscriptions.map((sub) => [
+      [sub.client?.first_name, sub.client?.last_name].filter(Boolean).join(" "),
+      sub.client?.phone ?? "",
+      sub.client?.email ?? "",
+      sub.slot?.account?.service_name ?? "",
+      sub.slot?.label ?? `Profil ${sub.slot?.slot_number ?? ""}`,
+      STATUS_META[bucket(sub, today)].label,
+      sub.end_date,
+      sub.price ?? 0,
+      sub.client?.payment_rail ?? "",
+    ]);
+    const escape = (value: unknown) => `"${String(value).replace(/"/g, '""')}"`;
+    const csv = [header, ...lines].map((line) => line.map(escape).join(";")).join("\n");
+    const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `clients-${today}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="mobile-full-bleed" style={{ display: "flex", flex: 1, minHeight: 0, marginInline: -32, marginTop: -32, marginBottom: -32 }}>
       <div className="sr-scroll" style={{ flex: 1, overflow: "auto", minWidth: 0 }}>
@@ -208,6 +246,9 @@ export function ClientsView({ subscriptions, freeSlots, invoices }: Props) {
             </div>
 
             <div style={{ display: "flex", gap: 8 }}>
+              <button type="button" className="secondary" onClick={exportCsv} disabled={subscriptions.length === 0}>
+                <Icon name="download" size={14} /> Exporter CSV
+              </button>
               <button
                 type="button"
                 onClick={() => setFormOpen((v) => !v)}
@@ -287,6 +328,7 @@ export function ClientsView({ subscriptions, freeSlots, invoices }: Props) {
             }}
           >
             <FilterPill label="Actifs"   count={counts.active}  active={filter === "active"}  onClick={() => setFilter("active")}  tone="success" />
+            <FilterPill label="À relancer" count={counts.warning} active={filter === "warning"} onClick={() => setFilter("warning")} tone="warning" />
             <FilterPill label="Expirés"  count={counts.danger}  active={filter === "danger"}  onClick={() => setFilter("danger")}  tone="danger" />
             <FilterPill label="En grâce" count={counts.grace}   active={filter === "grace"}   onClick={() => setFilter("grace")}   tone="warning" />
           </div>

@@ -7,7 +7,7 @@ import {
   isPlatformPaymentKind,
   suggestedPlanForKind,
 } from "@/lib/platform-payments";
-import { extendPlanRenewal } from "@/lib/plans";
+import { activatePlanFor30Days, extendPlanRenewal } from "@/lib/plans";
 import { revalidatePath } from "next/cache";
 
 const PLANS = new Set(["free", "pro", "business"]);
@@ -15,6 +15,21 @@ const ROLES = new Set(["reseller", "admin"]);
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
+}
+
+async function logAdminAction(input: {
+  actorId: string;
+  targetUserId?: string | null;
+  action: string;
+  details?: Record<string, unknown>;
+}) {
+  const supabase = createSupabaseAdmin();
+  await supabase.from("admin_audit_logs").insert({
+    actor_user_id: input.actorId,
+    target_user_id: input.targetUserId ?? null,
+    action: input.action,
+    details: input.details ?? {},
+  });
 }
 
 export async function updateResellerPlanRole(formData: FormData) {
@@ -29,10 +44,9 @@ export async function updateResellerPlanRole(formData: FormData) {
   const role = String(formData.get("role") ?? "").trim();
   const extrasRaw = String(formData.get("extra_provider_accounts") ?? "0").trim();
   const extras = Math.max(0, parseInt(extrasRaw || "0", 10) || 0);
-  const renewsRaw = String(formData.get("plan_renews_on") ?? "").trim();
 
   if (!userId) throw new Error("Vendeur manquant");
-  if (!PLANS.has(plan)) throw new Error("Plan invalide");
+  if (plan !== "__keep__" && !PLANS.has(plan)) throw new Error("Plan invalide");
   if (!ROLES.has(role)) throw new Error("Rôle invalide");
 
   if (userId === actor.id && role !== "admin") {
@@ -42,30 +56,49 @@ export async function updateResellerPlanRole(formData: FormData) {
   const supabase = createSupabaseAdmin();
   const { data: target, error: findErr } = await supabase
     .from("user_profiles")
-    .select("user_id, role, plan_renews_on")
+    .select("user_id, role, plan, extra_provider_accounts, plan_renews_on, suspended")
     .eq("user_id", userId)
     .maybeSingle();
 
   if (findErr) throw new Error(findErr.message);
   if (!target) throw new Error("Vendeur introuvable");
 
-  const paid = plan === "pro" || plan === "business";
-  const planRenewsOn = paid
-    ? renewsRaw || target.plan_renews_on || extendPlanRenewal(null, todayStr(), 1)
-    : null;
+  const nextPlan = plan === "__keep__" ? target.plan : plan;
+  const paid = nextPlan === "pro" || nextPlan === "business";
+  const isActivation = paid && (
+    target.plan !== nextPlan ||
+    !target.plan_renews_on ||
+    target.plan_renews_on < todayStr() ||
+    target.suspended
+  );
+  const planRenewsOn = !paid
+    ? null
+    : isActivation
+      ? activatePlanFor30Days(todayStr())
+      : target.plan_renews_on;
 
   const { error } = await supabase
     .from("user_profiles")
     .update({
-      plan,
+      plan: nextPlan,
       role,
-      extra_provider_accounts: plan === "pro" ? extras : 0,
+      extra_provider_accounts: nextPlan === "pro"
+        ? (plan === "__keep__" ? Number(target.extra_provider_accounts ?? 0) : extras)
+        : 0,
       plan_renews_on: planRenewsOn,
       plan_renewal_notified_on: null,
+      suspended: paid && isActivation ? false : target.suspended,
     })
     .eq("user_id", userId);
 
   if (error) throw new Error(error.message);
+
+  await logAdminAction({
+    actorId: actor.id,
+    targetUserId: userId,
+    action: "account_settings_updated",
+    details: { previousRole: target.role, role, plan: nextPlan },
+  });
 
   revalidatePath(`/admin/vendeurs/${userId}`);
   revalidatePath("/admin/vendeurs");
@@ -104,6 +137,12 @@ export async function setResellerSuspended(formData: FormData) {
     .eq("user_id", userId);
 
   if (error) throw new Error(error.message);
+
+  await logAdminAction({
+    actorId: actor.id,
+    targetUserId: userId,
+    action: suspended ? "account_suspended" : "account_unsuspended",
+  });
 
   revalidatePath(`/admin/vendeurs/${userId}`);
   revalidatePath("/admin/vendeurs");
@@ -166,6 +205,19 @@ export async function recordPlatformPayment(formData: FormData) {
   if (findErr) throw new Error(findErr.message);
   if (!target) throw new Error("Vendeur introuvable");
 
+  const recentCutoff = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+  const { data: recentDuplicate } = await supabase
+    .from("platform_payments")
+    .select("id")
+    .eq("reseller_user_id", resellerId)
+    .eq("kind", kindRaw)
+    .eq("amount", amount)
+    .gte("created_at", recentCutoff)
+    .limit(1);
+  if ((recentDuplicate ?? []).length > 0) {
+    throw new Error("Un encaissement identique vient déjà d’être enregistré. Attendez deux minutes avant de réessayer.");
+  }
+
   let appliedPlan: string | null = null;
   let appliedExtras: number | null = null;
 
@@ -179,7 +231,7 @@ export async function recordPlatformPayment(formData: FormData) {
 
     const paid = plan === "pro" || plan === "business";
     const planRenewsOn = paid
-      ? extendPlanRenewal(target.plan_renews_on, occurredOn, 1)
+      ? extendPlanRenewal(target.plan_renews_on, occurredOn)
       : null;
 
     const { error: upErr } = await supabase
@@ -210,6 +262,13 @@ export async function recordPlatformPayment(formData: FormData) {
   });
 
   if (error) throw new Error(error.message);
+
+  await logAdminAction({
+    actorId: actor.id,
+    targetUserId: resellerId,
+    action: "platform_payment_recorded",
+    details: { amount, kind: kindRaw, occurredOn, appliedPlan, appliedExtras, note: note || null },
+  });
 
   revalidatePath(`/admin/vendeurs/${resellerId}`);
   revalidatePath("/admin/vendeurs");

@@ -25,7 +25,7 @@ async function getFinanceData() {
     .toISOString()
     .slice(0, 10);
 
-  const [profilesRes, paymentsRes, authResult] = await Promise.all([
+  const [profilesRes, paymentsRes, authResult, auditRes] = await Promise.all([
     supabase
       .from("user_profiles")
       .select(
@@ -41,6 +41,11 @@ async function getFinanceData() {
       .order("occurred_on", { ascending: false })
       .limit(100),
     supabase.auth.admin.listUsers(),
+    supabase
+      .from("admin_audit_logs")
+      .select("id, actor_user_id, target_user_id, action, details, created_at")
+      .order("created_at", { ascending: false })
+      .limit(30),
   ]);
 
   if (profilesRes.error) throw new Error(profilesRes.error.message);
@@ -102,6 +107,8 @@ async function getFinanceData() {
     resellerOptions,
     journal,
     paymentsError: paymentsError?.message ?? null,
+    audit: auditRes.error ? [] : auditRes.data ?? [],
+    emailMap,
   };
 }
 
@@ -132,7 +139,7 @@ const CATALOGUE: {
 ];
 
 export default async function AdminFinancesPage() {
-  const { rows, counts, mrr, cashThisMonth, resellerOptions, journal, paymentsError } =
+  const { rows, counts, mrr, cashThisMonth, resellerOptions, journal, paymentsError, audit, emailMap } =
     await getFinanceData();
 
   return (
@@ -176,6 +183,7 @@ export default async function AdminFinancesPage() {
             <thead>
               <tr>
                 <th>Date</th>
+                <th>Référence</th>
                 <th>Vendeur</th>
                 <th>Motif</th>
                 <th>Montant</th>
@@ -187,7 +195,7 @@ export default async function AdminFinancesPage() {
             <tbody>
               {journal.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="empty">
+                  <td colSpan={8} className="empty">
                     Aucun encaissement enregistré.
                   </td>
                 </tr>
@@ -195,6 +203,7 @@ export default async function AdminFinancesPage() {
               {journal.map((p) => (
                 <tr key={p.id}>
                   <td>{p.occurred_on}</td>
+                  <td style={{ fontFamily: "var(--font-geist-mono)", fontSize: 11 }}>SR-{p.id.slice(0, 8).toUpperCase()}</td>
                   <td>
                     <Link href={`/admin/vendeurs/${p.reseller_user_id}`} className="btn-link">
                       {p.resellerLabel}
@@ -207,6 +216,30 @@ export default async function AdminFinancesPage() {
                   <td>{p.note || "—"}</td>
                   <td>{p.applied_plan ?? "—"}</td>
                   <td style={{ fontSize: 12 }}>{p.recorderEmail}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="panel" style={{ marginBottom: 20 }}>
+        <h2>Journal d’audit administrateur</h2>
+        <p style={{ color: "var(--sr-fg-subtle)", fontSize: 12, margin: "0 0 14px" }}>
+          Historique des encaissements, suspensions et modifications sensibles.
+        </p>
+        <div className="table-wrap">
+          <table>
+            <thead><tr><th>Date</th><th>Action</th><th>Cible</th><th>Administrateur</th><th>Détails</th></tr></thead>
+            <tbody>
+              {audit.length === 0 && <tr><td colSpan={5} className="empty">Aucune entrée d’audit. Exécutez le schéma Supabase mis à jour si nécessaire.</td></tr>}
+              {audit.map((entry) => (
+                <tr key={entry.id}>
+                  <td>{new Date(entry.created_at).toLocaleString("fr-FR")}</td>
+                  <td><strong>{entry.action}</strong></td>
+                  <td>{entry.target_user_id ? emailMap.get(entry.target_user_id) ?? entry.target_user_id.slice(0, 8) : "—"}</td>
+                  <td>{emailMap.get(entry.actor_user_id) ?? entry.actor_user_id.slice(0, 8)}</td>
+                  <td style={{ maxWidth: 320, fontSize: 11 }}>{JSON.stringify(entry.details)}</td>
                 </tr>
               ))}
             </tbody>

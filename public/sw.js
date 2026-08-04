@@ -1,3 +1,19 @@
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches.open("subresell-shell-v1").then((cache) => cache.addAll(["/offline.html"])),
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
+self.addEventListener("fetch", (event) => {
+  if (event.request.mode !== "navigate") return;
+  event.respondWith(fetch(event.request).catch(() => caches.match("/offline.html")));
+});
+
 self.addEventListener("push", (event) => {
   const data = event.data
     ? event.data.json()

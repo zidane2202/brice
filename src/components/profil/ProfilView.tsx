@@ -5,6 +5,8 @@ import { Icon } from "@/components/Icon";
 import { BrandMark } from "@/components/BrandMark";
 import { removeCompanyLogo, updateProfile, uploadCompanyLogo } from "@/app/actions/profile";
 import { useActionState } from "react";
+import { NotificationSettings } from "@/components/profil/NotificationSettings";
+import { InstallApp } from "@/components/profil/InstallApp";
 
 type Section = { id: string; label: string; icon: string; danger?: boolean };
 
@@ -13,6 +15,8 @@ const SECTIONS: Section[] = [
   { id: "biz",    label: "Mon activité",              icon: "dashboard" },
   { id: "secu",   label: "Sécurité",                  icon: "settings" },
   { id: "plan",   label: "Mon plan",                  icon: "zap" },
+  { id: "notifications", label: "Notifications",     icon: "bell" },
+  { id: "application", label: "Application",         icon: "download" },
   { id: "danger", label: "Zone de danger",            icon: "alert", danger: true },
 ];
 
@@ -273,6 +277,12 @@ export function ProfilView({ profile, email, createdAt, stats }: Props) {
           <BizSection city={profile?.city ?? ""} />
           <SecuSection />
           <PlanSection plan={profile?.plan ?? "free"} />
+          <PrSection id="notifications" title="Notifications" subtitle="Choisissez explicitement si cet appareil peut recevoir vos rappels.">
+            <NotificationSettings enabled={(profile?.plan ?? "free") !== "free"} />
+          </PrSection>
+          <PrSection id="application" title="Application" subtitle="Installez SubResell sur votre téléphone ou votre ordinateur.">
+            <InstallApp />
+          </PrSection>
           <DangerSection />
         </div>
       </div>

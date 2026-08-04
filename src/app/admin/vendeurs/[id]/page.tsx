@@ -205,7 +205,7 @@ export default async function ResellerDetailPage({
             marginBottom: 12,
           }}
         >
-          <h2 style={{ marginTop: 0, marginBottom: 0 }}>Réglages</h2>
+          <h2 style={{ marginTop: 0, marginBottom: 0 }}>Réglages du compte</h2>
           {actor?.id !== profile.user_id && (
             <SuspendToggle
               userId={profile.user_id}
@@ -220,16 +220,25 @@ export default async function ResellerDetailPage({
         )}
         <ResellerSettingsForm
           userId={profile.user_id}
-          plan={profile.plan}
           role={profile.role}
-          extraProviderAccounts={Number(profile.extra_provider_accounts ?? 0)}
-          planRenewsOn={profile.plan_renews_on}
           isSelf={actor?.id === profile.user_id}
         />
       </div>
 
       <div className="panel" style={{ marginBottom: 20 }}>
-        <h2 style={{ marginTop: 0 }}>Encaissement plateforme</h2>
+        <h2 style={{ marginTop: 0 }}>Abonnement SubResell</h2>
+        <div className="stats-grid" style={{ marginBottom: 18 }}>
+          <KpiCard label="Pack actuel" value={profile.plan.toUpperCase()} tone="info" />
+          <KpiCard
+            label="Échéance automatique"
+            value={profile.plan_renews_on ? new Date(`${profile.plan_renews_on}T00:00:00`).toLocaleDateString("fr-FR") : "—"}
+            tone={profile.suspended ? "danger" : "success"}
+          />
+          <KpiCard label="Comptes extras" value={Number(profile.extra_provider_accounts ?? 0)} tone="neutral" />
+        </div>
+        <p style={{ color: "var(--sr-fg-subtle)", fontSize: 13, margin: "0 0 16px" }}>
+          Chaque encaissement Pro ou Business active ou prolonge automatiquement le pack de 30 jours.
+        </p>
         <RecordPlatformPaymentForm
           resellerUserId={profile.user_id}
           defaultPlan={profile.plan}

@@ -37,6 +37,23 @@ export async function addClientWithSubscription(
 
   const supabase = createSupabaseAdmin();
 
+  const phone = opt(formData, "phone");
+  const email = opt(formData, "email");
+  if (phone || email) {
+    let duplicateQuery = supabase
+      .from("clients")
+      .select("id, first_name, last_name, phone, email")
+      .eq("user_id", user.id);
+    duplicateQuery = phone
+      ? duplicateQuery.eq("phone", phone)
+      : duplicateQuery.ilike("email", email!);
+    const { data: duplicate } = await duplicateQuery.limit(1).maybeSingle();
+    if (duplicate) {
+      const duplicateName = [duplicate.first_name, duplicate.last_name].filter(Boolean).join(" ");
+      throw new Error(`Un client existe déjà avec ${phone ? "ce numéro" : "cet e-mail"} (${duplicateName}). Ouvrez sa fiche au lieu de créer un doublon.`);
+    }
+  }
+
   // Verify the slot belongs to an account owned by this user
   const { data: slot } = await supabase
     .from("account_slots")
@@ -90,8 +107,8 @@ export async function addClientWithSubscription(
       user_id: user.id,
       first_name: firstName,
       last_name: lastName,
-      email: opt(formData, "email"),
-      phone: opt(formData, "phone"),
+      email,
+      phone,
       payment_rail: opt(formData, "payment_rail"),
       pin_code: opt(formData, "pin_code"),
     })
@@ -117,7 +134,7 @@ export async function addClientWithSubscription(
 
   if (subError) throw new Error(subError.message);
 
-  const clientPhone = opt(formData, "phone");
+  const clientPhone = phone;
   let invoiceCode: string | null = null;
 
   if (sub) {
@@ -153,7 +170,7 @@ export async function addClientWithSubscription(
       kind: "new",
       clientName,
       clientPhone,
-      clientEmail: opt(formData, "email"),
+      clientEmail: email,
       paymentRail: opt(formData, "payment_rail"),
     });
     invoiceCode = result?.code ?? null;

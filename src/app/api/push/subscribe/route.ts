@@ -20,3 +20,17 @@ export async function POST(request: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }
+
+export async function DELETE(request: Request) {
+  const supabaseServer = await createSupabaseServer();
+  const { data: { user } } = await supabaseServer.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+
+  const { endpoint } = await request.json().catch(() => ({ endpoint: null }));
+  const supabase = createSupabaseAdmin();
+  let query = supabase.from("push_subscriptions").delete().eq("user_id", user.id);
+  if (endpoint) query = query.eq("endpoint", endpoint);
+  const { error } = await query;
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}

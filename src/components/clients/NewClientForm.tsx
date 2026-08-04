@@ -32,6 +32,14 @@ export function NewClientForm({ freeSlots, onClose }: Props) {
       setErrorMsg("Le montant payÃ© par le client est obligatoire.");
       return;
     }
+    const selectedSlot = freeSlots.find((slot) => slot.id === String(formData.get("slot_id")));
+    const clientName = [formData.get("first_name"), formData.get("last_name")].filter(Boolean).join(" ");
+    const slotName = selectedSlot
+      ? `${selectedSlot.account.service_name} · ${selectedSlot.label || `Profil ${selectedSlot.slot_number}`}`
+      : "profil sélectionné";
+    if (!window.confirm(`Confirmer la vente ?\n\n${clientName}\n${slotName}\n${amount.toLocaleString("fr-FR")} FCFA`)) {
+      return;
+    }
     startTransition(async () => {
       try {
         const result = await addClientWithSubscription(formData);

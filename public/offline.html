@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#0b0d0f" />
+    <title>SubResell — Hors connexion</title>
+    <style>
+      :root { color-scheme: dark; font-family: system-ui, sans-serif; }
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #0b0d0f; color: #f3f5f4; }
+      main { width: min(420px, calc(100% - 40px)); padding: 32px; border: 1px solid #27302c; border-radius: 16px; background: #111512; text-align: center; }
+      .mark { width: 56px; height: 56px; margin: 0 auto 20px; display: grid; place-items: center; border-radius: 14px; background: linear-gradient(135deg,#34d399,#059669); color: #042f2e; font-size: 30px; font-weight: 800; }
+      h1 { margin: 0 0 10px; font-size: 24px; }
+      p { margin: 0 0 22px; color: #a8b2ad; line-height: 1.5; }
+      button { border: 0; border-radius: 8px; padding: 11px 18px; background: #34d399; color: #042f2e; font-weight: 700; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="mark">S</div>
+      <h1>Vous êtes hors connexion</h1>
+      <p>Reconnectez-vous à Internet pour retrouver vos clients, comptes et paiements.</p>
+      <button onclick="location.reload()">Réessayer</button>
+    </main>
+  </body>
+</html>

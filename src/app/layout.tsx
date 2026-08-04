@@ -21,8 +21,10 @@ const landingBody = Figtree({
 export const metadata: Metadata = {
   title: "SubResell",
   description: "Gestion d'abonnements vendeurs",
+  manifest: "/manifest.webmanifest",
   icons: {
     icon: [{ url: "/icon", type: "image/png" }],
+    apple: [{ url: "/icon", type: "image/png" }],
   },
 };
 

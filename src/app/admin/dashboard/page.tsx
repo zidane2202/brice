@@ -7,10 +7,15 @@ export const dynamic = "force-dynamic";
 async function getAdminStats() {
   const supabase = createSupabaseAdmin();
 
-  const [profilesResult, subsResult, authResult] = await Promise.all([
-    supabase.from("user_profiles").select("user_id, plan, created_at").eq("role", "reseller"),
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const in15Days = new Date(now.getTime() + 15 * 86400000).toISOString().slice(0, 10);
+  const [profilesResult, subsResult, authResult, paymentsResult] = await Promise.all([
+    supabase.from("user_profiles").select("user_id, plan, suspended, plan_renews_on, created_at").eq("role", "reseller"),
     supabase.from("client_subscriptions").select("user_id, price, status, created_at"),
     supabase.auth.admin.listUsers(),
+    supabase.from("platform_payments").select("amount, occurred_on").gte("occurred_on", firstOfMonth.slice(0, 10)),
   ]);
 
   const profiles = profilesResult.data ?? [];
@@ -20,9 +25,14 @@ async function getAdminStats() {
   const activeSubs = subs.filter((s) => s.status === "active");
   const totalRevenue = activeSubs.reduce((sum, s) => sum + (s.price ?? 0), 0);
 
-  const now = new Date();
-  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
   const newThisMonth = profiles.filter((p) => p.created_at >= firstOfMonth).length;
+  const platformRevenueThisMonth = (paymentsResult.data ?? []).reduce((sum, p) => sum + Number(p.amount ?? 0), 0);
+  const suspendedCount = profiles.filter((p) => p.suspended).length;
+  const planCounts = profiles.reduce((counts, p) => {
+    const plan: "free" | "pro" | "business" = p.plan === "pro" || p.plan === "business" ? p.plan : "free";
+    counts[plan]++;
+    return counts;
+  }, { free: 0, pro: 0, business: 0 });
 
   const resellerIds = new Set(profiles.map((p) => p.user_id));
   const emailMap = new Map(users.map((u) => [u.id, u.email ?? "—"]));
@@ -44,11 +54,24 @@ async function getAdminStats() {
     .sort((a, b) => b.active_clients - a.active_clients)
     .slice(0, 5);
 
+  const upcomingRenewals = profiles
+    .filter((p) => p.plan_renews_on && p.plan_renews_on >= today && p.plan_renews_on <= in15Days)
+    .map((p) => ({
+      ...p,
+      email: emailMap.get(p.user_id) ?? "—",
+      days: Math.ceil((new Date(`${p.plan_renews_on}T00:00:00`).getTime() - new Date(`${today}T00:00:00`).getTime()) / 86400000),
+    }))
+    .sort((a, b) => (a.plan_renews_on ?? "").localeCompare(b.plan_renews_on ?? ""));
+
   return {
     totalResellers: profiles.length,
     totalActiveClients: activeSubs.length,
     totalRevenue,
     newThisMonth,
+    platformRevenueThisMonth,
+    suspendedCount,
+    planCounts,
+    upcomingRenewals,
     topResellers,
   };
 }
@@ -68,8 +91,39 @@ export default async function AdminDashboardPage() {
       <div className="stats-grid">
         <StatsCard label="Vendeurs inscrits" value={stats.totalResellers} />
         <StatsCard label="Clients actifs (total)" value={stats.totalActiveClients} accent />
-        <StatsCard label="Revenus générés (FCFA)" value={stats.totalRevenue.toLocaleString()} />
+        <StatsCard label="Encaissements plateforme ce mois" value={stats.platformRevenueThisMonth.toLocaleString()} />
         <StatsCard label="Nouveaux ce mois" value={stats.newThisMonth} />
+        <StatsCard label="Packs à renouveler (15 j)" value={stats.upcomingRenewals.length} />
+        <StatsCard label="Comptes suspendus" value={stats.suspendedCount} />
+      </div>
+
+      <div className="panel" style={{ marginBottom: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div>
+            <h2 style={{ margin: 0 }}>Packs à renouveler</h2>
+            <p style={{ margin: "5px 0 0", color: "var(--sr-fg-subtle)", fontSize: 12 }}>
+              Prochains 15 jours · Free {stats.planCounts.free} · Pro {stats.planCounts.pro} · Business {stats.planCounts.business}
+            </p>
+          </div>
+          <Link href="/admin/finances" className="btn-link">Nouvel encaissement →</Link>
+        </div>
+        <div className="table-wrap" style={{ marginTop: 14 }}>
+          <table>
+            <thead><tr><th>Vendeur</th><th>Plan</th><th>Échéance</th><th>Urgence</th><th></th></tr></thead>
+            <tbody>
+              {stats.upcomingRenewals.length === 0 && <tr><td colSpan={5} className="empty">Aucun renouvellement dans les 15 prochains jours.</td></tr>}
+              {stats.upcomingRenewals.map((row) => (
+                <tr key={row.user_id}>
+                  <td><strong>{row.email}</strong></td>
+                  <td><span className="status active">{row.plan}</span></td>
+                  <td>{new Date(`${row.plan_renews_on}T00:00:00`).toLocaleDateString("fr-FR")}</td>
+                  <td><span className={`status ${row.days <= 3 ? "cancelled" : "grace"}`}>{row.days === 0 ? "Aujourd’hui" : `J−${row.days}`}</span></td>
+                  <td><Link href={`/admin/vendeurs/${row.user_id}`} className="btn-link">Renouveler →</Link></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="panel">

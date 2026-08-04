@@ -5,27 +5,18 @@ import { useState, useTransition } from "react";
 
 type Props = {
   userId: string;
-  plan: string;
   role: string;
-  extraProviderAccounts?: number;
-  planRenewsOn?: string | null;
   isSelf: boolean;
 };
 
 export function ResellerSettingsForm({
   userId,
-  plan,
   role,
-  extraProviderAccounts = 0,
-  planRenewsOn = null,
   isSelf,
 }: Props) {
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [currentPlan, setCurrentPlan] = useState(
-    plan === "pro" || plan === "business" ? plan : "free"
-  );
 
   async function handleSubmit(formData: FormData) {
     setErrorMsg(null);
@@ -43,49 +34,14 @@ export function ResellerSettingsForm({
   return (
     <form action={handleSubmit} className="fields" style={{ maxWidth: 520 }}>
       <input type="hidden" name="user_id" value={userId} />
-      <div className="fields two-cols">
-        <label>
-          Plan
-          <select
-            name="plan"
-            value={currentPlan}
-            onChange={(e) => setCurrentPlan(e.target.value)}
-            required
-          >
-            <option value="free">free</option>
-            <option value="pro">pro</option>
-            <option value="business">business</option>
-          </select>
-        </label>
-        <label>
-          Rôle
-          <select name="role" defaultValue={role === "admin" ? "admin" : "reseller"} required>
-            <option value="reseller">reseller</option>
-            <option value="admin">admin</option>
-          </select>
-        </label>
-      </div>
-      {currentPlan === "pro" && (
-        <label>
-          Comptes extras (Pro)
-          <input
-            name="extra_provider_accounts"
-            type="number"
-            min={0}
-            defaultValue={extraProviderAccounts}
-          />
-        </label>
-      )}
-      {(currentPlan === "pro" || currentPlan === "business") && (
-        <label>
-          Échéance pack SaaS
-          <input
-            name="plan_renews_on"
-            type="date"
-            defaultValue={planRenewsOn ?? ""}
-          />
-        </label>
-      )}
+      <input type="hidden" name="plan" value="__keep__" />
+      <label>
+        Rôle du compte
+        <select name="role" defaultValue={role === "admin" ? "admin" : "reseller"} required>
+          <option value="reseller">Vendeur</option>
+          <option value="admin">Administrateur</option>
+        </select>
+      </label>
       {isSelf && (
         <p style={{ margin: 0, fontSize: 12, color: "var(--sr-fg-subtle)" }}>
           Attention : c’est votre compte. Vous ne pouvez pas retirer votre rôle admin.
@@ -96,7 +52,7 @@ export function ResellerSettingsForm({
       )}
       {success && (
         <p style={{ margin: 0, color: "var(--sr-mint-400)", fontSize: 13 }}>
-          Réglages enregistrés.
+          Rôle enregistré.
         </p>
       )}
       <button type="submit" disabled={isPending}>
