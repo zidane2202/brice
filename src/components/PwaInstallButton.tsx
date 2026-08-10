@@ -48,7 +48,7 @@ export function PwaInstallButton() {
       className="secondary topbar-install"
       onClick={handleInstall}
       title="Installer l’application"
-      style={{ minHeight: 30, height: 30, padding: "0 10px", fontSize: 11 }}
+      aria-label="Installer l’application"
     >
       <Icon name="download" size={13} />
       <span>Installer</span>

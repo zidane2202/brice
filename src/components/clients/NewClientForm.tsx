@@ -154,14 +154,7 @@ export function NewClientForm({ freeSlots, onClose }: Props) {
         </button>
       </div>
 
-      <div
-        style={{
-          padding: "20px 18px",
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 16,
-        }}
-      >
+      <div className="new-client-fields">
         <NewField label="Prénom">
           <input name="first_name" required placeholder="ex. Aïcha" style={{ height: 36, minHeight: 36 }} />
         </NewField>

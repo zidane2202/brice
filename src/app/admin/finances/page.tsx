@@ -190,7 +190,7 @@ export default async function AdminFinancesPage({ searchParams }: { searchParams
 
       <div className="panel" style={{ marginBottom: 20 }}>
         <h2>Journal d’encaissements</h2>
-        <form method="get" className="fields" style={{ gridTemplateColumns: "2fr 1fr 1fr 1fr auto", marginBottom: 14 }}><label>Recherche<input type="search" name="q" defaultValue={q} placeholder="Vendeur, note, référence…" /></label><label>Motif<select name="kind" defaultValue={kind}><option value="all">Tous</option>{Object.entries(PLATFORM_PAYMENT_KIND_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label>Du<input type="date" name="from" defaultValue={from} /></label><label>Au<input type="date" name="to" defaultValue={to} /></label><button type="submit" style={{ alignSelf: "end" }}>Filtrer</button></form>
+        <form method="get" className="fields journal-filters"><label>Recherche<input type="search" name="q" defaultValue={q} placeholder="Vendeur, note, référence…" /></label><label>Motif<select name="kind" defaultValue={kind}><option value="all">Tous</option>{Object.entries(PLATFORM_PAYMENT_KIND_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label>Du<input type="date" name="from" defaultValue={from} /></label><label>Au<input type="date" name="to" defaultValue={to} /></label><button type="submit">Filtrer</button></form>
         <div className="table-wrap">
           <table>
             <thead>
@@ -258,14 +258,7 @@ export default async function AdminFinancesPage({ searchParams }: { searchParams
           {formatFcfa(PLAN_PRICES_FCFA.extraAccount)} / compte ou +
           {formatFcfa(PLAN_PRICES_FCFA.extraPack3)} / pack de 3.
         </p>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: 14,
-          }}
-          className="finances-catalog"
-        >
+        <div className="finances-catalog">
           {CATALOGUE.map((pack) => (
             <div
               key={pack.id}

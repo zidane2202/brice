@@ -18,140 +18,144 @@ export function TopBar() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [open, setOpen] = useState(false);
+  const [searchExpanded, setSearchExpanded] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const shortcut = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault(); inputRef.current?.focus(); setOpen(true);
+        event.preventDefault();
+        setSearchExpanded(true);
+        inputRef.current?.focus();
+        setOpen(true);
       }
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") {
+        setOpen(false);
+        setSearchExpanded(false);
+      }
     };
     document.addEventListener("keydown", shortcut);
     return () => document.removeEventListener("keydown", shortcut);
   }, []);
 
   useEffect(() => {
-    if (query.trim().length < 2) { setResults([]); return; }
+    setSearchExpanded(false);
+    setOpen(false);
+    setQuery("");
+  }, [pathname]);
+
+  useEffect(() => {
+    if (query.trim().length < 2) {
+      setResults([]);
+      return;
+    }
     const controller = new AbortController();
     const timer = setTimeout(async () => {
-      const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`, { signal: controller.signal });
+      const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`, {
+        signal: controller.signal,
+      });
       if (response.ok) setResults((await response.json()).results ?? []);
     }, 220);
-    return () => { clearTimeout(timer); controller.abort(); };
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [query]);
+
   const segments = pathname.split("/").filter(Boolean);
   const first = segments[0];
 
-  const translatedLabels: Record<string,string> = { dashboard:t("dashboard"),abonnements:t("subscriptions"),clients:t("clients"),comptabilite:t("accounting"),rapport:t("report"),profil:t("profile"),aide:t("help"),relances:t("reminders"),support:t("support"),admin:"Admin" };
+  const translatedLabels: Record<string, string> = {
+    dashboard: t("dashboard"),
+    abonnements: t("subscriptions"),
+    clients: t("clients"),
+    comptabilite: t("accounting"),
+    rapport: t("report"),
+    profil: t("profile"),
+    aide: t("help"),
+    relances: t("reminders"),
+    support: t("support"),
+    admin: "Admin",
+  };
   const crumbs: string[] = [t("workspace")];
-  if (first) {
-    crumbs.push(translatedLabels[first] ?? first);
-  }
+  if (first) crumbs.push(translatedLabels[first] ?? first);
   if (segments.length > 1 && segments[1]) {
     crumbs.push(translatedLabels[segments[1]] ?? t("detail"));
   }
 
-  return (
-    <header
-      className="topbar"
-      style={{
-        height: 48,
-        flex: "0 0 48px",
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        padding: "0 24px",
-        background: "var(--sr-bg)",
-        borderBottom: "1px solid var(--sr-border-subtle)",
-        position: "sticky",
-        top: 0,
-        zIndex: 4,
-      }}
-    >
-      <div
-        className="topbar-crumbs"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          font: "500 12px/1 var(--font-geist-sans)",
-          color: "var(--sr-fg-muted)",
+  const searchField = (
+    <div className="topbar-search">
+      <Icon name="search" size={13} className="topbar-search-icon" />
+      <input
+        ref={inputRef}
+        value={query}
+        onChange={(event) => {
+          setQuery(event.target.value);
+          setOpen(true);
         }}
-      >
+        onFocus={() => setOpen(true)}
+        placeholder={t("search")}
+      />
+      <span className="topbar-search-kbd">⌘K</span>
+      {open && query.trim().length >= 2 && (
+        <div className="topbar-search-results">
+          {results.length === 0 ? (
+            <div className="topbar-search-empty">{t("noResults")}</div>
+          ) : (
+            results.map((result) => (
+              <button
+                key={`${result.type}-${result.id}`}
+                type="button"
+                className="secondary topbar-search-hit"
+                onClick={() => {
+                  setOpen(false);
+                  setSearchExpanded(false);
+                  setQuery("");
+                  router.push(result.href);
+                }}
+              >
+                <span className="topbar-search-type">{result.type}</span>
+                <span>
+                  <strong>{result.title}</strong>
+                  <small>{result.subtitle}</small>
+                </span>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <header className={`topbar${searchExpanded ? " topbar--search-open" : ""}`}>
+      <div className="topbar-crumbs">
         {crumbs.map((c, i) => (
-          <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-            <span style={{ color: i === crumbs.length - 1 ? "var(--sr-fg)" : "var(--sr-fg-subtle)" }}>{c}</span>
-            {i < crumbs.length - 1 && (
-              <Icon name="chevronR" size={12} style={{ color: "var(--sr-fg-disabled)" }} />
-            )}
+          <span key={i} className="topbar-crumb">
+            <span className={i === crumbs.length - 1 ? "topbar-crumb--current" : ""}>{c}</span>
+            {i < crumbs.length - 1 && <Icon name="chevronR" size={12} className="topbar-crumb-sep" />}
           </span>
         ))}
       </div>
 
-      <div style={{ flex: 1 }} />
+      <div className="topbar-spacer" />
 
-      <div className="topbar-search" style={{ position: "relative", width: 280 }}>
-        <Icon
-          name="search"
-          size={13}
-          style={{
-            position: "absolute",
-            left: 10,
-            top: "50%",
-            transform: "translateY(-50%)",
-            color: "var(--sr-fg-subtle)",
-            pointerEvents: "none",
-          }}
-        />
-        <input
-          ref={inputRef}
-          value={query}
-          onChange={(event) => { setQuery(event.target.value); setOpen(true); }}
-          onFocus={() => setOpen(true)}
-          placeholder={t("search")}
-          style={{
-            paddingLeft: 32,
-            paddingRight: 40,
-            height: 30,
-            minHeight: 30,
-            background: "var(--sr-surface)",
-            fontSize: "0.82rem",
-          }}
-        />
-        <span
-          style={{
-            position: "absolute",
-            right: 6,
-            top: "50%",
-            transform: "translateY(-50%)",
-            font: "500 10px/1 var(--font-geist-mono)",
-            color: "var(--sr-fg-subtle)",
-            padding: "3px 5px",
-            border: "1px solid var(--sr-border)",
-            borderRadius: 4,
-          }}
-        >
-          ⌘K
-        </span>
-        {open && query.trim().length >= 2 && (
-          <div style={{ position: "absolute", top: 36, right: 0, width: 360, maxHeight: 380, overflow: "auto", padding: 6, borderRadius: 10, border: "1px solid var(--sr-border)", background: "var(--sr-surface)", boxShadow: "0 18px 60px rgba(0,0,0,.48)", zIndex: 100 }}>
-            {results.length === 0 ? (
-              <div style={{ padding: 14, color: "var(--sr-fg-subtle)", fontSize: 12 }}>{t("noResults")}</div>
-            ) : results.map((result) => (
-              <button key={`${result.type}-${result.id}`} type="button" className="secondary" onClick={() => { setOpen(false); setQuery(""); router.push(result.href); }} style={{ width: "100%", minHeight: 48, height: "auto", padding: "8px 10px", justifyContent: "flex-start", textAlign: "left", background: "transparent", borderColor: "transparent" }}>
-                <span style={{ width: 62, color: "var(--sr-mint-300)", fontSize: 9, textTransform: "uppercase" }}>{result.type}</span>
-                <span style={{ display: "grid", gap: 3 }}><strong style={{ fontSize: 12 }}>{result.title}</strong><small style={{ color: "var(--sr-fg-subtle)" }}>{result.subtitle}</small></span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      {searchField}
+
+      <button
+        type="button"
+        className="secondary topbar-search-toggle"
+        aria-label={t("openSearch")}
+        onClick={() => {
+          setSearchExpanded(true);
+          setTimeout(() => inputRef.current?.focus(), 20);
+        }}
+      >
+        <Icon name="search" size={14} />
+      </button>
 
       <LocaleSwitcher className="app-locale-toggle" />
-
       <PwaInstallButton />
-
       <NotificationCenter />
     </header>
   );

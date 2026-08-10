@@ -26,8 +26,8 @@ export function NotificationCenter() {
     setItems((all) => all.map((item) => ({ ...item, read_at: item.read_at || new Date().toISOString() })));
   };
   return (
-    <div style={{ position: "relative" }}>
-      <button type="button" className="secondary topbar-notification" title="Notifications" aria-label={`Notifications${unread ? `, ${unread} non lues` : ""}`} onClick={() => { setOpen((value) => !value); if (!open) void load(); }} style={{ position: "relative", width: 30, minHeight: 30, height: 30, padding: 0, justifyContent: "center" }}>
+    <div className="topbar-notice">
+      <button type="button" className="secondary topbar-notification" title="Notifications" aria-label={`Notifications${unread ? `, ${unread} non lues` : ""}`} onClick={() => { setOpen((value) => !value); if (!open) void load(); }}>
         <Icon name="bell" size={13} />
         {unread > 0 && <span style={{ position: "absolute", top: -4, right: -4, minWidth: 16, height: 16, padding: "0 4px", display: "grid", placeItems: "center", borderRadius: 99, background: "var(--sr-danger)", color: "white", fontSize: 9, fontWeight: 700 }}>{Math.min(unread, 9)}{unread > 9 ? "+" : ""}</span>}
       </button>
