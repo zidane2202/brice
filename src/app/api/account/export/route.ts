@@ -12,7 +12,7 @@ async function selectAll(
 ) {
   const rows: Record<string, unknown>[] = [];
   for (let from = 0; ; from += PAGE) {
-    let query = db.from(table).select("*").range(from, from + PAGE - 1);
+    let query = db.from(table).select("*").order("id", { ascending: true }).range(from, from + PAGE - 1);
     query = Array.isArray(filter.value)
       ? query.in(filter.column, filter.value)
       : query.eq(filter.column, filter.value);

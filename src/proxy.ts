@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 function copyCookies(from: NextResponse, to: NextResponse) {
   from.cookies.getAll().forEach((cookie) => {
-    to.cookies.set(cookie.name, cookie.value);
+    to.cookies.set(cookie);
   });
   return to;
 }
@@ -48,7 +48,10 @@ export async function proxy(request: NextRequest) {
 
   if (!user && !isPublic) {
     if (pathname.startsWith("/api/")) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+      return copyCookies(
+        supabaseResponse,
+        NextResponse.json({ error: "Non authentifié" }, { status: 401 })
+      );
     }
     return copyCookies(supabaseResponse, NextResponse.redirect(new URL("/login", request.url)));
   }

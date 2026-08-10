@@ -3,12 +3,14 @@
 import { bulkCancelSubscriptions, bulkRenewSubscriptions } from "@/app/actions/clients";
 import { Icon } from "@/components/Icon";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { useToast } from "@/components/ui/Toast";
 import { useState, useTransition } from "react";
 
 type Props = { ids: string[]; onClear: () => void };
 type Mode = "renew" | "cancel" | null;
 
 export function BulkActionBar({ ids, onClear }: Props) {
+  const toast = useToast();
   const idsStr = ids.join(",");
   const [mode, setMode] = useState<Mode>(null);
   const [pending, startTransition] = useTransition();
@@ -17,11 +19,22 @@ export function BulkActionBar({ ids, onClear }: Props) {
     if (!mode) return;
     const fd = new FormData();
     fd.set("ids", idsStr);
+    const loadingId = toast.loading(mode === "renew" ? "Renouvellement…" : "Annulation…");
     startTransition(async () => {
-      if (mode === "renew") await bulkRenewSubscriptions(fd);
-      else await bulkCancelSubscriptions(fd);
-      setMode(null);
-      onClear();
+      try {
+        if (mode === "renew") await bulkRenewSubscriptions(fd);
+        else await bulkCancelSubscriptions(fd);
+        toast.dismiss(loadingId);
+        toast.success(mode === "renew" ? "Abonnements renouvelés" : "Abonnements annulés");
+        setMode(null);
+        onClear();
+      } catch (error) {
+        toast.dismiss(loadingId);
+        toast.error(
+          mode === "renew" ? "Renouvellement impossible" : "Annulation impossible",
+          error instanceof Error ? error.message : undefined
+        );
+      }
     });
   }
 

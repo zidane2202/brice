@@ -142,6 +142,9 @@ export async function addClientWithSubscription(
 
   if (subError) {
     await supabase.from("clients").delete().eq("id", client.id).eq("user_id", user.id);
+    if (subError.code === "23505") {
+      throw new Error("Ce profil vient d’être pris par une autre vente. Réessayez avec un autre profil.");
+    }
     throw new Error(subError.message);
   }
 
@@ -198,7 +201,12 @@ export async function addClientWithSubscription(
     invoiceCode = result?.code ?? null;
     if (result) {
       if (txRow?.id && result.id) {
-        await supabase.from("transactions").update({ invoice_id: result.id }).eq("id", txRow.id).eq("user_id", user.id);
+        const { error: linkError } = await supabase
+          .from("transactions")
+          .update({ invoice_id: result.id })
+          .eq("id", txRow.id)
+          .eq("user_id", user.id);
+        if (linkError) throw new Error(`Lien facture/transaction impossible : ${linkError.message}`);
       }
       const paymentReference = opt(formData, "payment_reference");
       const receipt = formData.get("receipt");

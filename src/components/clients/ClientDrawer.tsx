@@ -7,7 +7,6 @@ import {
   removeGraceStatus,
   renewClientSubscription,
   setGraceStatus,
-  updateInvoiceStatus,
 } from "@/app/actions/subscriptions";
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
@@ -223,8 +222,10 @@ export function ClientDrawer({ sub, lifetime, cyclesCount, history, invoices, ev
             {sub.status !== "cancelled" && <CancelButton subId={sub.id} />}
           </div>
 
-          <form
+          <ActionForm
             action={updateClientMeta}
+            successMessage="Rail enregistré"
+            errorMessage="Enregistrement impossible"
             style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, flexWrap: "wrap" }}
           >
             <input type="hidden" name="id" value={client.id} />
@@ -251,10 +252,10 @@ export function ClientDrawer({ sub, lifetime, cyclesCount, history, invoices, ev
                 </option>
               ))}
             </select>
-            <button type="submit" className="secondary" style={{ minHeight: 30, height: 30, fontSize: "0.75rem", paddingInline: 10 }}>
+            <SubmitButton className="secondary" style={{ minHeight: 30, height: 30, fontSize: "0.75rem", paddingInline: 10 }}>
               <Icon name="check" size={12} /> Enregistrer
-            </button>
-          </form>
+            </SubmitButton>
+          </ActionForm>
 
           <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px dashed var(--sr-border-subtle)" }}>
             <GraceControl subId={sub.id} status={sub.status} graceUntil={sub.grace_until} endDate={sub.end_date} />
@@ -335,10 +336,14 @@ export function ClientDrawer({ sub, lifetime, cyclesCount, history, invoices, ev
             <InvoiceRow key={inv.id} invoice={inv} clientPhone={client.phone} />
           ))}
           {sub.price && sub.price > 0 && (
-            <form action={generateInvoiceForSubscription} style={{ margin: 0 }}>
+            <ActionForm
+              action={generateInvoiceForSubscription}
+              successMessage="Facture générée"
+              errorMessage="Génération impossible"
+              style={{ margin: 0 }}
+            >
               <input type="hidden" name="id" value={sub.id} />
-              <button
-                type="submit"
+              <SubmitButton
                 style={{
                   width: "100%",
                   minHeight: 36,
@@ -354,8 +359,8 @@ export function ClientDrawer({ sub, lifetime, cyclesCount, history, invoices, ev
                 }}
               >
                 <Icon name="bill" size={13} /> Générer la facture pour cet abonnement
-              </button>
-            </form>
+              </SubmitButton>
+            </ActionForm>
           )}
         </div>
       </Section>
@@ -584,8 +589,10 @@ function ClientDetailsForm({
   const [rail, setRail] = useState(paymentRail);
 
   return (
-    <form
+    <ActionForm
       action={updateClientDetails}
+      successMessage="Fiche mise à jour"
+      errorMessage="Mise à jour impossible"
       style={{
         padding: 14,
         background: "var(--sr-surface)",
@@ -657,10 +664,10 @@ function ClientDetailsForm({
         <textarea name="notes" defaultValue={notes} rows={3} />
       </EditField>
 
-      <button type="submit" style={{ minHeight: 36, height: 36 }}>
+      <SubmitButton style={{ minHeight: 36, height: 36 }}>
         <Icon name="check" size={13} /> Enregistrer les modifications
-      </button>
-    </form>
+      </SubmitButton>
+    </ActionForm>
   );
 }
 
@@ -791,12 +798,30 @@ function InvoiceRow({ invoice, clientPhone }: { invoice: Invoice; clientPhone: s
           {invoice.kind === "new" ? "Vente" : "Renouvellement"} · {formatDate(invoice.created_at)} · {invoice.amount.toLocaleString("en-US").replace(/,/g, " ")} FCFA
         </div>
       </div>
-      <form action={updateInvoiceStatus} style={{ margin: 0 }}>
-        <input type="hidden" name="invoice_id" value={invoice.id} />
-        <select name="status" defaultValue={invoice.status ?? "paid"} onChange={(event) => event.currentTarget.form?.requestSubmit()} aria-label="Statut de la facture" style={{ width: 105, minHeight: 28, height: 28, padding: "0 6px", fontSize: 10 }}>
-          <option value="paid">Payée</option>
-        </select>
-      </form>
+      <span
+        style={{
+          font: "600 10px/1 var(--font-geist-sans)",
+          padding: "6px 8px",
+          borderRadius: 5,
+          background:
+            invoice.status === "paid"
+              ? "var(--sr-success-bg)"
+              : "rgba(255,255,255,0.04)",
+          color:
+            invoice.status === "paid" ? "var(--sr-mint-300)" : "var(--sr-fg-subtle)",
+          border: `1px solid ${
+            invoice.status === "paid" ? "var(--sr-success-border)" : "var(--sr-border)"
+          }`,
+        }}
+      >
+        {invoice.status === "paid"
+          ? "Payée"
+          : invoice.status === "cancelled"
+            ? "Annulée"
+            : invoice.status === "refunded"
+              ? "Remboursée"
+              : String(invoice.status)}
+      </span>
       {invoice.receipt_url && <a href={`/api/receipts/${invoice.id}`} target="_blank" rel="noopener noreferrer" className="secondary" title="Voir le justificatif" style={{ width: 28, height: 28, minHeight: 28, padding: 0, display: "grid", placeItems: "center", textDecoration: "none" }}><Icon name="inbox" size={12} /></a>}
       <a
         href={`/facture/${invoice.code}`}
@@ -894,9 +919,11 @@ function PinControl({ clientId, initialPin }: { clientId: string; initialPin: st
   }
 
   return (
-    <form
+    <ActionForm
       action={updateClientPin}
-      onSubmit={() => setEditing(false)}
+      successMessage="PIN mis à jour"
+      errorMessage="PIN non enregistré"
+      onSuccess={() => setEditing(false)}
       style={{
         padding: "10px 12px",
         background: "var(--sr-surface)",
@@ -930,13 +957,12 @@ function PinControl({ clientId, initialPin }: { clientId: string; initialPin: st
           fontSize: "0.85rem",
         }}
       />
-      <button
-        type="submit"
+      <SubmitButton
         className="secondary"
         style={{ minHeight: 28, height: 28, fontSize: "0.72rem", paddingInline: 8 }}
       >
         <Icon name="check" size={11} />
-      </button>
+      </SubmitButton>
       <button
         type="button"
         onClick={() => {
@@ -948,7 +974,7 @@ function PinControl({ clientId, initialPin }: { clientId: string; initialPin: st
       >
         <Icon name="x" size={11} />
       </button>
-    </form>
+    </ActionForm>
   );
 }
 
@@ -1034,22 +1060,26 @@ function GraceControl({
             jusqu&apos;au {graceUntil ? formatDate(graceUntil) : "—"}
           </div>
         </div>
-        <form action={removeGraceStatus} style={{ margin: 0 }}>
+        <ActionForm action={removeGraceStatus} successMessage="Grâce retirée" errorMessage="Retrait impossible" style={{ margin: 0 }}>
           <input type="hidden" name="id" value={subId} />
-          <button
-            type="submit"
+          <SubmitButton
             className="secondary"
             style={{ minHeight: 28, height: 28, fontSize: "0.72rem", paddingInline: 10 }}
           >
             <Icon name="check" size={11} /> Sortir de grâce
-          </button>
-        </form>
+          </SubmitButton>
+        </ActionForm>
       </div>
     );
   }
 
   return (
-    <form action={setGraceStatus} style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+    <ActionForm
+      action={setGraceStatus}
+      successMessage="Statut grâce activé"
+      errorMessage="Grâce impossible"
+      style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}
+    >
       <input type="hidden" name="id" value={subId} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
@@ -1082,14 +1112,13 @@ function GraceControl({
           fontFamily: "var(--font-geist-mono)",
         }}
       />
-      <button
-        type="submit"
+      <SubmitButton
         className="secondary"
         style={{ minHeight: 30, height: 30, fontSize: "0.75rem", paddingInline: 10 }}
       >
         <Icon name="alert" size={12} /> Mettre en grâce
-      </button>
-    </form>
+      </SubmitButton>
+    </ActionForm>
   );
 }
 
@@ -1108,9 +1137,11 @@ function NotesForm({
 }) {
   const [value, setValue] = useState(initialNotes);
   return (
-    <form
+    <ActionForm
       action={updateClientMeta}
-      onSubmit={() => onToggle(false)}
+      successMessage="Notes enregistrées"
+      errorMessage="Notes non enregistrées"
+      onSuccess={() => onToggle(false)}
       style={{
         padding: "12px 14px",
         background: "var(--sr-surface)",
@@ -1151,14 +1182,13 @@ function NotesForm({
         <div style={{ flex: 1, font: "400 10px/1 var(--font-geist-mono)", color: "var(--sr-fg-subtle)" }}>
           {editing ? "modifications non sauvegardées" : "à jour"}
         </div>
-        <button
-          type="submit"
+        <SubmitButton
           className="secondary"
           style={{ minHeight: 24, height: 24, fontSize: "0.7rem", paddingInline: 8 }}
         >
           <Icon name="check" size={11} /> Enregistrer
-        </button>
+        </SubmitButton>
       </div>
-    </form>
+    </ActionForm>
   );
 }

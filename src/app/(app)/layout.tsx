@@ -47,7 +47,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const profileName = `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim();
   const displayName = profileName || userName || null;
 
-  if (profile?.suspended && profile.role !== "admin") {
+  if (profile?.suspended) {
     return <SuspendedGate />;
   }
 

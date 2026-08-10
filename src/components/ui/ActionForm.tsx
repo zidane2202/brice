@@ -16,6 +16,7 @@ type Props = Omit<FormHTMLAttributes<HTMLFormElement>, "action"> & {
   successMessage?: string;
   errorMessage?: string;
   confirm?: ConfirmConfig;
+  onSuccess?: () => void;
   children: ReactNode;
 };
 
@@ -24,6 +25,7 @@ export function ActionForm({
   successMessage = "Action réussie",
   errorMessage = "Action impossible",
   confirm,
+  onSuccess,
   children,
   ...formProps
 }: Props) {
@@ -39,6 +41,7 @@ export function ActionForm({
         await action(formData);
         toast.dismiss(loadingId);
         toast.success(successMessage);
+        onSuccess?.();
       } catch (error) {
         toast.dismiss(loadingId);
         toast.error(errorMessage, error instanceof Error ? error.message : undefined);
@@ -59,7 +62,7 @@ export function ActionForm({
           run(formData);
         }}
       >
-        <fieldset disabled={pending} style={{ border: 0, margin: 0, padding: 0, minInlineSize: 0 }}>
+        <fieldset disabled={pending} style={{ border: 0, margin: 0, padding: 0, minInlineSize: 0, display: "contents" }}>
           {children}
         </fieldset>
       </form>

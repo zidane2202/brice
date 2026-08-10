@@ -1,6 +1,6 @@
-import { replySupportTicket } from "@/app/actions/support";
 import { listAllAuthUsers } from "@/lib/auth-users";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
+import { AdminTicketReplyForm } from "@/components/admin/AdminTicketReplyForm";
 
 export const dynamic = "force-dynamic";
 
@@ -43,16 +43,7 @@ export default async function AdminSupportPage() {
                   <p>{message.body}</p>
                 </div>
               ))}
-              <form action={replySupportTicket} className="ticket-reply">
-                <input type="hidden" name="ticket_id" value={ticket.id} />
-                <textarea name="body" required placeholder="Réponse humaine…" />
-                <select name="status" defaultValue="in_progress">
-                  <option value="in_progress">En traitement</option>
-                  <option value="resolved">Résolu</option>
-                  <option value="open">Ouvert</option>
-                </select>
-                <button className="primary">Répondre</button>
-              </form>
+              <AdminTicketReplyForm ticketId={ticket.id} />
             </article>
           );
         })}

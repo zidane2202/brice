@@ -9,7 +9,7 @@ export async function requireUser() {
 export async function requireActiveSeller() {
   const user = await requireUser();
   const profile = await getUserProfile();
-  if (profile?.role !== "admin" && profile?.suspended) {
+  if (profile?.suspended) {
     throw new Error("Compte suspendu");
   }
   return { user, profile };

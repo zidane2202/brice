@@ -25,23 +25,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Abonnement push invalide" }, { status: 400 });
   }
 
-  const { data: existing } = await supabase
-    .from("push_subscriptions")
-    .select("user_id")
-    .eq("endpoint", subscription.endpoint)
-    .maybeSingle();
-  if (existing && existing.user_id !== user.id) {
-    return NextResponse.json({ error: "Cet appareil est déjà lié à un autre compte." }, { status: 409 });
+  const { error } = await supabase.rpc("upsert_push_subscription", {
+    p_user: user.id,
+    p_endpoint: subscription.endpoint,
+    p_subscription: subscription,
+  });
+
+  if (error) {
+    const message = error.message || "Abonnement push impossible";
+    const status = /déjà lié/i.test(message) ? 409 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
-
-  const { error } = await supabase
-    .from("push_subscriptions")
-    .upsert(
-      { user_id: user.id, endpoint: subscription.endpoint, subscription },
-      { onConflict: "endpoint" }
-    );
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }
 
@@ -49,8 +43,17 @@ export async function DELETE(request: Request) {
   const supabaseServer = await createSupabaseServer();
   const { data: { user } } = await supabaseServer.auth.getUser();
   if (!user) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+  if (!await consumeRateLimit(`${user.id}:${requestIp(request)}`, "push-unsubscribe", 30, 3600)) {
+    return NextResponse.json({ error: "Trop de tentatives" }, { status: 429 });
+  }
 
-  const { endpoint } = await request.json().catch(() => ({ endpoint: null }));
+  const body = await request.json().catch(() => ({ endpoint: null, all: false }));
+  const endpoint = typeof body.endpoint === "string" ? body.endpoint : null;
+  const all = body.all === true;
+  if (!endpoint && !all) {
+    return NextResponse.json({ error: "endpoint requis (ou all=true)" }, { status: 400 });
+  }
+
   const supabase = createSupabaseAdmin();
   let query = supabase.from("push_subscriptions").delete().eq("user_id", user.id);
   if (endpoint) query = query.eq("endpoint", endpoint);

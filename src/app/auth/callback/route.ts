@@ -6,14 +6,17 @@ import { safeAuthNextPath } from "@/lib/auth-next";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
+const OTP_TYPES = new Set(["recovery", "signup", "invite", "magiclink", "email"]);
 type OtpType = "recovery" | "signup" | "invite" | "magiclink" | "email";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const tokenHash = url.searchParams.get("token_hash");
-  const type = url.searchParams.get("type") as OtpType | null;
-  const next = safeAuthNextPath(url.searchParams.get("next"), "/dashboard");
+  const typeRaw = url.searchParams.get("type");
+  const type = typeRaw && OTP_TYPES.has(typeRaw) ? (typeRaw as OtpType) : null;
+  const fallback = type === "recovery" ? "/reset-password" : "/dashboard";
+  const next = safeAuthNextPath(url.searchParams.get("next"), fallback);
   const fail = () => NextResponse.redirect(new URL("/forgot-password?error=reset", url.origin));
 
   if (!code && !(tokenHash && type)) return fail();

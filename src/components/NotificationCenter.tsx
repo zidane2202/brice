@@ -19,7 +19,11 @@ export function NotificationCenter() {
   const read = async (notice: Notice) => {
     if (!notice.read_at) await fetch("/api/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: notice.id }) });
     setItems((all) => all.map((item) => item.id === notice.id ? { ...item, read_at: new Date().toISOString() } : item));
-    setOpen(false); router.push(notice.url);
+    setOpen(false);
+    const url = typeof notice.url === "string" && notice.url.startsWith("/") && !notice.url.startsWith("//")
+      ? notice.url
+      : "/dashboard";
+    router.push(url);
   };
   const readAll = async () => {
     await fetch("/api/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ all: true }) });

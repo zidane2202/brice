@@ -276,7 +276,14 @@ export async function updateInvoiceStatus(formData: FormData) {
   if (!canUseFullCompta(normalizePlan(profile?.plan))) {
     throw new Error("Réservé au pack Pro / Business");
   }
-  const { error } = await createSupabaseAdmin().from("invoices").update({ status }).eq("id", id).eq("user_id", user.id);
+  const db = createSupabaseAdmin();
+  const { data: invoice } = await db.from("invoices").select("status").eq("id", id).eq("user_id", user.id).maybeSingle();
+  if (!invoice) throw new Error("Facture introuvable");
+  if (invoice.status === "cancelled" || invoice.status === "refunded") {
+    throw new Error("Impossible de remettre une facture annulée en payée sans écriture compensatoire.");
+  }
+  if (invoice.status === "paid") return;
+  const { error } = await db.from("invoices").update({ status }).eq("id", id).eq("user_id", user.id);
   if (error) throw new Error(error.message);
   revalidatePath("/clients"); revalidatePath("/facture", "layout");
 }

@@ -38,7 +38,16 @@ export async function signup(
   if (!await authAllowed("signup", email, 5, 3600)) return { error: "Trop de tentatives. Réessayez plus tard." };
   if (password.length < 8) return { error: "Le mot de passe doit contenir au moins 8 caractères." };
 
-  const { data, error } = await supabase.auth.signUp({ email, password });
+  const appUrl = String(process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
+  if (!/^https?:\/\/[^\s/]+$/i.test(appUrl)) {
+    return { error: "Configuration serveur incomplète (NEXT_PUBLIC_APP_URL)." };
+  }
+
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { emailRedirectTo: `${appUrl}/auth/callback?next=/dashboard` },
+  });
   if (error) return { error: error.message };
 
   if (data.user) {
