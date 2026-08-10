@@ -2,11 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
-import { getUser } from "@/lib/supabase-server";
+import { requireActiveSeller } from "@/lib/authz";
 
 export async function updateSlotLabel(formData: FormData) {
-  const user = await getUser();
-  if (!user) throw new Error("Non authentifié");
+  const { user } = await requireActiveSeller();
 
   const id = String(formData.get("id") ?? "");
   const label = String(formData.get("label") ?? "").trim();

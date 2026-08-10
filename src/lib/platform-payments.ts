@@ -1,4 +1,4 @@
-import { PLAN_PRICES_FCFA } from "@/lib/plans";
+import { PLAN_PRICES_FCFA } from "./plans.ts";
 
 export const PLATFORM_PAYMENT_KINDS = [
   "pro_monthly",
@@ -34,4 +34,21 @@ export function suggestedPlanForKind(
 
 export function isPlatformPaymentKind(v: string): v is PlatformPaymentKind {
   return (PLATFORM_PAYMENT_KINDS as readonly string[]).includes(v);
+}
+
+export function resolveAppliedExtras(input: {
+  kind: PlatformPaymentKind;
+  applyPlan: boolean;
+  currentExtras: number;
+  requestedExtras: number;
+  targetPlan: string;
+}): number {
+  const current = Math.max(0, input.currentExtras);
+  if (!input.applyPlan) return current;
+  if (input.kind === "extra_accounts") {
+    const add = input.requestedExtras > 0 ? input.requestedExtras : 1;
+    return current + add;
+  }
+  if (input.targetPlan === "pro") return current;
+  return 0;
 }

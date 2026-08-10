@@ -1,6 +1,7 @@
 "use client";
 
 import { setGraceStatus, removeGraceStatus } from "@/app/actions/subscriptions";
+import { addDays } from "@/lib/dates";
 import { useState } from "react";
 
 type Props = {
@@ -10,15 +11,9 @@ type Props = {
   endDate: string;
 };
 
-function nextDay(dateStr: string): string {
-  const d = new Date(`${dateStr}T00:00:00`);
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().split("T")[0];
-}
-
 export function GraceButton({ subId, currentStatus, graceUntil, endDate }: Props) {
   const [open, setOpen] = useState(false);
-  const minDate = nextDay(endDate);
+  const minDate = addDays(endDate, 1);
 
   if (currentStatus === "grace") {
     return (

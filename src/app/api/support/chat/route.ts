@@ -19,6 +19,10 @@ export async function POST(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   }
+  const { data: profile } = await supabase.from("user_profiles").select("suspended, role").eq("user_id", user.id).maybeSingle();
+  if (profile?.role !== "admin" && profile?.suspended) {
+    return NextResponse.json({ error: "Compte suspendu" }, { status: 403 });
+  }
   if (!await consumeRateLimit(`${user.id}:${requestIp(request)}`, "support-chat", 30, 60)) {
     return NextResponse.json({ error: "Trop de messages. Réessayez dans une minute." }, { status: 429 });
   }

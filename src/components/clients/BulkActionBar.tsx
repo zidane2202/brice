@@ -1,12 +1,30 @@
 "use client";
 
-import { bulkDeleteSubscriptions, bulkRenewSubscriptions } from "@/app/actions/clients";
+import { bulkCancelSubscriptions, bulkRenewSubscriptions } from "@/app/actions/clients";
 import { Icon } from "@/components/Icon";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { useState, useTransition } from "react";
 
 type Props = { ids: string[]; onClear: () => void };
+type Mode = "renew" | "cancel" | null;
 
 export function BulkActionBar({ ids, onClear }: Props) {
   const idsStr = ids.join(",");
+  const [mode, setMode] = useState<Mode>(null);
+  const [pending, startTransition] = useTransition();
+
+  function confirm() {
+    if (!mode) return;
+    const fd = new FormData();
+    fd.set("ids", idsStr);
+    startTransition(async () => {
+      if (mode === "renew") await bulkRenewSubscriptions(fd);
+      else await bulkCancelSubscriptions(fd);
+      setMode(null);
+      onClear();
+    });
+  }
+
   return (
     <div
       style={{
@@ -52,27 +70,23 @@ export function BulkActionBar({ ids, onClear }: Props) {
 
       <div style={{ width: 1, height: 20, background: "var(--sr-border)", marginInline: 4 }} />
 
-      <form action={bulkRenewSubscriptions} style={{ margin: 0 }}>
-        <input type="hidden" name="ids" value={idsStr} />
-        <button
-          type="submit"
-          className="secondary"
-          style={{ minHeight: 28, height: 28, fontSize: "0.75rem", paddingInline: 10 }}
-        >
-          <Icon name="refresh" size={12} /> Renouveler tout (+1 mois)
-        </button>
-      </form>
+      <button
+        type="button"
+        className="secondary"
+        style={{ minHeight: 28, height: 28, fontSize: "0.75rem", paddingInline: 10 }}
+        onClick={() => setMode("renew")}
+      >
+        <Icon name="refresh" size={12} /> Renouveler tout (+1 mois)
+      </button>
 
-      <form action={bulkDeleteSubscriptions} style={{ margin: 0 }}>
-        <input type="hidden" name="ids" value={idsStr} />
-        <button
-          type="submit"
-          className="danger"
-          style={{ minHeight: 28, height: 28, fontSize: "0.75rem", paddingInline: 10 }}
-        >
-          <Icon name="x" size={12} /> Supprimer
-        </button>
-      </form>
+      <button
+        type="button"
+        className="danger"
+        style={{ minHeight: 28, height: 28, fontSize: "0.75rem", paddingInline: 10 }}
+        onClick={() => setMode("cancel")}
+      >
+        <Icon name="x" size={12} /> Annuler
+      </button>
 
       <div style={{ flex: 1 }} />
 
@@ -84,6 +98,28 @@ export function BulkActionBar({ ids, onClear }: Props) {
       >
         Tout désélectionner
       </button>
+
+      <ConfirmDialog
+        open={mode === "renew"}
+        title="Renouveler les abonnements ?"
+        description={`${ids.length} abonnement${ids.length > 1 ? "s" : ""} seront prolongés d’un mois. Les encaissements correspondants seront ajoutés au journal.`}
+        confirmLabel="Renouveler"
+        cancelLabel="Annuler"
+        pending={pending}
+        onConfirm={confirm}
+        onCancel={() => !pending && setMode(null)}
+      />
+      <ConfirmDialog
+        open={mode === "cancel"}
+        title="Annuler les abonnements ?"
+        description="Les profils seront libérés. L’historique comptable et les factures restent en place."
+        confirmLabel="Annuler les abonnements"
+        cancelLabel="Retour"
+        tone="danger"
+        pending={pending}
+        onConfirm={confirm}
+        onCancel={() => !pending && setMode(null)}
+      />
 
       <style>{`
         @keyframes cli-slide-in {

@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
-import { getUser } from "@/lib/supabase-server";
-import { addMonths, toDateInputValue } from "@/lib/dates";
+import { requireActiveSeller } from "@/lib/authz";
+import { addMonths, todayDateOnly } from "@/lib/dates";
 import { createInvoice } from "@/lib/invoices";
 import { recordClientEvent } from "@/lib/client-events";
 
@@ -12,8 +12,7 @@ function req(fd: FormData, key: string) {
 }
 
 export async function renewClientSubscription(formData: FormData) {
-  const user = await getUser();
-  if (!user) throw new Error("Non authentifié");
+  const { user } = await requireActiveSeller();
 
   const id = req(formData, "id");
   const durationMonths = parseInt(req(formData, "duration_months") || "1");
@@ -24,15 +23,22 @@ export async function renewClientSubscription(formData: FormData) {
   const supabase = createSupabaseAdmin();
   const { data: existing } = await supabase
     .from("client_subscriptions")
-    .select("end_date, status")
+    .select("end_date, start_date, status, grace_until")
     .eq("id", id)
     .eq("user_id", user.id)
     .single();
   if (!existing) throw new Error("Abonnement introuvable.");
-  const baseDate = existing.status === "grace" || new Date(`${existing.end_date}T23:59:59`) > new Date()
-    ? existing.end_date
-    : toDateInputValue();
+  const today = todayDateOnly();
+  const baseDate =
+    existing.status === "grace" || existing.end_date >= today ? existing.end_date : today;
   const newEndDate = addMonths(baseDate, durationMonths);
+  const previous = {
+    end_date: existing.end_date,
+    start_date: existing.start_date as string | undefined,
+    status: existing.status,
+    grace_until: (existing as { grace_until?: string | null }).grace_until ?? null,
+  };
+
   const { error } = await supabase
     .from("client_subscriptions")
     .update({
@@ -41,6 +47,7 @@ export async function renewClientSubscription(formData: FormData) {
       status: "active",
       grace_until: null,
       last_notified_on: null,
+      duration_months: durationMonths,
     })
     .eq("id", id)
     .eq("user_id", user.id);
@@ -58,6 +65,19 @@ export async function renewClientSubscription(formData: FormData) {
     .eq("user_id", user.id)
     .single();
 
+  async function rollbackSub() {
+    await supabase
+      .from("client_subscriptions")
+      .update({
+        end_date: previous.end_date,
+        start_date: previous.start_date,
+        status: previous.status,
+        grace_until: previous.grace_until,
+      })
+      .eq("id", id)
+      .eq("user_id", user.id);
+  }
+
   if (sub?.price && sub.price > 0) {
     const client = sub.client as unknown as {
       first_name: string;
@@ -74,31 +94,46 @@ export async function renewClientSubscription(formData: FormData) {
     const service = slot?.account?.service_name ?? "profil";
     const slotLabel = slot?.label || `Profil ${slot?.slot_number ?? ""}`.trim();
     const who = client ? [client.first_name, client.last_name].filter(Boolean).join(" ") : "Client";
-    await supabase.from("transactions").insert({
-      user_id: user.id,
-      kind: "income",
-      source: "profile_renewal",
-      affects_balance: true,
-      amount: sub.price,
-      client_id: sub.client_id,
-      subscription_id: id,
-      label: `Renouvellement ${service} · ${who}`,
-    });
-    await createInvoice(supabase, {
-      userId: user.id,
-      clientId: sub.client_id,
-      subscriptionId: id,
-      amount: sub.price,
-      serviceName: service,
-      slotLabel,
-      periodStart: baseDate,
-      periodEnd: newEndDate,
-      kind: "renewal",
-      clientName: who,
-      clientPhone: client?.phone ?? null,
-      clientEmail: client?.email ?? null,
-      paymentRail: client?.payment_rail ?? null,
-    });
+    const { data: txRow, error: txErr } = await supabase
+      .from("transactions")
+      .insert({
+        user_id: user.id,
+        kind: "income",
+        source: "profile_renewal",
+        affects_balance: true,
+        amount: sub.price,
+        client_id: sub.client_id,
+        subscription_id: id,
+        occurred_on: today,
+        label: `Renouvellement ${service} · ${who}`,
+      })
+      .select("id")
+      .single();
+    if (txErr || !txRow) {
+      await rollbackSub();
+      throw new Error(txErr?.message ?? "Écriture comptable impossible");
+    }
+    try {
+      await createInvoice(supabase, {
+        userId: user.id,
+        clientId: sub.client_id,
+        subscriptionId: id,
+        amount: sub.price,
+        serviceName: service,
+        slotLabel,
+        periodStart: baseDate,
+        periodEnd: newEndDate,
+        kind: "renewal",
+        clientName: who,
+        clientPhone: client?.phone ?? null,
+        clientEmail: client?.email ?? null,
+        paymentRail: client?.payment_rail ?? null,
+      });
+    } catch (err) {
+      await supabase.from("transactions").delete().eq("id", txRow.id).eq("user_id", user.id);
+      await rollbackSub();
+      throw err;
+    }
   }
   if (sub) await recordClientEvent(supabase, { userId: user.id, clientId: sub.client_id, subscriptionId: id, type: "subscription_renewed", title: "Abonnement renouvelé", details: { periodStart: baseDate, periodEnd: newEndDate, amount: sub.price } });
 
@@ -107,8 +142,7 @@ export async function renewClientSubscription(formData: FormData) {
 }
 
 export async function cancelClientSubscription(formData: FormData) {
-  const user = await getUser();
-  if (!user) throw new Error("Non authentifié");
+  const { user } = await requireActiveSeller();
 
   const id = req(formData, "id");
   const supabase = createSupabaseAdmin();
@@ -127,8 +161,7 @@ export async function cancelClientSubscription(formData: FormData) {
 }
 
 export async function setGraceStatus(formData: FormData) {
-  const user = await getUser();
-  if (!user) throw new Error("Non authentifié");
+  const { user } = await requireActiveSeller();
 
   const id = req(formData, "id");
   const graceUntil = req(formData, "grace_until");
@@ -150,8 +183,7 @@ export async function setGraceStatus(formData: FormData) {
 }
 
 export async function generateInvoiceForSubscription(formData: FormData) {
-  const user = await getUser();
-  if (!user) throw new Error("Non authentifié");
+  const { user } = await requireActiveSeller();
 
   const id = req(formData, "id");
   const supabase = createSupabaseAdmin();
@@ -186,16 +218,22 @@ export async function generateInvoiceForSubscription(formData: FormData) {
   const slotLabel = slot?.label || `Profil ${slot?.slot_number ?? ""}`.trim();
   const who = client ? [client.first_name, client.last_name].filter(Boolean).join(" ") : "Client";
 
+  const { count } = await supabase
+    .from("invoices")
+    .select("id", { count: "exact", head: true })
+    .eq("subscription_id", sub.id)
+    .eq("user_id", user.id);
+
   await createInvoice(supabase, {
-    userId: user.id,
-    clientId: sub.client_id,
-    subscriptionId: sub.id,
-    amount: sub.price,
-    serviceName: service,
-    slotLabel,
-    periodStart: sub.start_date,
-    periodEnd: sub.end_date,
-    kind: "new",
+      userId: user.id,
+      clientId: sub.client_id,
+      subscriptionId: sub.id,
+      amount: sub.price,
+      serviceName: service,
+      slotLabel,
+      periodStart: sub.start_date,
+      periodEnd: sub.end_date,
+      kind: (count ?? 0) > 0 ? "renewal" : "new",
     clientName: who,
     clientPhone: client?.phone ?? null,
     clientEmail: client?.email ?? null,
@@ -206,8 +244,7 @@ export async function generateInvoiceForSubscription(formData: FormData) {
 }
 
 export async function removeGraceStatus(formData: FormData) {
-  const user = await getUser();
-  if (!user) throw new Error("Non authentifié");
+  const { user } = await requireActiveSeller();
 
   const id = req(formData, "id");
   const supabase = createSupabaseAdmin();
@@ -225,8 +262,7 @@ export async function removeGraceStatus(formData: FormData) {
 }
 
 export async function updateInvoiceStatus(formData: FormData) {
-  const user = await getUser();
-  if (!user) throw new Error("Non authentifié");
+  const { user } = await requireActiveSeller();
   const id = req(formData, "invoice_id");
   const status = req(formData, "status");
   if (!new Set(["paid", "cancelled", "refunded"]).has(status)) throw new Error("Statut de facture invalide");

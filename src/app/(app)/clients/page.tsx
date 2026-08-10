@@ -1,5 +1,6 @@
 import { ClientsView } from "@/components/clients/ClientsView";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
+import { todayDateOnly } from "@/lib/dates";
 import { getUser } from "@/lib/supabase-server";
 import type { AccountSlot, ClientSubscription, Invoice } from "@/lib/types";
 
@@ -9,7 +10,9 @@ const PAGE_SIZE = 25;
 async function getData(userId: string, page: number, filter: string, search: string, sort: string) {
   const supabase = createSupabaseAdmin();
 
-  const today = new Date().toISOString().slice(0, 10); const soon = new Date(Date.now()+3*86400000).toISOString().slice(0,10);
+  const today = todayDateOnly();
+  const soon = todayDateOnly(new Date(Date.now() + 3 * 86400000));
+  const searchSafe = search.replace(/[%_,().]/g, " ").replaceAll(",", " ").trim();
   let subsQuery = supabase
       .from("client_subscriptions")
       .select(`
@@ -22,9 +25,9 @@ async function getData(userId: string, page: number, filter: string, search: str
       `, { count: "exact" })
       .eq("user_id", userId).is("client.archived_at",null);
   if(filter==="grace")subsQuery=subsQuery.eq("status","grace");else if(filter==="warning")subsQuery=subsQuery.eq("status","active").gte("end_date",today).lte("end_date",soon);else if(filter==="danger")subsQuery=subsQuery.or(`status.eq.cancelled,and(status.neq.grace,end_date.lt.${today})`);else subsQuery=subsQuery.eq("status","active").gt("end_date",soon);
-  if(search) subsQuery=subsQuery.or(`first_name.ilike.%${search.replaceAll(",","")}%,last_name.ilike.%${search.replaceAll(",","")}%,email.ilike.%${search.replaceAll(",","")}%,phone.ilike.%${search.replaceAll(",","")}%`,{referencedTable:"clients"});
+  if(searchSafe) subsQuery=subsQuery.or(`first_name.ilike.%${searchSafe}%,last_name.ilike.%${searchSafe}%,email.ilike.%${searchSafe}%,phone.ilike.%${searchSafe}%`,{referencedTable:"clients"});
   subsQuery=subsQuery.order(sort==="echeance"?"end_date":"created_at",{ascending:sort==="echeance"}).range((page-1)*PAGE_SIZE,page*PAGE_SIZE-1);
-  const [subsResult, slotsResult, summaryResult] = await Promise.all([
+  const [subsResult, slotsResult, summaryResult, occResult] = await Promise.all([
     subsQuery,
     supabase
       .from("account_slots")
@@ -35,14 +38,19 @@ async function getData(userId: string, page: number, filter: string, search: str
       .eq("provider_accounts.user_id", userId)
       .eq("provider_accounts.status", "active"),
     supabase.rpc("client_list_summary",{p_user:userId}),
+    supabase
+      .from("client_subscriptions")
+      .select("slot_id, status, end_date")
+      .eq("user_id", userId)
+      .in("status", ["active", "grace"]),
   ]);
 
   if (subsResult.error) throw new Error(subsResult.error.message);
   if (slotsResult.error) throw new Error(slotsResult.error.message);
 
   const occupiedSlotIds = new Set(
-    (subsResult.data ?? [])
-      .filter((s) => s.status === "active" && s.end_date >= today)
+    (occResult.data ?? [])
+      .filter((s) => s.status === "grace" || s.end_date >= today)
       .map((s) => s.slot_id)
   );
 

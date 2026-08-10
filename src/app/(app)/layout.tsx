@@ -4,21 +4,23 @@ import { SupportChat } from "@/components/SupportChat";
 import { SuspendedGate } from "@/components/SuspendedGate";
 import { TopBar } from "@/components/TopBar";
 import { canUsePush, normalizePlan } from "@/lib/plans";
+import { firstOfMonthDateOnly } from "@/lib/dates";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser, getUserProfile } from "@/lib/supabase-server";
 
 async function getSidebarStats(userId: string) {
   const supabase = createSupabaseAdmin();
-  const now = new Date();
-  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
-  const firstOfPrevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split("T")[0];
+  const firstOfMonth = firstOfMonthDateOnly();
+  const firstOfPrevMonth = firstOfMonthDateOnly(new Date(), 1);
 
   const [subsRes, accountsRes, clientsRes] = await Promise.all([
     supabase
-      .from("client_subscriptions")
-      .select("price, start_date")
+      .from("transactions")
+      .select("amount, occurred_on, kind, affects_balance")
       .eq("user_id", userId)
-      .gte("start_date", firstOfPrevMonth),
+      .eq("kind", "income")
+      .eq("affects_balance", true)
+      .gte("occurred_on", firstOfPrevMonth),
     supabase
       .from("provider_accounts")
       .select("id", { count: "exact", head: true })
@@ -27,13 +29,13 @@ async function getSidebarStats(userId: string) {
     supabase.from("clients").select("id", { count: "exact", head: true }).eq("user_id", userId),
   ]);
 
-  const subs = subsRes.data ?? [];
-  const monthlyRevenue = subs
-    .filter((s) => s.start_date >= firstOfMonth)
-    .reduce((sum, s) => sum + (s.price ?? 0), 0);
-  const prevRevenue = subs
-    .filter((s) => s.start_date >= firstOfPrevMonth && s.start_date < firstOfMonth)
-    .reduce((sum, s) => sum + (s.price ?? 0), 0);
+  const txs = subsRes.data ?? [];
+  const monthlyRevenue = txs
+    .filter((s) => (s.occurred_on ?? "") >= firstOfMonth)
+    .reduce((sum, s) => sum + Number(s.amount ?? 0), 0);
+  const prevRevenue = txs
+    .filter((s) => (s.occurred_on ?? "") >= firstOfPrevMonth && (s.occurred_on ?? "") < firstOfMonth)
+    .reduce((sum, s) => sum + Number(s.amount ?? 0), 0);
 
   const delta = prevRevenue > 0 ? Math.round(((monthlyRevenue - prevRevenue) / prevRevenue) * 100) : null;
 

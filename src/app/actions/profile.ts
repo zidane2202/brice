@@ -13,7 +13,7 @@ import {
   planLimitError,
 } from "@/lib/plans";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
-import { getUser } from "@/lib/supabase-server";
+import { requireActiveSeller, requireUser } from "@/lib/authz";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -37,8 +37,12 @@ export async function updateProfile(
   _prevState: { error?: string; success?: boolean } | undefined,
   formData: FormData
 ) {
-  const user = await getUser();
-  if (!user) return { error: "Non authentifié" };
+  let user;
+  try {
+    ({ user } = await requireActiveSeller());
+  } catch {
+    return { error: "Non authentifié" };
+  }
 
   const firstName = String(formData.get("first_name") ?? "").trim();
   const lastName = String(formData.get("last_name") ?? "").trim();
@@ -76,8 +80,12 @@ export async function updateProfile(
 }
 
 export async function uploadCompanyLogo(formData: FormData) {
-  const user = await getUser();
-  if (!user) return { error: "Non authentifié" };
+  let user;
+  try {
+    ({ user } = await requireActiveSeller());
+  } catch {
+    return { error: "Non authentifié" };
+  }
 
   try {
     await requirePlanForBranding(user.id);
@@ -127,8 +135,12 @@ export async function uploadCompanyLogo(formData: FormData) {
 }
 
 export async function removeCompanyLogo() {
-  const user = await getUser();
-  if (!user) return { error: "Non authentifié" };
+  let user;
+  try {
+    ({ user } = await requireActiveSeller());
+  } catch {
+    return { error: "Non authentifié" };
+  }
   const supabase = createSupabaseAdmin();
 
   await supabase.storage.from(LOGO_BUCKET).remove([
@@ -150,8 +162,12 @@ export async function removeCompanyLogo() {
 }
 
 export async function deleteOwnAccount() {
-  const user = await getUser();
-  if (!user) return { error: "Non authentifié" };
+  let user;
+  try {
+    user = await requireUser();
+  } catch {
+    return { error: "Non authentifié" };
+  }
   const supabase = createSupabaseAdmin();
   await supabase.storage.from(LOGO_BUCKET).remove([
     `${user.id}/logo.png`, `${user.id}/logo.jpg`, `${user.id}/logo.webp`,

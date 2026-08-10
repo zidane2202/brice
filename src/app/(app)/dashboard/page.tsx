@@ -3,7 +3,8 @@ import { NextEcheancesPanel } from "@/components/NextEcheancesPanel";
 import { RevenueChart } from "@/components/RevenueChart";
 import { TopProvidersPanel } from "@/components/TopProvidersPanel";
 import { TransactionsHistoryPanel } from "@/components/TransactionsHistoryPanel";
-import { daysUntil } from "@/lib/dates";
+import { daysUntil, firstOfMonthDateOnly, todayDateOnly, toDateInputValue } from "@/lib/dates";
+import { computePeriodKpis } from "@/lib/comptabilite";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
 import type { ClientSubscription, ProviderAccount, Transaction } from "@/lib/types";
@@ -42,21 +43,24 @@ async function getDashboardData(userId: string) {
       .limit(20),
     supabase
       .from("transactions")
-      .select("kind, amount")
-      .eq("user_id", userId)
-      .eq("affects_balance", true),
+      .select("kind, amount, occurred_on, created_at, affects_balance, source")
+      .eq("user_id", userId),
     supabase.from("invoices").select("kind,status,amount,service_name").eq("user_id",userId),
   ]);
 
   const subscriptions = (subsResult.data ?? []) as unknown as ClientSubscription[];
   const accounts = (accountsResult.data ?? []) as unknown as (ProviderAccount & { account_slots: { id: string }[] })[];
   const transactions = (txResult.data ?? []) as unknown as Transaction[];
-  const balance = (balanceResult.data ?? []).reduce((sum, t) => {
+  const ledger = (balanceResult.data ?? []) as unknown as Transaction[];
+  const balance = ledger.reduce((sum, t) => {
+    if (!t.affects_balance) return sum;
     const amt = Number(t.amount ?? 0);
     return sum + (t.kind === "income" ? amt : -amt);
   }, 0);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayDateOnly();
+  const monthStart = firstOfMonthDateOnly();
+  const monthKpis = computePeriodKpis(ledger, monthStart, today);
   const liveAccounts = accounts.filter((a) => a.end_date >= today);
   const activeClients = subscriptions.filter(
     (s) => s.status === "active" && s.end_date >= today
@@ -79,21 +83,15 @@ async function getDashboardData(userId: string) {
   const monthData = Array.from({ length: 6 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
     const month = d.toLocaleDateString("fr-FR", { month: "short" });
-    const revenue = subscriptions
-      .filter((s) => {
-        const sd = new Date(s.start_date);
-        return sd.getFullYear() === d.getFullYear() && sd.getMonth() === d.getMonth();
-      })
-      .reduce((sum, s) => sum + (s.price ?? 0), 0);
+    const from = firstOfMonthDateOnly(d);
+    const to = toDateInputValue(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+    const revenue = ledger
+      .filter((t) => t.kind === "income" && t.occurred_on >= from && t.occurred_on <= to)
+      .reduce((sum, t) => sum + Number(t.amount ?? 0), 0);
     return { month, revenue };
   });
 
-  const monthlyRevenue = subscriptions
-    .filter((s) => {
-      const sd = new Date(s.start_date);
-      return sd.getFullYear() === now.getFullYear() && sd.getMonth() === now.getMonth();
-    })
-    .reduce((sum, s) => sum + (s.price ?? 0), 0);
+  const monthlyRevenue = monthKpis.income;
 
   const activeAccounts = liveAccounts.length;
   const freeSlots = totalSlots - usedSlots;
@@ -106,8 +104,7 @@ async function getDashboardData(userId: string) {
     const remaining = daysUntil(subscription.end_date);
     return remaining >= 0 && remaining <= days;
   }).reduce((sum, subscription) => sum + Number(subscription.price ?? 0), 0);
-  const totalAccountCost = liveAccounts.reduce((sum, account) => sum + Number(account.cost ?? 0), 0);
-  const netProfit = paidInvoices.reduce((sum, invoice) => sum + Number(invoice.amount ?? 0), 0) - totalAccountCost;
+  const netProfit = monthKpis.margin;
   const serviceProfit = Array.from(paidInvoices.reduce((map, invoice) => map.set(invoice.service_name, (map.get(invoice.service_name) ?? 0) + Number(invoice.amount ?? 0)), new Map<string,number>())).sort((a,b)=>b[1]-a[1]).slice(0,5);
 
   return {

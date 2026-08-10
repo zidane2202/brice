@@ -7,6 +7,14 @@ export function toDateInputValue(date = new Date()) {
   return `${y}-${m}-${d}`;
 }
 
+export function todayDateOnly(now = new Date()) {
+  return toDateInputValue(now);
+}
+
+export function firstOfMonthDateOnly(now = new Date(), monthsAgo = 0) {
+  return toDateInputValue(new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1));
+}
+
 export function addDays(dateValue: string, days: number) {
   const date = new Date(`${dateValue}T00:00:00`);
   date.setDate(date.getDate() + days);
@@ -15,7 +23,11 @@ export function addDays(dateValue: string, days: number) {
 
 export function addMonths(dateStr: string, months: number): string {
   const date = new Date(`${dateStr}T00:00:00`);
+  const day = date.getDate();
+  date.setDate(1);
   date.setMonth(date.getMonth() + months);
+  const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  date.setDate(Math.min(day, lastDay));
   return toDateInputValue(date);
 }
 

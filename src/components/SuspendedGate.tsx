@@ -1,3 +1,4 @@
+import { logout } from "@/app/actions/auth";
 import { supportWhatsAppHref } from "@/lib/support";
 
 export function SuspendedGate() {
@@ -25,15 +26,22 @@ export function SuspendedGate() {
           Votre compte vendeur est suspendu. Contactez l&apos;administrateur pour régulariser
           votre situation et retrouver l&apos;accès à l&apos;application.
         </p>
-        <a
-          href={href}
-          target="_blank"
-          rel="noreferrer"
-          className="primary"
-          style={{ display: "inline-flex", textDecoration: "none" }}
-        >
-          Contacter le support
-        </a>
+        <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+          <a
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            className="primary"
+            style={{ display: "inline-flex", textDecoration: "none" }}
+          >
+            Contacter le support
+          </a>
+          <form action={logout} style={{ margin: 0 }}>
+            <button type="submit" className="secondary">
+              Se déconnecter
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

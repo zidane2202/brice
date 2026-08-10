@@ -10,7 +10,7 @@ export async function consumeRateLimit(identity: string, action: string, limit: 
   });
   if (error) {
     console.error("[rate-limit]", error.message);
-    return true;
+    return false;
   }
   return data === true;
 }

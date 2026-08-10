@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
-import { getUser } from "@/lib/supabase-server";
-import { addMonths, toDateInputValue } from "@/lib/dates";
+import { requireActiveSeller } from "@/lib/authz";
+import { addMonths, todayDateOnly, toDateInputValue } from "@/lib/dates";
 import { createInvoice } from "@/lib/invoices";
 import { recordClientEvent } from "@/lib/client-events";
 
@@ -21,8 +21,7 @@ function opt(fd: FormData, key: string) {
 export async function addClientWithSubscription(
   formData: FormData
 ): Promise<{ invoiceCode: string | null; clientName: string; clientPhone: string | null }> {
-  const user = await getUser();
-  if (!user) throw new Error("Non authentifié");
+  const { user } = await requireActiveSeller();
 
   const firstName = req(formData, "first_name");
   const lastName = opt(formData, "last_name");
@@ -219,8 +218,7 @@ export async function addClientWithSubscription(
 type CsvClientRow = { first_name?: string; last_name?: string; phone?: string; email?: string; service?: string; profile?: string; start_date?: string; duration_months?: string | number; price?: string | number; payment_rail?: string; pin_code?: string };
 
 export async function importClientsCsv(rows: CsvClientRow[]) {
-  const user = await getUser();
-  if (!user) throw new Error("Non authentifié");
+  const { user } = await requireActiveSeller();
   if (!Array.isArray(rows) || rows.length < 1 || rows.length > 100) throw new Error("Le fichier doit contenir entre 1 et 100 lignes.");
   const db = createSupabaseAdmin();
   const { data: slots, error } = await db.from("account_slots").select("id,label,slot_number,provider_accounts!inner(user_id,service_name,status)").eq("provider_accounts.user_id", user.id).eq("provider_accounts.status", "active");
@@ -250,7 +248,7 @@ export async function importClientsCsv(rows: CsvClientRow[]) {
 }
 
 export async function archiveClient(clientId: string) {
-  const user = await getUser(); if (!user) throw new Error("Non authentifié");
+  const { user } = await requireActiveSeller();
   const db = createSupabaseAdmin();
   const { error } = await db.from("clients").update({ archived_at: new Date().toISOString() }).eq("id", clientId).eq("user_id", user.id);
   if (error) throw new Error(error.message);
@@ -260,7 +258,7 @@ export async function archiveClient(clientId: string) {
 }
 
 export async function mergeClients(sourceClientId: string, targetClientId: string) {
-  const user = await getUser(); if (!user) throw new Error("Non authentifié");
+  const { user } = await requireActiveSeller();
   if (!sourceClientId || !targetClientId || sourceClientId === targetClientId) throw new Error("Sélection de fusion invalide");
   const db = createSupabaseAdmin();
   const { error } = await db.rpc("merge_clients_atomic", { p_user: user.id, p_source: sourceClientId, p_target: targetClientId });
@@ -269,7 +267,7 @@ export async function mergeClients(sourceClientId: string, targetClientId: strin
 }
 
 export async function restoreArchivedClient(clientId: string) {
-  const user = await getUser(); if (!user) throw new Error("Non authentifié");
+  const { user } = await requireActiveSeller();
   const db = createSupabaseAdmin();
   const { error } = await db.from("clients").update({ archived_at: null }).eq("id", clientId).eq("user_id", user.id).not("archived_at", "is", null);
   if (error) throw new Error(error.message);
@@ -278,8 +276,7 @@ export async function restoreArchivedClient(clientId: string) {
 }
 
 export async function updateClientMeta(formData: FormData) {
-  const user = await getUser();
-  if (!user) throw new Error("Non authentifié");
+  const { user } = await requireActiveSeller();
 
   const id = req(formData, "id");
   const notes = opt(formData, "notes");
@@ -298,8 +295,7 @@ export async function updateClientMeta(formData: FormData) {
 }
 
 export async function updateClientDetails(formData: FormData) {
-  const user = await getUser();
-  if (!user) throw new Error("Non authentifié");
+  const { user } = await requireActiveSeller();
 
   const clientId = req(formData, "id");
   const subscriptionId = opt(formData, "subscription_id");
@@ -384,8 +380,7 @@ export async function updateClientDetails(formData: FormData) {
 }
 
 export async function updateClientPin(formData: FormData) {
-  const user = await getUser();
-  if (!user) throw new Error("Non authentifié");
+  const { user } = await requireActiveSeller();
 
   const id = req(formData, "id");
   const pinCode = opt(formData, "pin_code");
@@ -403,8 +398,7 @@ export async function updateClientPin(formData: FormData) {
 }
 
 export async function bulkRenewSubscriptions(formData: FormData) {
-  const user = await getUser();
-  if (!user) throw new Error("Non authentifié");
+  const { user } = await requireActiveSeller();
 
   const idsRaw = String(formData.get("ids") ?? "");
   const ids = idsRaw.split(",").map((s) => s.trim()).filter(Boolean);
@@ -424,12 +418,13 @@ export async function bulkRenewSubscriptions(formData: FormData) {
 
   if (!subs || subs.length === 0) return;
 
-  const today = toDateInputValue();
+  const durationMonths = Math.min(24, Math.max(1, parseInt(String(formData.get("duration_months") ?? "1"), 10) || 1));
+  const today = todayDateOnly();
   const txInserts: Array<Record<string, unknown>> = [];
   for (const sub of subs) {
     const isGrace = sub.status === "grace";
-    const baseDate = isGrace || sub.end_date > today ? sub.end_date : today;
-    const newEnd = addMonths(baseDate, 1);
+    const baseDate = isGrace || sub.end_date >= today ? sub.end_date : today;
+    const newEnd = addMonths(baseDate, durationMonths);
     await supabase
       .from("client_subscriptions")
       .update({
@@ -495,8 +490,7 @@ export async function bulkRenewSubscriptions(formData: FormData) {
 }
 
 export async function bulkCancelSubscriptions(formData: FormData) {
-  const user = await getUser();
-  if (!user) throw new Error("Non authentifié");
+  const { user } = await requireActiveSeller();
 
   const idsRaw = String(formData.get("ids") ?? "");
   const ids = idsRaw.split(",").map((s) => s.trim()).filter(Boolean);
@@ -514,58 +508,27 @@ export async function bulkCancelSubscriptions(formData: FormData) {
 }
 
 export async function deleteClientSubscription(formData: FormData) {
-  const user = await getUser();
-  if (!user) throw new Error("Non authentifié");
+  const { user } = await requireActiveSeller();
 
   const id = req(formData, "id");
   const supabase = createSupabaseAdmin();
 
-  const { data: sub, error: subError } = await supabase
+  const { data: cancelled, error } = await supabase
     .from("client_subscriptions")
-    .select("id, client_id")
+    .update({ status: "cancelled", grace_until: null })
     .eq("id", id)
     .eq("user_id", user.id)
+    .select("client_id")
     .single();
 
-  if (subError || !sub) throw new Error("Profil introuvable");
-
-  const clientId = sub.client_id as string;
-
-  await supabase
-    .from("transactions")
-    .delete()
-    .eq("subscription_id", id)
-    .eq("user_id", user.id);
-
-  await supabase
-    .from("invoices")
-    .delete()
-    .eq("subscription_id", id)
-    .eq("user_id", user.id);
-
-  const { error: deleteError } = await supabase
-    .from("client_subscriptions")
-    .delete()
-    .eq("id", id)
-    .eq("user_id", user.id);
-
-  if (deleteError) throw new Error(deleteError.message);
-
-  const { count } = await supabase
-    .from("client_subscriptions")
-    .select("id", { count: "exact", head: true })
-    .eq("client_id", clientId)
-    .eq("user_id", user.id);
-
-  if ((count ?? 0) === 0) {
-    const { error: clientError } = await supabase
-      .from("clients")
-      .delete()
-      .eq("id", clientId)
-      .eq("user_id", user.id);
-
-    if (clientError) throw new Error(clientError.message);
-  }
+  if (error || !cancelled) throw new Error(error?.message ?? "Profil introuvable");
+  await recordClientEvent(supabase, {
+    userId: user.id,
+    clientId: cancelled.client_id,
+    subscriptionId: id,
+    type: "subscription_cancelled",
+    title: "Abonnement annulé",
+  });
 
   revalidatePath("/clients");
   revalidatePath("/abonnements");
@@ -573,8 +536,7 @@ export async function deleteClientSubscription(formData: FormData) {
 }
 
 export async function bulkDeleteSubscriptions(formData: FormData) {
-  const user = await getUser();
-  if (!user) throw new Error("Non authentifié");
+  const { user } = await requireActiveSeller();
 
   const idsRaw = String(formData.get("ids") ?? "");
   const ids = idsRaw.split(",").map((s) => s.trim()).filter(Boolean);
@@ -582,55 +544,13 @@ export async function bulkDeleteSubscriptions(formData: FormData) {
 
   const supabase = createSupabaseAdmin();
 
-  const { data: subs, error: subError } = await supabase
+  const { error } = await supabase
     .from("client_subscriptions")
-    .select("id, client_id")
+    .update({ status: "cancelled", grace_until: null })
     .in("id", ids)
     .eq("user_id", user.id);
 
-  if (subError) throw new Error(subError.message);
-  if (!subs || subs.length === 0) return;
-
-  const clientIds = Array.from(new Set(subs.map((s) => s.client_id as string).filter(Boolean)));
-  const subIds = subs.map((s) => s.id as string);
-
-  await supabase
-    .from("transactions")
-    .delete()
-    .in("subscription_id", subIds)
-    .eq("user_id", user.id);
-
-  await supabase
-    .from("invoices")
-    .delete()
-    .in("subscription_id", subIds)
-    .eq("user_id", user.id);
-
-  const { error: deleteError } = await supabase
-    .from("client_subscriptions")
-    .delete()
-    .in("id", subIds)
-    .eq("user_id", user.id);
-
-  if (deleteError) throw new Error(deleteError.message);
-
-  for (const clientId of clientIds) {
-    const { count } = await supabase
-      .from("client_subscriptions")
-      .select("id", { count: "exact", head: true })
-      .eq("client_id", clientId)
-      .eq("user_id", user.id);
-
-    if ((count ?? 0) === 0) {
-      const { error: clientError } = await supabase
-        .from("clients")
-        .delete()
-        .eq("id", clientId)
-        .eq("user_id", user.id);
-
-      if (clientError) throw new Error(clientError.message);
-    }
-  }
+  if (error) throw new Error(error.message);
 
   revalidatePath("/clients");
   revalidatePath("/abonnements");

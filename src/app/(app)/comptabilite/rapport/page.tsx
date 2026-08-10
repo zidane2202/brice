@@ -9,6 +9,8 @@ import {
 } from "@/lib/comptabilite";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
+import { canUseFullCompta, normalizePlan } from "@/lib/plans";
+import { redirect } from "next/navigation";
 import type { ExpenseCategory, Transaction } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +28,15 @@ export default async function ComptabiliteRapportPage({
 }) {
   const user = await getUser();
   if (!user) return null;
+  const supabasePlan = createSupabaseAdmin();
+  const { data: profile } = await supabasePlan
+    .from("user_profiles")
+    .select("plan")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!canUseFullCompta(normalizePlan(profile?.plan))) {
+    redirect("/comptabilite");
+  }
 
   const sp = await searchParams;
   const now = new Date();

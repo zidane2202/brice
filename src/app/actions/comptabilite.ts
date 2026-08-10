@@ -8,7 +8,8 @@ import {
 } from "@/lib/plans";
 import { EXPENSE_CATEGORIES } from "@/lib/comptabilite";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
-import { getUser } from "@/lib/supabase-server";
+import { requireActiveSeller } from "@/lib/authz";
+import { todayDateOnly } from "@/lib/dates";
 import type { ExpenseCategory } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 
@@ -21,8 +22,7 @@ function req(formData: FormData, key: string): string {
 }
 
 export async function addManualExpense(formData: FormData) {
-  const user = await getUser();
-  if (!user) throw new Error("Non authentifié");
+  const { user } = await requireActiveSeller();
 
   const supabase = createSupabaseAdmin();
   const { data: profile } = await supabase
@@ -53,7 +53,7 @@ export async function addManualExpense(formData: FormData) {
 
   const occurredOn =
     String(formData.get("occurred_on") ?? "").trim() ||
-    new Date().toISOString().slice(0, 10);
+    todayDateOnly();
   const label =
     note ||
     EXPENSE_CATEGORIES.find((c) => c.value === category)?.label ||
@@ -97,11 +97,14 @@ export async function addManualExpense(formData: FormData) {
 }
 
 export async function reverseTransaction(transactionId: string, reason: string) {
-  const user = await getUser();
-  if (!user) throw new Error("Non authentifié");
+  const { user } = await requireActiveSeller();
   const cleanReason = reason.trim();
   if (cleanReason.length < 3 || cleanReason.length > 300) throw new Error("Indiquez une raison entre 3 et 300 caractères.");
   const db = createSupabaseAdmin();
+  const { data: profile } = await db.from("user_profiles").select("plan").eq("user_id", user.id).maybeSingle();
+  if (!canUseFullCompta(normalizePlan(profile?.plan))) {
+    throw planLimitError(PLAN_LIMIT_COMPTA, "Les annulations d’écritures sont réservées aux plans Pro et Business.");
+  }
   const { data: original, error: findError } = await db.from("transactions").select("*").eq("id", transactionId).eq("user_id", user.id).single();
   if (findError || !original) throw new Error("Écriture introuvable.");
   if (original.source === "reversal") throw new Error("Une annulation ne peut pas être annulée.");
@@ -111,7 +114,7 @@ export async function reverseTransaction(transactionId: string, reason: string) 
     user_id: user.id, kind: original.kind === "income" ? "outflow" : "income", source: "reversal",
     funded_by: original.funded_by, affects_balance: original.affects_balance, amount: original.amount,
     client_id: original.client_id, subscription_id: original.subscription_id, account_id: original.account_id,
-    label: `Annulation · ${original.label}`, category: original.category, occurred_on: new Date().toISOString().slice(0, 10),
+    label: `Annulation · ${original.label}`, category: original.category, occurred_on: todayDateOnly(),
     reversed_transaction_id: original.id, reversal_reason: cleanReason,
   });
   if (error) throw new Error(error.message);

@@ -1,6 +1,7 @@
 import { AddExpenseForm } from "@/components/comptabilite/AddExpenseForm";
 import { ComptaView } from "@/components/comptabilite/ComptaView";
 import { computeBalance, computePeriodKpis, monthBounds } from "@/lib/comptabilite";
+import { todayDateOnly } from "@/lib/dates";
 import { canUseFullCompta, normalizePlan } from "@/lib/plans";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
@@ -66,7 +67,7 @@ export default async function ComptabilitePage({
       fullCompta={fullCompta}
       expenseForm={
         fullCompta ? (
-          <AddExpenseForm today={now.toISOString().slice(0, 10)} />
+          <AddExpenseForm today={todayDateOnly()} />
         ) : (
           <p style={{ color: "var(--sr-fg-subtle)", margin: 0, fontSize: 13 }}>
             Les dépenses manuelles et exports sont réservés au plan Pro. Passez Pro pour

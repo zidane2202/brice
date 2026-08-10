@@ -12,6 +12,8 @@ import {
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import Link from "next/link";
 import { ReversePlatformPaymentButton } from "@/components/admin/ReversePlatformPaymentButton";
+import { listAllAuthUsers } from "@/lib/auth-users";
+import { firstOfMonthDateOnly, todayDateOnly } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
 
@@ -21,12 +23,10 @@ function formatFcfa(n: number) {
 
 async function getFinanceData() {
   const supabase = createSupabaseAdmin();
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-    .toISOString()
-    .slice(0, 10);
+  const monthStart = firstOfMonthDateOnly();
+  const monthEnd = todayDateOnly();
 
-  const [profilesRes, paymentsRes, authResult, auditRes, reversalsRes] = await Promise.all([
+  const [profilesRes, paymentsRes, authUsers, auditRes, reversalsRes, monthCashRes] = await Promise.all([
     supabase
       .from("user_profiles")
       .select(
@@ -41,13 +41,18 @@ async function getFinanceData() {
       )
       .order("occurred_on", { ascending: false })
       .limit(100),
-    supabase.auth.admin.listUsers(),
+    listAllAuthUsers(supabase),
     supabase
       .from("admin_audit_logs")
       .select("id, actor_user_id, target_user_id, action, details, created_at")
       .order("created_at", { ascending: false })
       .limit(30),
     supabase.from("platform_payment_reversals").select("payment_id,amount,reason,created_at").order("created_at", { ascending: false }),
+    supabase
+      .from("platform_payments")
+      .select("id, amount, occurred_on, platform_payment_reversals(amount)")
+      .gte("occurred_on", monthStart)
+      .lte("occurred_on", monthEnd),
   ]);
 
   if (profilesRes.error) throw new Error(profilesRes.error.message);
@@ -55,9 +60,7 @@ async function getFinanceData() {
   const paymentsError = paymentsRes.error;
   const payments = paymentsError ? [] : paymentsRes.data ?? [];
 
-  const emailMap = new Map(
-    (authResult.data?.users ?? []).map((u) => [u.id, u.email ?? "—"])
-  );
+  const emailMap = new Map(authUsers.map((u) => [u.id, u.email ?? "—"]));
 
   const rows = (profilesRes.data ?? []).map((p) => {
     const plan = normalizePlan(p.plan);
@@ -83,17 +86,19 @@ async function getFinanceData() {
     mrr += r.mrr;
   }
 
-  const reversedThisMonth = (reversalsRes.data ?? []).filter((row) => row.created_at.slice(0, 10) >= monthStart).reduce((sum, row) => sum + Number(row.amount ?? 0), 0);
-  const cashThisMonth = payments
-    .filter((p) => p.occurred_on >= monthStart)
-    .reduce((sum, p) => sum + Number(p.amount ?? 0), 0) - reversedThisMonth;
+  const cashThisMonth = (monthCashRes.data ?? []).reduce((sum, p) => {
+    const reversal = Array.isArray(p.platform_payment_reversals)
+      ? Number(p.platform_payment_reversals[0]?.amount ?? 0)
+      : 0;
+    return sum + Number(p.amount ?? 0) - reversal;
+  }, 0);
   const reversalMap = new Map((reversalsRes.data ?? []).map((row) => [row.payment_id, row]));
 
   const resellerOptions = rows.map((r) => ({
     userId: r.user_id,
     label: `${r.name} (${r.email})`,
     plan: r.plan,
-    activePro: r.plan === "pro" && !r.suspended && Boolean(r.plan_renews_on) && r.plan_renews_on! >= new Date().toISOString().slice(0, 10),
+    activePro: r.plan === "pro" && !r.suspended && Boolean(r.plan_renews_on) && r.plan_renews_on! >= todayDateOnly(),
   }));
 
   const journal = payments.map((p) => ({
@@ -151,7 +156,7 @@ export default async function AdminFinancesPage({ searchParams }: { searchParams
   const { q = "", kind = "all", from = "", to = "" } = await searchParams;
   const needle = q.trim().toLowerCase();
   const filteredJournal = journal.filter((payment) => (!needle || `${payment.resellerLabel} ${payment.note ?? ""} ${payment.id}`.toLowerCase().includes(needle)) && (kind === "all" || payment.kind === kind) && (!from || payment.occurred_on >= from) && (!to || payment.occurred_on <= to));
-  const actionLabels: Record<string,string> = { platform_payment_recorded:"Encaissement enregistré",platform_payment_reversed:"Encaissement annulé",reseller_suspended:"Vendeur suspendu",reseller_unsuspended:"Vendeur réactivé",reseller_settings_updated:"Réglages vendeur modifiés" };
+  const actionLabels: Record<string,string> = { platform_payment_recorded:"Encaissement enregistré",platform_payment_reversed:"Encaissement annulé",account_suspended:"Vendeur suspendu",account_unsuspended:"Vendeur réactivé",account_settings_updated:"Réglages vendeur modifiés",reseller_suspended:"Vendeur suspendu",reseller_unsuspended:"Vendeur réactivé",reseller_settings_updated:"Réglages vendeur modifiés" };
   const detailLabels: Record<string,string> = { kind:"Motif",note:"Note",amount:"Montant",occurredOn:"Date",appliedPlan:"Plan",appliedExtras:"Comptes extras",reason:"Motif d’annulation",paymentId:"Référence" };
 
   return (

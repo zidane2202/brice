@@ -1,4 +1,5 @@
 import { AbonnementsView } from "@/components/abonnements/AbonnementsView";
+import { todayDateOnly } from "@/lib/dates";
 import { accountCap, clientsPerAccount, normalizePlan } from "@/lib/plans";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
@@ -16,7 +17,7 @@ async function getAccounts(userId: string) {
     .order("end_date", { ascending: true });
 
   if (error) throw new Error(error.message);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayDateOnly();
   return (data ?? []).map((a) => {
     const slots =
       (a as {

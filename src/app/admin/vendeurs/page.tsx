@@ -1,4 +1,6 @@
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
+import { listAllAuthUsers } from "@/lib/auth-users";
+import { todayDateOnly } from "@/lib/dates";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -8,7 +10,7 @@ async function getResellers() {
 
   const { data: profiles, error } = await supabase
     .from("user_profiles")
-    .select("user_id, role, plan, created_at, first_name, last_name, phone, city")
+    .select("user_id, role, plan, created_at, first_name, last_name, phone, city, suspended, plan_renews_on")
     .eq("role", "reseller")
     .order("created_at", { ascending: false });
 
@@ -17,8 +19,8 @@ async function getResellers() {
   const userIds = (profiles ?? []).map((p) => p.user_id);
   if (userIds.length === 0) return [];
 
-  const { data: authUsers } = await supabase.auth.admin.listUsers();
-  const authMap = new Map((authUsers?.users ?? []).map((u) => [u.id, { email: u.email, lastSignInAt: u.last_sign_in_at }]));
+  const authUsers = await listAllAuthUsers(supabase);
+  const authMap = new Map(authUsers.map((u) => [u.id, { email: u.email, lastSignInAt: u.last_sign_in_at }]));
 
   const { data: subCounts } = await supabase
     .from("client_subscriptions")
@@ -26,7 +28,7 @@ async function getResellers() {
     .in("status", ["active", "grace"])
     .in("user_id", userIds);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayDateOnly();
   const countMap = new Map<string, number>();
   (subCounts ?? []).filter((s) => s.status === "grace" || s.end_date >= today).forEach((s) => {
     countMap.set(s.user_id, (countMap.get(s.user_id) ?? 0) + 1);
@@ -69,6 +71,8 @@ export default async function ResellerListPage({ searchParams }: { searchParams:
                 <th>Téléphone</th>
                 <th>Ville</th>
                 <th>Plan</th>
+                <th>Statut</th>
+                <th>Échéance pack</th>
                 <th>Clients en cours</th>
                 <th>Inscrit le</th>
                 <th>Dernière connexion</th>
@@ -77,7 +81,7 @@ export default async function ResellerListPage({ searchParams }: { searchParams:
             </thead>
             <tbody>
               {resellers.length === 0 && (
-                <tr><td colSpan={9} className="empty">Aucun vendeur inscrit.</td></tr>
+                <tr><td colSpan={11} className="empty">Aucun vendeur inscrit.</td></tr>
               )}
               {resellers.map((r) => (
                 <tr key={r.user_id}>
@@ -92,6 +96,12 @@ export default async function ResellerListPage({ searchParams }: { searchParams:
                   <td>{r.phone ?? "—"}</td>
                   <td>{r.city ?? "—"}</td>
                   <td><span className="status active">{r.plan}</span></td>
+                  <td>
+                    {r.suspended
+                      ? <span className="status cancelled">Suspendu</span>
+                      : <span className="status active">Actif</span>}
+                  </td>
+                  <td>{r.plan_renews_on ? new Date(`${r.plan_renews_on}T00:00:00`).toLocaleDateString("fr-FR") : "—"}</td>
                   <td>{r.active_clients}</td>
                   <td>{new Date(r.created_at).toLocaleDateString("fr-FR")}</td>
                   <td>{r.last_sign_in_at ? new Date(r.last_sign_in_at).toLocaleString("fr-FR") : "Jamais"}</td>

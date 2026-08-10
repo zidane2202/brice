@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import Link from "next/link";
 import { Icon } from "@/components/Icon";
 import { BrandMark } from "@/components/BrandMark";
 import { deleteOwnAccount, removeCompanyLogo, updateProfile, uploadCompanyLogo } from "@/app/actions/profile";
@@ -76,7 +77,8 @@ export function ProfilView({ profile, email, createdAt, stats }: Props) {
 
   const fullName = `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim() || email.split("@")[0];
   const initials = fullName.split(/\s+/).map((s) => s[0]).join("").slice(0, 2).toUpperCase();
-  const isPro = (profile?.plan ?? "free") !== "free";
+  const planId = (profile?.plan ?? "free").toLowerCase();
+  const planBadge = planId === "business" ? "Business" : planId === "pro" ? "Pro" : null;
 
   return (
     <div className="profile-view mobile-full-bleed" style={{ display: "flex", flex: 1, minHeight: 0, marginInline: -32, marginTop: -32, marginBottom: -32 }}>
@@ -218,7 +220,7 @@ export function ProfilView({ profile, email, createdAt, stats }: Props) {
                 >
                   {fullName}
                 </h1>
-                {isPro && (
+                {planBadge && (
                   <span
                     style={{
                       display: "inline-flex",
@@ -237,7 +239,7 @@ export function ProfilView({ profile, email, createdAt, stats }: Props) {
                       boxShadow: "inset 0 1px 0 rgba(255,255,255,0.08)",
                     }}
                   >
-                    <Icon name="zap" size={10} /> Pro
+                    <Icon name="zap" size={10} /> {planBadge}
                   </span>
                 )}
               </div>
@@ -712,15 +714,15 @@ function BizSection({ city }: { city: string }) {
 function SecuSection() {
   return (
     <PrSection id="secu" title="Sécurité" subtitle="Protégez votre compte et vos données clients.">
-      <FormRow label="Mot de passe" hint="Modifiez votre mot de passe depuis Supabase Auth.">
+      <FormRow label="Mot de passe" hint="Le lien ouvre la page de réinitialisation sécurisée.">
         <div style={{ display: "flex", alignItems: "center", gap: 8, maxWidth: 360 }}>
           <span style={{ font: "500 13px/1 var(--font-geist-mono)", color: "var(--sr-fg)", letterSpacing: "0.2em" }}>
             ••••••••••••
           </span>
           <div style={{ flex: 1 }} />
-          <button type="button" className="secondary" style={{ minHeight: 30, height: 30, fontSize: "0.78rem" }}>
+          <Link href="/reset-password" className="secondary" style={{ minHeight: 30, height: 30, fontSize: "0.78rem" }}>
             Changer
-          </button>
+          </Link>
         </div>
       </FormRow>
       <FormRow label="Sessions actives" hint="Une seule session par appareil." divider={false}>

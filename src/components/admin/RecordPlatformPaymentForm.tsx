@@ -7,6 +7,7 @@ import {
   defaultAmountForKind,
   type PlatformPaymentKind,
 } from "@/lib/platform-payments";
+import { todayDateOnly } from "@/lib/dates";
 import { useMemo, useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
@@ -46,7 +47,7 @@ export function RecordPlatformPaymentForm({
   const [selectedResellerId, setSelectedResellerId] = useState(resellerUserId ?? "");
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
 
-  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const today = useMemo(() => todayDateOnly(), []);
   const canAddExtras = resellerUserId
     ? defaultActivePro
     : Boolean(resellers.find((item) => item.userId === selectedResellerId)?.activePro);

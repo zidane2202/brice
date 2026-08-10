@@ -3,6 +3,7 @@ import { ResellerSettingsForm } from "@/components/admin/ResellerSettingsForm";
 import { SuspendToggle } from "@/components/admin/SuspendToggle";
 import { KpiCard } from "@/components/KpiCard";
 import { computeBalance, formatFcfa } from "@/lib/comptabilite";
+import { todayDateOnly } from "@/lib/dates";
 import { PLATFORM_PAYMENT_KIND_LABELS, type PlatformPaymentKind } from "@/lib/platform-payments";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
@@ -106,7 +107,7 @@ async function getResellerDetail(userId: string) {
       .limit(20),
   ]);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayDateOnly();
   const accounts = (accountsRes.data ?? []) as unknown as (ProviderAccount & {
     account_slots: { id: string }[];
   })[];
@@ -151,6 +152,7 @@ export default async function ResellerDetailPage({
   const actor = await getUser();
   const data = await getResellerDetail(id);
   if (!data) notFound();
+  const today = todayDateOnly();
 
   const {
     profile,
@@ -243,7 +245,7 @@ export default async function ResellerDetailPage({
           resellerUserId={profile.user_id}
           defaultPlan={profile.plan}
           defaultExtras={Number(profile.extra_provider_accounts ?? 0)}
-          defaultActivePro={profile.plan === "pro" && !profile.suspended && Boolean(profile.plan_renews_on) && profile.plan_renews_on! >= new Date().toISOString().slice(0, 10)}
+          defaultActivePro={profile.plan === "pro" && !profile.suspended && Boolean(profile.plan_renews_on) && profile.plan_renews_on! >= today}
         />
         <div className="table-wrap" style={{ marginTop: 16 }}>
           <table>

@@ -2,10 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
-import { getUser } from "@/lib/supabase-server";
+import { requireActiveSeller } from "@/lib/authz";
 
 export async function updateReminderStatus(formData: FormData) {
-  const user = await getUser(); if (!user) throw new Error("Non authentifié");
+  const { user } = await requireActiveSeller();
   const subscriptionId = String(formData.get("subscription_id") ?? "");
   const clientId = String(formData.get("client_id") ?? "");
   const message = String(formData.get("message") ?? "").slice(0, 1000);

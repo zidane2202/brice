@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
-import { getUser } from "@/lib/supabase-server";
-import { addMonths, toDateInputValue } from "@/lib/dates";
-import { encryptCredential } from "@/lib/provider-credentials";
+import { requireActiveSeller } from "@/lib/authz";
+import { addMonths, todayDateOnly, toDateInputValue } from "@/lib/dates";
+import { decryptCredential, encryptCredential } from "@/lib/provider-credentials";
 import {
   PLAN_LIMIT_ACCOUNT,
   PLAN_LIMIT_SLOTS,
@@ -21,8 +21,7 @@ function req(fd: FormData, key: string) {
 }
 
 export async function addProviderAccount(formData: FormData) {
-  const user = await getUser();
-  if (!user) throw new Error("Non authentifié");
+  const { user } = await requireActiveSeller();
 
   const serviceName = req(formData, "service_name");
   const startDate = req(formData, "start_date");
@@ -129,12 +128,26 @@ export async function addProviderAccount(formData: FormData) {
   const { error: slotError } = await supabase.from("account_slots").insert(slots);
   if (slotError) throw new Error(slotError.message);
 
+  if (cost != null && cost > 0) {
+    await supabase.from("transactions").insert({
+      user_id: user.id,
+      kind: "outflow",
+      source: "account_renewal",
+      funded_by: "personal",
+      affects_balance: false,
+      amount: cost,
+      account_id: account.id,
+      category: "account_renewal",
+      occurred_on: todayDateOnly(),
+      label: `Achat compte ${serviceName}${label ? ` (${label})` : ""}`,
+    });
+  }
+
   revalidatePath("/abonnements");
 }
 
 export async function updateProviderAccountLabel(formData: FormData) {
-  const user = await getUser();
-  if (!user) throw new Error("Non authentifié");
+  const { user } = await requireActiveSeller();
 
   const id = req(formData, "id");
   const label = String(formData.get("label") ?? "").trim() || null;
@@ -151,8 +164,7 @@ export async function updateProviderAccountLabel(formData: FormData) {
 }
 
 export async function renewProviderAccount(formData: FormData) {
-  const user = await getUser();
-  if (!user) throw new Error("Non authentifié");
+  const { user } = await requireActiveSeller();
 
   const id = req(formData, "id");
   const durationMonths = parseInt(req(formData, "duration_months") || "1");
@@ -225,8 +237,7 @@ export async function renewProviderAccount(formData: FormData) {
 }
 
 export async function updateProviderAccountStatus(formData: FormData) {
-  const user = await getUser();
-  if (!user) throw new Error("Non authentifié");
+  const { user } = await requireActiveSeller();
 
   const id = req(formData, "id");
   const status = req(formData, "status");
@@ -241,4 +252,23 @@ export async function updateProviderAccountStatus(formData: FormData) {
 
   if (error) throw new Error(error.message);
   revalidatePath("/abonnements");
+}
+
+export async function revealAccountCredentials(accountId: string) {
+  const { user } = await requireActiveSeller();
+  const id = String(accountId ?? "").trim();
+  if (!id) throw new Error("Compte manquant");
+  const supabase = createSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("provider_accounts")
+    .select("account_email, account_password")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Compte introuvable");
+  return {
+    email: data.account_email ?? null,
+    password: decryptCredential(data.account_password),
+  };
 }

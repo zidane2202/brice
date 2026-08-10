@@ -1,20 +1,22 @@
 "use server";
 
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
-import { getUser, getUserProfile } from "@/lib/supabase-server";
 import {
   defaultAmountForKind,
   isPlatformPaymentKind,
+  resolveAppliedExtras,
   suggestedPlanForKind,
 } from "@/lib/platform-payments";
 import { activatePlanFor30Days, extendPlanRenewal } from "@/lib/plans";
+import { todayDateOnly } from "@/lib/dates";
+import { requireAdmin } from "@/lib/authz";
 import { revalidatePath } from "next/cache";
 
 const PLANS = new Set(["free", "pro", "business"]);
 const ROLES = new Set(["reseller", "admin"]);
 
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  return todayDateOnly();
 }
 
 async function logAdminAction(input: {
@@ -33,11 +35,7 @@ async function logAdminAction(input: {
 }
 
 export async function updateResellerPlanRole(formData: FormData) {
-  const actor = await getUser();
-  const actorProfile = await getUserProfile();
-  if (!actor || actorProfile?.role !== "admin") {
-    throw new Error("Accès refusé");
-  }
+  const { user: actor } = await requireAdmin();
 
   const userId = String(formData.get("user_id") ?? "").trim();
   const plan = String(formData.get("plan") ?? "").trim();
@@ -107,11 +105,7 @@ export async function updateResellerPlanRole(formData: FormData) {
 }
 
 export async function setResellerSuspended(formData: FormData) {
-  const actor = await getUser();
-  const actorProfile = await getUserProfile();
-  if (!actor || actorProfile?.role !== "admin") {
-    throw new Error("Accès refusé");
-  }
+  const { user: actor } = await requireAdmin();
 
   const userId = String(formData.get("user_id") ?? "").trim();
   const suspended = String(formData.get("suspended") ?? "") === "true";
@@ -124,16 +118,24 @@ export async function setResellerSuspended(formData: FormData) {
   const supabase = createSupabaseAdmin();
   const { data: target, error: findErr } = await supabase
     .from("user_profiles")
-    .select("user_id, role")
+    .select("user_id, role, plan, plan_renews_on")
     .eq("user_id", userId)
     .maybeSingle();
 
   if (findErr) throw new Error(findErr.message);
   if (!target) throw new Error("Vendeur introuvable");
 
+  const patch: { suspended: boolean; plan_renews_on?: string } = { suspended };
+  if (!suspended) {
+    const today = todayStr();
+    if (!target.plan_renews_on || target.plan_renews_on < today) {
+      patch.plan_renews_on = activatePlanFor30Days(today);
+    }
+  }
+
   const { error } = await supabase
     .from("user_profiles")
-    .update({ suspended })
+    .update(patch)
     .eq("user_id", userId);
 
   if (error) throw new Error(error.message);
@@ -151,11 +153,7 @@ export async function setResellerSuspended(formData: FormData) {
 }
 
 export async function recordPlatformPayment(formData: FormData) {
-  const actor = await getUser();
-  const actorProfile = await getUserProfile();
-  if (!actor || actorProfile?.role !== "admin") {
-    throw new Error("Accès refusé");
-  }
+  const { user: actor } = await requireAdmin();
 
   const resellerId = String(formData.get("reseller_user_id") ?? "").trim();
   const kindRaw = String(formData.get("kind") ?? "").trim();
@@ -231,10 +229,7 @@ export async function recordPlatformPayment(formData: FormData) {
       if (!hasActivePro) {
         throw new Error("Les comptes extras nécessitent un pack Pro actif. Activez ou renouvelez d’abord le pack Pro.");
       }
-      const currentExtras = Number(target.extra_provider_accounts ?? 0);
-      const add = extras > 0 ? extras : 1;
       plan = "pro";
-      extras = currentExtras + add;
     }
 
     const paid = plan === "pro" || plan === "business";
@@ -245,7 +240,14 @@ export async function recordPlatformPayment(formData: FormData) {
         : null;
 
     appliedPlan = plan;
-    appliedExtras = plan === "pro" ? extras : 0;
+    appliedExtras = resolveAppliedExtras({
+      kind: kindRaw,
+      applyPlan: true,
+      currentExtras: Number(target.extra_provider_accounts ?? 0),
+      requestedExtras: extras,
+      targetPlan: plan,
+    });
+    extras = appliedExtras;
     target.plan_renews_on = planRenewsOn;
   }
 
@@ -272,9 +274,7 @@ export async function recordPlatformPayment(formData: FormData) {
 }
 
 export async function reversePlatformPayment(paymentId: string, reason: string) {
-  const actor = await getUser();
-  const actorProfile = await getUserProfile();
-  if (!actor || actorProfile?.role !== "admin") throw new Error("Accès refusé");
+  const { user: actor } = await requireAdmin();
   const cleanReason = reason.trim();
   if (cleanReason.length < 3 || cleanReason.length > 300) throw new Error("Le motif doit contenir entre 3 et 300 caractères.");
   const db = createSupabaseAdmin();

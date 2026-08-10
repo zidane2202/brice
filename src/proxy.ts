@@ -42,8 +42,8 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // Logged-in users leave auth pages; landing stays handled by page.tsx → dashboard
-  if (user && isAuthPublic) {
+  // Recovery links create a session first; keep the reset form reachable.
+  if (user && isAuthPublic && !pathname.startsWith("/reset-password")) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 

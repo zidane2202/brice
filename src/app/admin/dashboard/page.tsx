@@ -1,5 +1,7 @@
 import { StatsCard } from "@/components/StatsCard";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
+import { listAllAuthUsers } from "@/lib/auth-users";
+import { firstOfMonthDateOnly, todayDateOnly } from "@/lib/dates";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -7,25 +9,23 @@ export const dynamic = "force-dynamic";
 async function getAdminStats() {
   const supabase = createSupabaseAdmin();
 
-  const now = new Date();
-  const today = now.toISOString().slice(0, 10);
-  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-  const in15Days = new Date(now.getTime() + 15 * 86400000).toISOString().slice(0, 10);
-  const [profilesResult, subsResult, authResult, paymentsResult] = await Promise.all([
+  const today = todayDateOnly();
+  const firstOfMonth = firstOfMonthDateOnly();
+  const in15Days = todayDateOnly(new Date(Date.now() + 15 * 86400000));
+  const [profilesResult, subsResult, users, paymentsResult] = await Promise.all([
     supabase.from("user_profiles").select("user_id, plan, suspended, plan_renews_on, created_at").eq("role", "reseller"),
     supabase.from("client_subscriptions").select("user_id, price, status, end_date, created_at"),
-    supabase.auth.admin.listUsers(),
-    supabase.from("platform_payments").select("amount, occurred_on").gte("occurred_on", firstOfMonth.slice(0, 10)),
+    listAllAuthUsers(supabase),
+    supabase.from("platform_payments").select("amount, occurred_on").gte("occurred_on", firstOfMonth),
   ]);
 
   const profiles = profilesResult.data ?? [];
   const subs = subsResult.data ?? [];
-  const users = authResult.data?.users ?? [];
 
   const activeSubs = subs.filter((s) => s.status === "grace" || (s.status === "active" && s.end_date >= today));
   const totalRevenue = activeSubs.reduce((sum, s) => sum + (s.price ?? 0), 0);
 
-  const newThisMonth = profiles.filter((p) => p.created_at >= firstOfMonth).length;
+  const newThisMonth = profiles.filter((p) => p.created_at >= `${firstOfMonth}T00:00:00`).length;
   const platformRevenueThisMonth = (paymentsResult.data ?? []).reduce((sum, p) => sum + Number(p.amount ?? 0), 0);
   const suspendedCount = profiles.filter((p) => p.suspended).length;
   const planCounts = profiles.reduce((counts, p) => {
