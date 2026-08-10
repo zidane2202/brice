@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { resolveAppliedExtras } from "./platform-payments.ts";
+import { planStateAfterReverse, resolveAppliedExtras } from "./platform-payments.ts";
 
 test("pro monthly renewal keeps purchased extras", () => {
   assert.equal(
@@ -39,6 +39,26 @@ test("business monthly clears extras", () => {
     }),
     0
   );
+});
+
+test("planStateAfterReverse restores snapshot when pack was applied", () => {
+  const next = planStateAfterReverse({
+    applied_plan: "pro",
+    previous_plan: "free",
+    previous_extras: 0,
+    previous_plan_renews_on: null,
+    previous_suspended: true,
+  });
+  assert.deepEqual(next, {
+    plan: "free",
+    extras: 0,
+    plan_renews_on: null,
+    suspended: true,
+  });
+});
+
+test("planStateAfterReverse ignores cash-only payments", () => {
+  assert.equal(planStateAfterReverse({ applied_plan: null, previous_plan: "pro" }), null);
 });
 
 test("cash-only other does not change extras", () => {

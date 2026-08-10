@@ -20,6 +20,7 @@ type Props = {
   year: number;
   month: number;
   allowExports?: boolean;
+  allowReverse?: boolean;
 };
 
 export function ComptaJournal({
@@ -29,6 +30,7 @@ export function ComptaJournal({
   year,
   month,
   allowExports = true,
+  allowReverse = false,
 }: Props) {
   const [kind, setKind] = useState<"all" | "income" | "outflow">("all");
   const [category, setCategory] = useState<ExpenseCategory | "all">("all");
@@ -168,7 +170,7 @@ export function ComptaJournal({
                   <td style={{ padding: "8px 6px", borderBottom: "1px solid var(--sr-border-subtle)" }}>
                     {sourceLabel(t.source)}
                   </td>
-                  <td style={{ padding: "8px 6px", borderBottom: "1px solid var(--sr-border-subtle)", textAlign: "right" }}>{t.source !== "reversal" && !reversedIds.has(t.id) && <button type="button" className="secondary" onClick={() => { setToReverse(t); setReason(""); setActionError(""); }} style={{ minHeight: 26, height: 26, fontSize: 10 }}>Annuler</button>}</td>
+                  <td style={{ padding: "8px 6px", borderBottom: "1px solid var(--sr-border-subtle)", textAlign: "right" }}>{allowReverse && t.source !== "reversal" && !reversedIds.has(t.id) && <button type="button" className="secondary" onClick={() => { setToReverse(t); setReason(""); setActionError(""); }} style={{ minHeight: 26, height: 26, fontSize: 10 }}>Annuler</button>}</td>
                 </tr>
               ))}
             </tbody>

@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
+import { activeSellerOrResponse } from "@/lib/api-auth";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
-import { createSupabaseServer } from "@/lib/supabase-server";
+import { todayDateOnly } from "@/lib/dates";
 
 export async function GET() {
-  const auth = await createSupabaseServer();
-  const { data: { user } } = await auth.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+  const authz = await activeSellerOrResponse();
+  if (!authz.ok) return authz.response;
+  const user = authz.user;
   const db = createSupabaseAdmin();
   const tables = ["user_profiles", "provider_accounts", "clients", "client_subscriptions", "transactions", "invoices"] as const;
   const entries = await Promise.all(tables.map(async (table) => {
@@ -21,6 +22,6 @@ export async function GET() {
   const { data: events } = await db.from("client_events").select("*").eq("user_id", user.id);
   entries.push(["account_slots" as never, slots ?? []] as never, ["client_events" as never, events ?? []] as never);
   return new NextResponse(JSON.stringify({ exported_at: new Date().toISOString(), user_email: user.email, data: Object.fromEntries(entries) }, null, 2), {
-    headers: { "Content-Type": "application/json; charset=utf-8", "Content-Disposition": `attachment; filename="subresell-export-${new Date().toISOString().slice(0, 10)}.json"`, "Cache-Control": "no-store" },
+    headers: { "Content-Type": "application/json; charset=utf-8", "Content-Disposition": `attachment; filename="subresell-export-${todayDateOnly()}.json"`, "Cache-Control": "no-store" },
   });
 }

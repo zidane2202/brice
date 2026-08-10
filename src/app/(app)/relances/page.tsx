@@ -16,13 +16,16 @@ export default async function RemindersPage() {
   const user = await getUser();
   if (!user) return null;
   const db = createSupabaseAdmin();
-  const until = addDays(todayDateOnly(), 7);
+  const today = todayDateOnly();
+  const until = addDays(today, 7);
+  const since = addDays(today, -14);
   const [{ data: subs }, { data: tracked }] = await Promise.all([
     db
       .from("client_subscriptions")
       .select("id,client_id,end_date,price,status,client:clients(first_name,last_name,phone,archived_at),slot:account_slots(account:provider_accounts(service_name))")
       .eq("user_id", user.id)
       .neq("status", "cancelled")
+      .gte("end_date", since)
       .lte("end_date", until)
       .order("end_date"),
     db.from("client_reminders").select("subscription_id,status").eq("user_id", user.id),

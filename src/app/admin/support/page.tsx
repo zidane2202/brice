@@ -13,7 +13,7 @@ export default async function AdminSupportPage() {
       .from("support_tickets")
       .select("id,user_id,subject,status,priority,created_at,support_messages(body,author_role,created_at)")
       .order("updated_at", { ascending: false })
-      .limit(100),
+      .limit(200),
     listAllAuthUsers(db),
   ]);
   const emailMap = new Map(users.map((user) => [user.id, user.email ?? "—"]));

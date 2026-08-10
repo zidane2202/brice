@@ -32,7 +32,8 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/login") ||
     pathname.startsWith("/signup") ||
     pathname.startsWith("/forgot-password") ||
-    pathname.startsWith("/reset-password");
+    pathname.startsWith("/reset-password") ||
+    pathname.startsWith("/auth/callback");
   const isLanding = pathname === "/";
   const isPublicInvoice = pathname.startsWith("/facture/");
   const isPublic = isAuthPublic || isLanding || isPublicInvoice;
@@ -43,7 +44,12 @@ export async function proxy(request: NextRequest) {
   }
 
   // Recovery links create a session first; keep the reset form reachable.
-  if (user && isAuthPublic && !pathname.startsWith("/reset-password")) {
+  if (
+    user &&
+    isAuthPublic &&
+    !pathname.startsWith("/reset-password") &&
+    !pathname.startsWith("/auth/callback")
+  ) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 

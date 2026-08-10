@@ -30,7 +30,7 @@ export type CreateInvoiceInput = {
 export async function createInvoice(
   supabase: SupabaseClient,
   input: CreateInvoiceInput
-): Promise<{ number: number; code: string } | null> {
+): Promise<{ id: string; number: number; code: string } | null> {
   if (!input.amount || input.amount <= 0) return null;
 
   const number = await nextInvoiceNumber(supabase, input.userId);
@@ -46,7 +46,7 @@ export async function createInvoice(
     [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") ||
     null;
 
-  const { error } = await supabase.from("invoices").insert({
+  const { data, error } = await supabase.from("invoices").insert({
     user_id: input.userId,
     number,
     code,
@@ -63,10 +63,10 @@ export async function createInvoice(
     client_email: input.clientEmail,
     payment_rail: input.paymentRail,
     reseller_name: resellerName,
-  });
-  if (error) {
+  }).select("id, number, code").single();
+  if (error || !data) {
     console.error("createInvoice error", error);
-    throw new Error(`Facture non générée : ${error.message}`);
+    throw new Error(`Facture non générée : ${error?.message ?? "inconnue"}`);
   }
-  return { number, code };
+  return data;
 }

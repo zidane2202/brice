@@ -6,6 +6,7 @@ import { requireActiveSeller } from "@/lib/authz";
 import { addMonths, todayDateOnly, toDateInputValue } from "@/lib/dates";
 import { createInvoice } from "@/lib/invoices";
 import { recordClientEvent } from "@/lib/client-events";
+import { renewClientSubscription } from "@/app/actions/subscriptions";
 
 function req(fd: FormData, key: string) {
   const v = String(fd.get(key) ?? "").trim();
@@ -190,8 +191,8 @@ export async function addClientWithSubscription(
       paymentRail: opt(formData, "payment_rail"),
       });
     } catch (error) {
-      await supabase.from("transactions").delete().eq("subscription_id", sub.id).eq("user_id", user.id);
-      await supabase.from("clients").delete().eq("id", client.id).eq("user_id", user.id);
+      await supabase.from("transactions").delete().eq("subscription_id", sub.id).eq("user_id", user.id).eq("source", "new_profile");
+      await supabase.from("client_subscriptions").update({ status: "cancelled" }).eq("id", sub.id).eq("user_id", user.id);
       throw error;
     }
     invoiceCode = result?.code ?? null;
@@ -331,18 +332,6 @@ export async function updateClientDetails(formData: FormData) {
   if (clientError) throw new Error(clientError.message);
 
   if (subscriptionId && price) {
-    const { data: sub } = await supabase
-      .from("client_subscriptions")
-      .select("id, slot:account_slots(account:provider_accounts(service_name))")
-      .eq("id", subscriptionId)
-      .eq("user_id", user.id)
-      .single();
-
-    const serviceName =
-      ((sub?.slot as unknown as { account?: { service_name?: string } } | null)?.account?.service_name) ?? "Profil";
-    const clientName = [firstName, lastName].filter(Boolean).join(" ");
-    const label = `Vente ${serviceName} — ${clientName}`;
-
     const { error: subError } = await supabase
       .from("client_subscriptions")
       .update({ price })
@@ -350,26 +339,6 @@ export async function updateClientDetails(formData: FormData) {
       .eq("user_id", user.id);
 
     if (subError) throw new Error(subError.message);
-
-    await supabase
-      .from("transactions")
-      .update({ amount: price, label })
-      .eq("subscription_id", subscriptionId)
-      .eq("user_id", user.id)
-      .eq("source", "new_profile");
-
-    await supabase
-      .from("invoices")
-      .update({
-        amount: price,
-        client_name: clientName,
-        client_phone: phone,
-        client_email: email,
-        payment_rail: paymentRail,
-      })
-      .eq("subscription_id", subscriptionId)
-      .eq("user_id", user.id)
-      .eq("kind", "new");
   }
 
   await recordClientEvent(supabase, { userId: user.id, clientId, subscriptionId, type: "client_updated", title: "Informations du client modifiées", details: { amount: price, paymentRail } });
@@ -398,95 +367,17 @@ export async function updateClientPin(formData: FormData) {
 }
 
 export async function bulkRenewSubscriptions(formData: FormData) {
-  const { user } = await requireActiveSeller();
-
+  await requireActiveSeller();
   const idsRaw = String(formData.get("ids") ?? "");
   const ids = idsRaw.split(",").map((s) => s.trim()).filter(Boolean);
   if (ids.length === 0) return;
-
-  const supabase = createSupabaseAdmin();
-
-  const { data: subs } = await supabase
-    .from("client_subscriptions")
-    .select(`
-      id, end_date, status, price, client_id,
-      client:clients(first_name, last_name, phone, email, payment_rail),
-      slot:account_slots(label, slot_number, account:provider_accounts(service_name))
-    `)
-    .in("id", ids)
-    .eq("user_id", user.id);
-
-  if (!subs || subs.length === 0) return;
-
   const durationMonths = Math.min(24, Math.max(1, parseInt(String(formData.get("duration_months") ?? "1"), 10) || 1));
-  const today = todayDateOnly();
-  const txInserts: Array<Record<string, unknown>> = [];
-  for (const sub of subs) {
-    const isGrace = sub.status === "grace";
-    const baseDate = isGrace || sub.end_date >= today ? sub.end_date : today;
-    const newEnd = addMonths(baseDate, durationMonths);
-    await supabase
-      .from("client_subscriptions")
-      .update({
-        start_date: baseDate,
-        end_date: newEnd,
-        status: "active",
-        grace_until: null,
-        last_notified_on: null,
-      })
-      .eq("id", sub.id)
-      .eq("user_id", user.id);
-
-    if (sub.price && sub.price > 0) {
-      const client = sub.client as unknown as {
-        first_name: string;
-        last_name: string | null;
-        phone: string | null;
-        email: string | null;
-        payment_rail: string | null;
-      } | null;
-      const slot = sub.slot as unknown as {
-        label: string | null;
-        slot_number: number;
-        account: { service_name: string } | null;
-      } | null;
-      const service = slot?.account?.service_name ?? "profil";
-      const slotLabel = slot?.label || `Profil ${slot?.slot_number ?? ""}`.trim();
-      const who = client ? [client.first_name, client.last_name].filter(Boolean).join(" ") : "Client";
-      txInserts.push({
-        user_id: user.id,
-        kind: "income",
-        source: "profile_renewal",
-        affects_balance: true,
-        amount: sub.price,
-        client_id: sub.client_id,
-        subscription_id: sub.id,
-        label: `Renouvellement ${service} · ${who}`,
-      });
-      await createInvoice(supabase, {
-        userId: user.id,
-        clientId: sub.client_id,
-        subscriptionId: sub.id,
-        amount: sub.price,
-        serviceName: service,
-        slotLabel,
-        periodStart: baseDate,
-        periodEnd: newEnd,
-        kind: "renewal",
-        clientName: who,
-        clientPhone: client?.phone ?? null,
-        clientEmail: client?.email ?? null,
-        paymentRail: client?.payment_rail ?? null,
-      });
-    }
+  for (const id of ids) {
+    const fd = new FormData();
+    fd.set("id", id);
+    fd.set("duration_months", String(durationMonths));
+    await renewClientSubscription(fd);
   }
-
-  if (txInserts.length > 0) {
-    await supabase.from("transactions").insert(txInserts);
-  }
-
-  revalidatePath("/clients");
-  revalidatePath("/dashboard");
 }
 
 export async function bulkCancelSubscriptions(formData: FormData) {

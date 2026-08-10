@@ -87,6 +87,7 @@ export type Transaction = {
   created_at: string;
   reversed_transaction_id?: string | null;
   reversal_reason?: string | null;
+  invoice_id?: string | null;
 };
 
 export type Invoice = {

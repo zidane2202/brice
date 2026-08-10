@@ -35,6 +35,11 @@ for (const viewport of [{ name: "mobile", width: 360, height: 740 }, { name: "ta
   });
 }
 
+test("la page reset mot de passe est joignable", async ({ page }) => {
+  await page.goto("/reset-password");
+  await expect(page.getByRole("heading", { name: /mot de passe/i })).toBeVisible();
+});
+
 test("la santé applicative répond", async ({ request }) => {
   const response = await request.get("/api/health");
   expect([200, 503]).toContain(response.status());

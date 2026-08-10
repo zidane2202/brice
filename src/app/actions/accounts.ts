@@ -5,6 +5,7 @@ import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { requireActiveSeller } from "@/lib/authz";
 import { addMonths, todayDateOnly, toDateInputValue } from "@/lib/dates";
 import { decryptCredential, encryptCredential } from "@/lib/provider-credentials";
+import { sumSellerBalance } from "@/lib/ledger-sql";
 import {
   PLAN_LIMIT_ACCOUNT,
   PLAN_LIMIT_SLOTS,
@@ -190,15 +191,7 @@ export async function renewProviderAccount(formData: FormData) {
   const newEndDate = addMonths(baseDate, durationMonths);
 
   if (fundedBy === "balance" && account?.cost && account.cost > 0) {
-    const { data: txs } = await supabase
-      .from("transactions")
-      .select("kind, amount")
-      .eq("user_id", user.id)
-      .eq("affects_balance", true);
-    const balance = (txs ?? []).reduce((sum, t) => {
-      const amt = Number(t.amount ?? 0);
-      return sum + (t.kind === "income" ? amt : -amt);
-    }, 0);
+    const balance = await sumSellerBalance(supabase, user.id);
     if (balance < account.cost) {
       throw new Error(
         `Solde insuffisant : ${balance.toLocaleString("en-US").replace(/,/g, " ")} FCFA disponibles, ${account.cost

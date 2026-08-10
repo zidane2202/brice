@@ -945,7 +945,7 @@ function CancelButton({ subId }: { subId: string }) {
         type="button"
         onClick={() => setConfirming(true)}
         className="secondary"
-        title="Supprimer définitivement ce profil"
+        title="Annuler cet abonnement"
         style={{
           minHeight: 32,
           height: 32,
@@ -954,14 +954,14 @@ function CancelButton({ subId }: { subId: string }) {
           color: "var(--sr-danger)",
         }}
       >
-        <Icon name="x" size={12} /> Supprimer
+        <Icon name="x" size={12} /> Annuler
       </button>
       <ConfirmDialog
         open={confirming}
-        title="Supprimer définitivement ce profil ?"
-        description="Cette action supprimera l’abonnement, ses transactions et ses factures associées."
-        detail="Cette action est irréversible."
-        confirmLabel="Supprimer définitivement"
+        title="Annuler cet abonnement ?"
+        description="Le profil sera libéré. L’historique comptable et les factures restent en place."
+        detail="Vous pourrez recréer un abonnement plus tard."
+        confirmLabel="Annuler l’abonnement"
         tone="danger"
         pending={pending}
         onCancel={() => setConfirming(false)}

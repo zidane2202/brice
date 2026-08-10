@@ -1,6 +1,13 @@
 import { AdminSidebar } from "@/components/AdminSidebar";
+import { requireAdmin } from "@/lib/authz";
+import { redirect } from "next/navigation";
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  try {
+    await requireAdmin();
+  } catch {
+    redirect("/dashboard");
+  }
   return (
     <div className="app-shell">
       <AdminSidebar />

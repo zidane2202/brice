@@ -114,7 +114,7 @@ export async function renewClientSubscription(formData: FormData) {
       throw new Error(txErr?.message ?? "Écriture comptable impossible");
     }
     try {
-      await createInvoice(supabase, {
+      const invoice = await createInvoice(supabase, {
         userId: user.id,
         clientId: sub.client_id,
         subscriptionId: id,
@@ -129,6 +129,9 @@ export async function renewClientSubscription(formData: FormData) {
         clientEmail: client?.email ?? null,
         paymentRail: client?.payment_rail ?? null,
       });
+      if (invoice?.id) {
+        await supabase.from("transactions").update({ invoice_id: invoice.id }).eq("id", txRow.id).eq("user_id", user.id);
+      }
     } catch (err) {
       await supabase.from("transactions").delete().eq("id", txRow.id).eq("user_id", user.id);
       await rollbackSub();

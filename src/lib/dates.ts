@@ -1,18 +1,31 @@
 const DAY = 24 * 60 * 60 * 1000;
+export const APP_TIMEZONE = "Africa/Lagos";
+
+export function civilDateInZone(date = new Date(), timeZone = APP_TIMEZONE) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const lookup = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${lookup.year}-${lookup.month}-${lookup.day}`;
+}
 
 export function toDateInputValue(date = new Date()) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
+  return civilDateInZone(date);
 }
 
 export function todayDateOnly(now = new Date()) {
-  return toDateInputValue(now);
+  return civilDateInZone(now);
 }
 
 export function firstOfMonthDateOnly(now = new Date(), monthsAgo = 0) {
-  return toDateInputValue(new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1));
+  const [year, month] = civilDateInZone(now).split("-").map(Number);
+  const utc = new Date(Date.UTC(year, month - 1 - monthsAgo, 1));
+  const y = utc.getUTCFullYear();
+  const m = String(utc.getUTCMonth() + 1).padStart(2, "0");
+  return `${y}-${m}-01`;
 }
 
 export function addDays(dateValue: string, days: number) {
@@ -32,14 +45,11 @@ export function addMonths(dateStr: string, months: number): string {
 }
 
 export function daysUntil(dateValue: string) {
-  const today = new Date();
-  const startOfToday = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate(),
-  );
-  const target = new Date(`${dateValue}T00:00:00`);
-  return Math.ceil((target.getTime() - startOfToday.getTime()) / DAY);
+  const today = todayDateOnly();
+  const target = dateValue.length > 10 ? dateValue.slice(0, 10) : dateValue;
+  const start = new Date(`${today}T00:00:00Z`).getTime();
+  const end = new Date(`${target}T00:00:00Z`).getTime();
+  return Math.round((end - start) / DAY);
 }
 
 export function formatDate(dateValue: string) {

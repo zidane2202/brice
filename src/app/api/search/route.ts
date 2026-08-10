@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
+import { activeSellerOrResponse } from "@/lib/api-auth";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
-import { createSupabaseServer } from "@/lib/supabase-server";
 import { consumeRateLimit, requestIp } from "@/lib/rate-limit";
 
 export async function GET(request: Request) {
-  const auth = await createSupabaseServer();
-  const { data: { user } } = await auth.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+  const authz = await activeSellerOrResponse();
+  if (!authz.ok) return authz.response;
+  const user = authz.user;
   if (!await consumeRateLimit(`${user.id}:${requestIp(request)}`, "global-search", 60, 60)) {
     return NextResponse.json({ error: "Trop de recherches" }, { status: 429 });
   }

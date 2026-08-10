@@ -33,6 +33,7 @@ export async function signup(_prevState: { error: string } | undefined, formData
   const phone = String(formData.get("phone") ?? "").trim();
   const city = String(formData.get("city") ?? "").trim();
   if (!await authAllowed("signup", email, 5, 3600)) return { error: "Trop de tentatives. Réessayez plus tard." };
+  if (password.length < 8) return { error: "Le mot de passe doit contenir au moins 8 caractères." };
 
   const { data, error } = await supabase.auth.signUp({ email, password });
   if (error) return { error: error.message };
@@ -52,6 +53,10 @@ export async function signup(_prevState: { error: string } | undefined, formData
       .eq("user_id", data.user.id);
   }
 
+  if (!data.session) {
+    return { error: "Compte créé. Vérifiez votre email pour confirmer l’inscription, puis connectez-vous." };
+  }
+
   redirect("/dashboard");
 }
 
@@ -67,7 +72,7 @@ export async function forgotPassword(_prevState: { error?: string; success?: boo
   if (!await authAllowed("forgot-password", email, 5, 3600)) return { error: "Trop de demandes. Réessayez plus tard." };
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/reset-password`,
+    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/reset-password`,
   });
 
   if (error) return { error: error.message };
@@ -77,7 +82,11 @@ export async function forgotPassword(_prevState: { error?: string; success?: boo
 export async function resetPassword(_prevState: { error?: string; success?: boolean } | undefined, formData: FormData) {
   const supabase = await createSupabaseServer();
   const password = String(formData.get("password") ?? "");
+  if (password.length < 8) return { error: "Le mot de passe doit contenir au moins 8 caractères." };
   if (!await authAllowed("reset-password", "session", 5, 3600)) return { error: "Trop de tentatives. Réessayez plus tard." };
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Lien invalide ou expiré. Demandez un nouveau lien." };
 
   const { error } = await supabase.auth.updateUser({ password });
   if (error) return { error: error.message };

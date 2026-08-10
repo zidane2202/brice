@@ -3,22 +3,30 @@ import test from "node:test";
 import {
   addDays,
   addMonths,
+  civilDateInZone,
   firstOfMonthDateOnly,
   todayDateOnly,
   toDateInputValue,
 } from "./dates.ts";
 
-test("toDateInputValue uses local civil date", () => {
-  assert.equal(toDateInputValue(new Date(2026, 7, 10, 23, 30, 0)), "2026-08-10");
+test("civilDateInZone follows the given timezone", () => {
+  const instant = new Date("2026-08-10T02:30:00.000Z");
+  assert.equal(civilDateInZone(instant, "UTC"), "2026-08-10");
+  assert.equal(civilDateInZone(instant, "America/New_York"), "2026-08-09");
+  assert.equal(civilDateInZone(instant, "Africa/Lagos"), "2026-08-10");
 });
 
-test("todayDateOnly matches toDateInputValue", () => {
-  const now = new Date(2026, 0, 5, 1, 0, 0);
-  assert.equal(todayDateOnly(now), "2026-01-05");
+test("todayDateOnly uses Africa/Lagos not UTC midnight", () => {
+  assert.equal(todayDateOnly(new Date("2026-08-09T23:30:00.000Z")), "2026-08-10");
 });
 
-test("firstOfMonthDateOnly does not shift via UTC ISO", () => {
-  const now = new Date(2026, 7, 10, 0, 30, 0);
+test("toDateInputValue matches todayDateOnly", () => {
+  const now = new Date("2026-01-05T01:00:00.000Z");
+  assert.equal(toDateInputValue(now), todayDateOnly(now));
+});
+
+test("firstOfMonthDateOnly uses WAT civil month", () => {
+  const now = new Date("2026-08-09T23:30:00.000Z");
   assert.equal(firstOfMonthDateOnly(now), "2026-08-01");
   assert.equal(firstOfMonthDateOnly(now, 1), "2026-07-01");
 });

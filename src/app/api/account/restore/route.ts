@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
+import { activeSellerOrResponse } from "@/lib/api-auth";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
-import { createSupabaseServer } from "@/lib/supabase-server";
 
 export async function POST(request: Request) {
-  const auth = await createSupabaseServer(); const { data: { user } } = await auth.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+  const authz = await activeSellerOrResponse();
+  if (!authz.ok) return authz.response;
+  const user = authz.user;
   const body = await request.json().catch(() => null); const data = body?.data;
   if (!data || typeof data !== "object") return NextResponse.json({ error: "Sauvegarde invalide" }, { status: 400 });
   const allowed = ["user_profiles", "provider_accounts", "account_slots", "clients", "client_subscriptions", "transactions", "invoices", "client_events"];

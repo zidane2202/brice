@@ -92,7 +92,7 @@ export default async function ComptabiliteRapportPage({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
           gap: 12,
           marginBottom: 24,
         }}

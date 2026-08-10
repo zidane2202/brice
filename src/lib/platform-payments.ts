@@ -36,6 +36,30 @@ export function isPlatformPaymentKind(v: string): v is PlatformPaymentKind {
   return (PLATFORM_PAYMENT_KINDS as readonly string[]).includes(v);
 }
 
+export function planStateAfterReverse(payment: {
+  applied_plan: string | null;
+  previous_plan?: string | null;
+  previous_extras?: number | null;
+  previous_plan_renews_on?: string | null;
+  previous_suspended?: boolean | null;
+}): {
+  plan: string;
+  extras: number;
+  plan_renews_on: string | null;
+  suspended: boolean;
+} | null {
+  if (!payment.applied_plan) return null;
+  if (payment.previous_plan == null && payment.previous_extras == null && payment.previous_plan_renews_on == null) {
+    return null;
+  }
+  return {
+    plan: payment.previous_plan ?? "free",
+    extras: Math.max(0, Number(payment.previous_extras ?? 0)),
+    plan_renews_on: payment.previous_plan_renews_on ?? null,
+    suspended: Boolean(payment.previous_suspended),
+  };
+}
+
 export function resolveAppliedExtras(input: {
   kind: PlatformPaymentKind;
   applyPlan: boolean;

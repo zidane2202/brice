@@ -10,6 +10,7 @@ import { EXPENSE_CATEGORIES } from "@/lib/comptabilite";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { requireActiveSeller } from "@/lib/authz";
 import { todayDateOnly } from "@/lib/dates";
+import { pickInvoiceToCancel } from "@/lib/invoice-reversal";
 import type { ExpenseCategory } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 
@@ -118,8 +119,23 @@ export async function reverseTransaction(transactionId: string, reason: string) 
     reversed_transaction_id: original.id, reversal_reason: cleanReason,
   });
   if (error) throw new Error(error.message);
-  if (original.subscription_id) {
-    await db.from("invoices").update({ status: "cancelled" }).eq("subscription_id", original.subscription_id).eq("user_id", user.id);
+  if (original.invoice_id) {
+    await db.from("invoices").update({ status: "cancelled" }).eq("id", original.invoice_id).eq("user_id", user.id);
+  } else if (original.subscription_id) {
+    const { data: invoices } = await db
+      .from("invoices")
+      .select("id, amount, kind, status, subscription_id")
+      .eq("user_id", user.id)
+      .eq("subscription_id", original.subscription_id);
+    const target = pickInvoiceToCancel(invoices ?? [], {
+      amount: Number(original.amount),
+      source: original.source,
+      subscription_id: original.subscription_id,
+      invoice_id: original.invoice_id ?? null,
+    });
+    if (target) {
+      await db.from("invoices").update({ status: "cancelled" }).eq("id", target.id).eq("user_id", user.id);
+    }
   }
   revalidatePath("/comptabilite"); revalidatePath("/dashboard");
 }

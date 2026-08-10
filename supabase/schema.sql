@@ -536,9 +536,16 @@ begin
   get diagnostics affected = row_count; restored := restored + affected;
 
   if exists(select 1 from jsonb_populate_recordset(null::account_slots,coalesce(p_backup->'account_slots','[]'::jsonb)) s left join provider_accounts a on a.id=s.account_id and a.user_id=p_user where a.id is null) then raise exception 'Profil rattaché à un autre compte'; end if;
+  if exists(
+    select 1 from jsonb_populate_recordset(null::account_slots,coalesce(p_backup->'account_slots','[]'::jsonb)) s
+    join account_slots existing on existing.id = s.id
+    join provider_accounts owner on owner.id = existing.account_id
+    where owner.user_id <> p_user
+  ) then raise exception 'Profil déjà possédé par un autre compte'; end if;
   insert into account_slots(id,account_id,slot_number,label)
   select id,account_id,slot_number,label from jsonb_populate_recordset(null::account_slots,coalesce(p_backup->'account_slots','[]'::jsonb))
-  on conflict(id) do update set account_id=excluded.account_id,slot_number=excluded.slot_number,label=excluded.label;
+  on conflict(id) do update set account_id=excluded.account_id,slot_number=excluded.slot_number,label=excluded.label
+  where exists (select 1 from provider_accounts a where a.id = account_slots.account_id and a.user_id = p_user);
   get diagnostics affected = row_count; restored := restored + affected;
 
   insert into clients(id,user_id,first_name,last_name,email,phone,payment_rail,notes,pin_code,created_at,archived_at)

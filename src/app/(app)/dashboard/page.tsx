@@ -3,8 +3,8 @@ import { NextEcheancesPanel } from "@/components/NextEcheancesPanel";
 import { RevenueChart } from "@/components/RevenueChart";
 import { TopProvidersPanel } from "@/components/TopProvidersPanel";
 import { TransactionsHistoryPanel } from "@/components/TransactionsHistoryPanel";
-import { daysUntil, firstOfMonthDateOnly, todayDateOnly, toDateInputValue } from "@/lib/dates";
-import { computePeriodKpis } from "@/lib/comptabilite";
+import { addDays, daysUntil, firstOfMonthDateOnly, todayDateOnly } from "@/lib/dates";
+import { sumSellerBalance, sumSellerPeriod } from "@/lib/ledger-sql";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
 import type { ClientSubscription, ProviderAccount, Transaction } from "@/lib/types";
@@ -17,7 +17,9 @@ export const dynamic = "force-dynamic";
 async function getDashboardData(userId: string) {
   const supabase = createSupabaseAdmin();
 
-  const [subsResult, accountsResult, txResult, balanceResult, invoicesResult] = await Promise.all([
+  const today = todayDateOnly();
+  const monthStart = firstOfMonthDateOnly();
+  const [subsResult, accountsResult, txResult, balance, monthKpis, invoicesResult] = await Promise.all([
     supabase
       .from("client_subscriptions")
       .select(`
@@ -41,26 +43,14 @@ async function getDashboardData(userId: string) {
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(20),
-    supabase
-      .from("transactions")
-      .select("kind, amount, occurred_on, created_at, affects_balance, source")
-      .eq("user_id", userId),
-    supabase.from("invoices").select("kind,status,amount,service_name").eq("user_id",userId),
+    sumSellerBalance(supabase, userId),
+    sumSellerPeriod(supabase, userId, monthStart, today),
+    supabase.from("invoices").select("kind,status,amount,service_name,created_at").eq("user_id",userId).gte("created_at", `${monthStart}T00:00:00`),
   ]);
 
   const subscriptions = (subsResult.data ?? []) as unknown as ClientSubscription[];
   const accounts = (accountsResult.data ?? []) as unknown as (ProviderAccount & { account_slots: { id: string }[] })[];
   const transactions = (txResult.data ?? []) as unknown as Transaction[];
-  const ledger = (balanceResult.data ?? []) as unknown as Transaction[];
-  const balance = ledger.reduce((sum, t) => {
-    if (!t.affects_balance) return sum;
-    const amt = Number(t.amount ?? 0);
-    return sum + (t.kind === "income" ? amt : -amt);
-  }, 0);
-
-  const today = todayDateOnly();
-  const monthStart = firstOfMonthDateOnly();
-  const monthKpis = computePeriodKpis(ledger, monthStart, today);
   const liveAccounts = accounts.filter((a) => a.end_date >= today);
   const activeClients = subscriptions.filter(
     (s) => s.status === "active" && s.end_date >= today
@@ -80,16 +70,14 @@ async function getDashboardData(userId: string) {
   const usedSlots = activeClients.length;
 
   const now = new Date();
-  const monthData = Array.from({ length: 6 }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
-    const month = d.toLocaleDateString("fr-FR", { month: "short" });
-    const from = firstOfMonthDateOnly(d);
-    const to = toDateInputValue(new Date(d.getFullYear(), d.getMonth() + 1, 0));
-    const revenue = ledger
-      .filter((t) => t.kind === "income" && t.occurred_on >= from && t.occurred_on <= to)
-      .reduce((sum, t) => sum + Number(t.amount ?? 0), 0);
-    return { month, revenue };
-  });
+  const monthData = await Promise.all(Array.from({ length: 6 }, async (_, i) => {
+    const monthsAgo = 5 - i;
+    const from = firstOfMonthDateOnly(now, monthsAgo);
+    const to = monthsAgo === 0 ? today : addDays(firstOfMonthDateOnly(now, monthsAgo - 1), -1);
+    const month = new Date(`${from}T12:00:00`).toLocaleDateString("fr-FR", { month: "short" });
+    const kpis = await sumSellerPeriod(supabase, userId, from, to);
+    return { month, revenue: kpis.income };
+  }));
 
   const monthlyRevenue = monthKpis.income;
 

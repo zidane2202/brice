@@ -63,7 +63,8 @@ export function ComptaView(props: Props) {
           to={props.to}
           year={props.year}
           month={props.month}
-          allowExports={props.fullCompta !== false}
+          allowExports={props.fullCompta === true}
+          allowReverse={props.fullCompta === true}
         />
       </div>
     </>

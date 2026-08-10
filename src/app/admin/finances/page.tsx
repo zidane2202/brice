@@ -14,6 +14,7 @@ import Link from "next/link";
 import { ReversePlatformPaymentButton } from "@/components/admin/ReversePlatformPaymentButton";
 import { listAllAuthUsers } from "@/lib/auth-users";
 import { firstOfMonthDateOnly, todayDateOnly } from "@/lib/dates";
+import { sumPlatformCash } from "@/lib/ledger-sql";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,7 @@ async function getFinanceData() {
   const monthStart = firstOfMonthDateOnly();
   const monthEnd = todayDateOnly();
 
-  const [profilesRes, paymentsRes, authUsers, auditRes, reversalsRes, monthCashRes] = await Promise.all([
+  const [profilesRes, paymentsRes, authUsers, auditRes, reversalsRes, cashThisMonth] = await Promise.all([
     supabase
       .from("user_profiles")
       .select(
@@ -48,11 +49,7 @@ async function getFinanceData() {
       .order("created_at", { ascending: false })
       .limit(30),
     supabase.from("platform_payment_reversals").select("payment_id,amount,reason,created_at").order("created_at", { ascending: false }),
-    supabase
-      .from("platform_payments")
-      .select("id, amount, occurred_on, platform_payment_reversals(amount)")
-      .gte("occurred_on", monthStart)
-      .lte("occurred_on", monthEnd),
+    sumPlatformCash(supabase, monthStart, monthEnd),
   ]);
 
   if (profilesRes.error) throw new Error(profilesRes.error.message);
@@ -86,12 +83,6 @@ async function getFinanceData() {
     mrr += r.mrr;
   }
 
-  const cashThisMonth = (monthCashRes.data ?? []).reduce((sum, p) => {
-    const reversal = Array.isArray(p.platform_payment_reversals)
-      ? Number(p.platform_payment_reversals[0]?.amount ?? 0)
-      : 0;
-    return sum + Number(p.amount ?? 0) - reversal;
-  }, 0);
   const reversalMap = new Map((reversalsRes.data ?? []).map((row) => [row.payment_id, row]));
 
   const resellerOptions = rows.map((r) => ({
