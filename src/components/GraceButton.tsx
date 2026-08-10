@@ -1,6 +1,8 @@
 "use client";
 
 import { setGraceStatus, removeGraceStatus } from "@/app/actions/subscriptions";
+import { ActionForm } from "@/components/ui/ActionForm";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 import { addDays } from "@/lib/dates";
 import { useState } from "react";
 
@@ -18,11 +20,20 @@ export function GraceButton({ subId, currentStatus, graceUntil, endDate }: Props
   if (currentStatus === "grace") {
     return (
       <div className="grace-active">
-        {graceUntil && <span className="grace-until-label">Jusqu'au {graceUntil}</span>}
-        <form action={removeGraceStatus}>
+        {graceUntil && <span className="grace-until-label">Jusqu&apos;au {graceUntil}</span>}
+        <ActionForm
+          action={removeGraceStatus}
+          successMessage="Grâce levée"
+          errorMessage="Impossible de lever la grâce"
+          confirm={{
+            title: "Lever la période de grâce ?",
+            confirmLabel: "Lever la grâce",
+            tone: "danger",
+          }}
+        >
           <input type="hidden" name="id" value={subId} />
-          <button type="submit" className="secondary grace-remove-btn">Lever la grâce</button>
-        </form>
+          <SubmitButton className="secondary grace-remove-btn">Lever la grâce</SubmitButton>
+        </ActionForm>
       </div>
     );
   }
@@ -38,7 +49,17 @@ export function GraceButton({ subId, currentStatus, graceUntil, endDate }: Props
   }
 
   return (
-    <form action={setGraceStatus} className="grace-form" onSubmit={() => setOpen(false)}>
+    <ActionForm
+      action={setGraceStatus}
+      successMessage="Période de grâce enregistrée"
+      errorMessage="Impossible d’activer la grâce"
+      confirm={{
+        title: "Confirmer la période de grâce ?",
+        description: "Le client reste actif jusqu’à la date choisie.",
+        confirmLabel: "Confirmer",
+      }}
+      className="grace-form"
+    >
       <input type="hidden" name="id" value={subId} />
       <input
         name="grace_until"
@@ -48,8 +69,8 @@ export function GraceButton({ subId, currentStatus, graceUntil, endDate }: Props
         defaultValue={minDate}
         className="grace-date-input"
       />
-      <button type="submit" className="grace-confirm-btn">Confirmer</button>
+      <SubmitButton className="grace-confirm-btn">Confirmer</SubmitButton>
       <button type="button" className="secondary" onClick={() => setOpen(false)}>✕</button>
-    </form>
+    </ActionForm>
   );
 }

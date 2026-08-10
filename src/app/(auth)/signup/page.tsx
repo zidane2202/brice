@@ -16,6 +16,13 @@ export default function SignupPage() {
       </div>
       <form action={action} className="auth-form">
         {state?.error && <p className="auth-error">{state.error}</p>}
+        {state?.needsConfirmation && (
+          <p style={{ color: "var(--accent)", textAlign: "center" }}>
+            Compte créé. Vérifiez votre email pour confirmer l’inscription, puis connectez-vous.
+          </p>
+        )}
+        {!state?.needsConfirmation && (
+          <>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
           <label>
             Prénom
@@ -49,6 +56,13 @@ export default function SignupPage() {
         <button type="submit" disabled={pending}>
           {pending ? "Création..." : "Créer mon compte"}
         </button>
+          </>
+        )}
+        {state?.needsConfirmation && (
+          <Link href="/login" className="btn-link" style={{ textAlign: "center", display: "block" }}>
+            Aller à la connexion
+          </Link>
+        )}
       </form>
       <p className="auth-footer">
         Déjà un compte ?{" "}

@@ -12,6 +12,9 @@ import {
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { ActionForm } from "@/components/ui/ActionForm";
+import { SubmitButton } from "@/components/ui/SubmitButton";
+import { useToast } from "@/components/ui/Toast";
 import { ProviderGlyph } from "@/components/ProviderGlyph";
 import { RailGlyph, RAIL_NAMES } from "@/components/RailGlyph";
 import { addDays, formatDate, toDateInputValue } from "@/lib/dates";
@@ -35,6 +38,7 @@ const STATUS_LABEL: Record<ClientSubscription["status"], { tone: string; label: 
 };
 
 export function ClientDrawer({ sub, lifetime, cyclesCount, history, invoices, events, mergeCandidates, onClose }: Props) {
+  const toast = useToast();
   const client = sub.client;
   if (!client) return null;
   const status = STATUS_LABEL[sub.status];
@@ -189,13 +193,18 @@ export function ClientDrawer({ sub, lifetime, cyclesCount, history, invoices, ev
           </div>
 
           <div style={{ marginTop: 12, display: "flex", gap: 6, flexWrap: "wrap" }}>
-            <form action={renewClientSubscription} style={{ margin: 0, flex: 1, minWidth: 140 }}>
+            <ActionForm
+              action={renewClientSubscription}
+              successMessage="Abonnement renouvelé"
+              errorMessage="Renouvellement impossible"
+              confirm={{ title: "Renouveler cet abonnement ?", confirmLabel: "Renouveler" }}
+              style={{ margin: 0, flex: 1, minWidth: 140 }}
+            >
               <input type="hidden" name="id" value={sub.id} />
               <input type="hidden" name="end_date" value={sub.end_date} />
               <input type="hidden" name="duration_months" value="1" />
               <input type="hidden" name="status" value={sub.status} />
-              <button
-                type="submit"
+              <SubmitButton
                 style={{
                   width: "100%",
                   minHeight: 32,
@@ -209,8 +218,8 @@ export function ClientDrawer({ sub, lifetime, cyclesCount, history, invoices, ev
               >
                 <Icon name="refresh" size={12} />
                 Renouveler +1 mois
-              </button>
-            </form>
+              </SubmitButton>
+            </ActionForm>
             {sub.status !== "cancelled" && <CancelButton subId={sub.id} />}
           </div>
 
@@ -393,7 +402,24 @@ export function ClientDrawer({ sub, lifetime, cyclesCount, history, invoices, ev
           {manageError && <p style={{ margin: 0, color: "var(--sr-danger)", fontSize: 11 }}>{manageError}</p>}
         </div>
       </Section>
-      <ConfirmDialog open={archiveOpen} title="Archiver ce client ?" description="Ses abonnements actifs seront arrêtés et ses profils libérés. Son historique sera conservé." confirmLabel="Archiver" tone="danger" pending={managing} onCancel={() => setArchiveOpen(false)} onConfirm={() => startManaging(async () => { try { await archiveClient(client.id); setArchiveOpen(false); onClose(); } catch (error) { setManageError(error instanceof Error ? error.message : "Archivage impossible"); setArchiveOpen(false); } })} />
+      <ConfirmDialog open={archiveOpen} title="Archiver ce client ?" description="Ses abonnements actifs seront arrêtés et ses profils libérés. Son historique sera conservé." confirmLabel="Archiver" tone="danger" pending={managing} onCancel={() => setArchiveOpen(false)} onConfirm={() => {
+        const loadingId = toast.loading("Archivage…");
+        startManaging(async () => {
+          try {
+            await archiveClient(client.id);
+            toast.dismiss(loadingId);
+            toast.success("Client archivé");
+            setArchiveOpen(false);
+            onClose();
+          } catch (error) {
+            toast.dismiss(loadingId);
+            const message = error instanceof Error ? error.message : "Archivage impossible";
+            setManageError(message);
+            toast.error("Archivage impossible", message);
+            setArchiveOpen(false);
+          }
+        });
+      }} />
       <div style={{ height: 24, flex: "0 0 24px" }} />
     </aside>
   );
@@ -768,7 +794,7 @@ function InvoiceRow({ invoice, clientPhone }: { invoice: Invoice; clientPhone: s
       <form action={updateInvoiceStatus} style={{ margin: 0 }}>
         <input type="hidden" name="invoice_id" value={invoice.id} />
         <select name="status" defaultValue={invoice.status ?? "paid"} onChange={(event) => event.currentTarget.form?.requestSubmit()} aria-label="Statut de la facture" style={{ width: 105, minHeight: 28, height: 28, padding: "0 6px", fontSize: 10 }}>
-          <option value="paid">Payée</option><option value="cancelled">Annulée</option><option value="refunded">Remboursée</option>
+          <option value="paid">Payée</option>
         </select>
       </form>
       {invoice.receipt_url && <a href={`/api/receipts/${invoice.id}`} target="_blank" rel="noopener noreferrer" className="secondary" title="Voir le justificatif" style={{ width: 28, height: 28, minHeight: 28, padding: 0, display: "grid", placeItems: "center", textDecoration: "none" }}><Icon name="inbox" size={12} /></a>}
@@ -927,15 +953,24 @@ function PinControl({ clientId, initialPin }: { clientId: string; initialPin: st
 }
 
 function CancelButton({ subId }: { subId: string }) {
+  const toast = useToast();
   const [confirming, setConfirming] = useState(false);
   const [pending, startTransition] = useTransition();
 
   function confirmDelete() {
     const formData = new FormData();
     formData.set("id", subId);
+    const loadingId = toast.loading("Annulation…");
     startTransition(async () => {
-      await deleteClientSubscription(formData);
-      setConfirming(false);
+      try {
+        await deleteClientSubscription(formData);
+        toast.dismiss(loadingId);
+        toast.success("Abonnement annulé");
+        setConfirming(false);
+      } catch (error) {
+        toast.dismiss(loadingId);
+        toast.error("Annulation impossible", error instanceof Error ? error.message : undefined);
+      }
     });
   }
 

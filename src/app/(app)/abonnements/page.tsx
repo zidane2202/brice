@@ -1,5 +1,6 @@
 import { AbonnementsView } from "@/components/abonnements/AbonnementsView";
 import { todayDateOnly } from "@/lib/dates";
+import { sumSellerBalance } from "@/lib/ledger-sql";
 import { accountCap, clientsPerAccount, normalizePlan } from "@/lib/plans";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
@@ -36,16 +37,7 @@ async function getAccounts(userId: string) {
 }
 
 async function getBalance(userId: string) {
-  const supabase = createSupabaseAdmin();
-  const { data } = await supabase
-    .from("transactions")
-    .select("kind, amount")
-    .eq("user_id", userId)
-    .eq("affects_balance", true);
-  return (data ?? []).reduce((sum, t) => {
-    const amt = Number(t.amount ?? 0);
-    return sum + (t.kind === "income" ? amt : -amt);
-  }, 0);
+  return sumSellerBalance(createSupabaseAdmin(), userId);
 }
 
 export default async function AbonnementsPage() {

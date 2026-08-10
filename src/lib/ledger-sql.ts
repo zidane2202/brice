@@ -35,7 +35,8 @@ export async function sumSellerPeriod(supabase: SupabaseClient, userId: string, 
 
 export async function sumPlatformCash(supabase: SupabaseClient, from: string, to: string) {
   const rpc = await supabase.rpc("platform_cash_between", { p_from: from, p_to: to });
-  if (!rpc.error && rpc.data != null) return Number(rpc.data);
-  const { data } = await supabase.from("platform_payments").select("amount.sum()").gte("occurred_on", from).lte("occurred_on", to);
-  return readSum(data);
+  if (rpc.error || rpc.data == null) {
+    throw new Error("KPI caisse indisponible. Exécutez supabase/audit2-hardening.sql.");
+  }
+  return Number(rpc.data);
 }

@@ -5,7 +5,13 @@ export function safeAuthNextPath(raw: string | null | undefined, fallback = "/da
   if (!next.startsWith("/") || next.startsWith("//") || next.includes("\\") || next.includes("://")) {
     return fallback;
   }
-  const path = next.split("?")[0].split("#")[0];
-  if (ALLOWED.has(path) || path.startsWith("/reset-password")) return path;
-  return fallback;
+  if (next.includes("..") || /%2e/i.test(next)) return fallback;
+  let path: string;
+  try {
+    path = new URL(next, "http://local.invalid").pathname;
+  } catch {
+    return fallback;
+  }
+  if (!ALLOWED.has(path)) return fallback;
+  return path;
 }

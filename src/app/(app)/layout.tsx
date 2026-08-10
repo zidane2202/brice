@@ -4,23 +4,21 @@ import { SupportChat } from "@/components/SupportChat";
 import { SuspendedGate } from "@/components/SuspendedGate";
 import { TopBar } from "@/components/TopBar";
 import { canUsePush, normalizePlan } from "@/lib/plans";
-import { firstOfMonthDateOnly } from "@/lib/dates";
+import { addDays, firstOfMonthDateOnly, todayDateOnly } from "@/lib/dates";
+import { sumSellerPeriod } from "@/lib/ledger-sql";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser, getUserProfile } from "@/lib/supabase-server";
 
 async function getSidebarStats(userId: string) {
   const supabase = createSupabaseAdmin();
+  const today = todayDateOnly();
   const firstOfMonth = firstOfMonthDateOnly();
   const firstOfPrevMonth = firstOfMonthDateOnly(new Date(), 1);
+  const prevTo = addDays(firstOfMonth, -1);
 
-  const [subsRes, accountsRes, clientsRes] = await Promise.all([
-    supabase
-      .from("transactions")
-      .select("amount, occurred_on, kind, affects_balance")
-      .eq("user_id", userId)
-      .eq("kind", "income")
-      .eq("affects_balance", true)
-      .gte("occurred_on", firstOfPrevMonth),
+  const [monthKpis, prevKpis, accountsRes, clientsRes] = await Promise.all([
+    sumSellerPeriod(supabase, userId, firstOfMonth, today),
+    sumSellerPeriod(supabase, userId, firstOfPrevMonth, prevTo),
     supabase
       .from("provider_accounts")
       .select("id", { count: "exact", head: true })
@@ -29,14 +27,8 @@ async function getSidebarStats(userId: string) {
     supabase.from("clients").select("id", { count: "exact", head: true }).eq("user_id", userId),
   ]);
 
-  const txs = subsRes.data ?? [];
-  const monthlyRevenue = txs
-    .filter((s) => (s.occurred_on ?? "") >= firstOfMonth)
-    .reduce((sum, s) => sum + Number(s.amount ?? 0), 0);
-  const prevRevenue = txs
-    .filter((s) => (s.occurred_on ?? "") >= firstOfPrevMonth && (s.occurred_on ?? "") < firstOfMonth)
-    .reduce((sum, s) => sum + Number(s.amount ?? 0), 0);
-
+  const monthlyRevenue = monthKpis.income;
+  const prevRevenue = prevKpis.income;
   const delta = prevRevenue > 0 ? Math.round(((monthlyRevenue - prevRevenue) / prevRevenue) * 100) : null;
 
   return {

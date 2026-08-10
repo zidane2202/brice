@@ -1,4 +1,7 @@
 import { renewClientSubscription } from "@/app/actions/subscriptions";
+import { ActionForm } from "@/components/ui/ActionForm";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 import { formatDate, daysUntil } from "@/lib/dates";
 import type { ClientSubscription } from "@/lib/types";
 
@@ -6,7 +9,12 @@ type Props = { subscriptions: ClientSubscription[] };
 
 export function UrgencyTable({ subscriptions }: Props) {
   if (subscriptions.length === 0) {
-    return <p className="empty">Aucun abonnement à relancer dans les 3 prochains jours.</p>;
+    return (
+      <EmptyState
+        title="Aucune relance urgente"
+        description="Aucun abonnement n’expire dans les 3 prochains jours."
+      />
+    );
   }
 
   return (
@@ -37,12 +45,21 @@ export function UrgencyTable({ subscriptions }: Props) {
                   <span>{daysLeft >= 0 ? `J-${daysLeft}` : "Expiré"}</span>
                 </td>
                 <td>
-                  <form action={renewClientSubscription}>
+                  <ActionForm
+                    action={renewClientSubscription}
+                    successMessage="Abonnement renouvelé"
+                    errorMessage="Renouvellement impossible"
+                    confirm={{
+                      title: "Renouveler cet abonnement ?",
+                      description: "Une transaction et une facture seront créées.",
+                      confirmLabel: "Renouveler",
+                    }}
+                  >
                     <input type="hidden" name="id" value={sub.id} />
                     <input type="hidden" name="end_date" value={sub.end_date} />
                     <input type="hidden" name="duration_months" value="1" />
-                    <button type="submit">Renouveler</button>
-                  </form>
+                    <SubmitButton>Renouveler</SubmitButton>
+                  </ActionForm>
                 </td>
               </tr>
             );

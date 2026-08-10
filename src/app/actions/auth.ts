@@ -23,7 +23,10 @@ export async function login(_prevState: { error: string } | undefined, formData:
   redirect("/dashboard");
 }
 
-export async function signup(_prevState: { error: string } | undefined, formData: FormData) {
+export async function signup(
+  _prevState: { error?: string; success?: boolean; needsConfirmation?: boolean } | undefined,
+  formData: FormData
+) {
   const supabase = await createSupabaseServer();
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
@@ -54,7 +57,7 @@ export async function signup(_prevState: { error: string } | undefined, formData
   }
 
   if (!data.session) {
-    return { error: "Compte créé. Vérifiez votre email pour confirmer l’inscription, puis connectez-vous." };
+    return { success: true, needsConfirmation: true };
   }
 
   redirect("/dashboard");
@@ -71,8 +74,15 @@ export async function forgotPassword(_prevState: { error?: string; success?: boo
   const email = String(formData.get("email") ?? "").trim();
   if (!await authAllowed("forgot-password", email, 5, 3600)) return { error: "Trop de demandes. Réessayez plus tard." };
 
+  const appUrl = String(process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
+  if (!/^https?:\/\/[^\s/]+$/i.test(appUrl)) {
+    return { error: "Configuration serveur incomplète (NEXT_PUBLIC_APP_URL)." };
+  }
+
+  // redirectTo must be listed in Supabase Redirect URLs:
+  // https://subresel.vercel.app/auth/callback and http://localhost:3000/auth/callback
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/reset-password`,
+    redirectTo: `${appUrl}/auth/callback?next=/reset-password`,
   });
 
   if (error) return { error: error.message };

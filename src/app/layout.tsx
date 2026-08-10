@@ -6,6 +6,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import "./globals.css";
 import { RuntimeI18n } from "@/components/RuntimeI18n";
+import { ToastProvider } from "@/components/ui/Toast";
 
 const landingDisplay = Syne({
   subsets: ["latin"],
@@ -46,7 +47,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     >
       <body className="antialiased">
         <a href="#app-content" className="skip-link">Aller au contenu principal</a>
-        <NextIntlClientProvider messages={messages}><RuntimeI18n />{children}</NextIntlClientProvider>
+        <NextIntlClientProvider messages={messages}>
+          <ToastProvider>
+            <RuntimeI18n />
+            {children}
+          </ToastProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

@@ -6,6 +6,7 @@ import { requireActiveSeller } from "@/lib/authz";
 import { addMonths, todayDateOnly } from "@/lib/dates";
 import { createInvoice } from "@/lib/invoices";
 import { recordClientEvent } from "@/lib/client-events";
+import { canUseFullCompta, normalizePlan } from "@/lib/plans";
 
 function req(fd: FormData, key: string) {
   return String(fd.get(key) ?? "").trim();
@@ -265,10 +266,16 @@ export async function removeGraceStatus(formData: FormData) {
 }
 
 export async function updateInvoiceStatus(formData: FormData) {
-  const { user } = await requireActiveSeller();
+  const { user, profile } = await requireActiveSeller();
   const id = req(formData, "invoice_id");
   const status = req(formData, "status");
-  if (!new Set(["paid", "cancelled", "refunded"]).has(status)) throw new Error("Statut de facture invalide");
+  if (status === "cancelled" || status === "refunded") {
+    throw new Error("Pour annuler une facture, utilisez Annuler dans le journal (écriture liée).");
+  }
+  if (status !== "paid") throw new Error("Statut de facture invalide");
+  if (!canUseFullCompta(normalizePlan(profile?.plan))) {
+    throw new Error("Réservé au pack Pro / Business");
+  }
   const { error } = await createSupabaseAdmin().from("invoices").update({ status }).eq("id", id).eq("user_id", user.id);
   if (error) throw new Error(error.message);
   revalidatePath("/clients"); revalidatePath("/facture", "layout");

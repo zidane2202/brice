@@ -2,10 +2,15 @@
 
 import { forgotPassword } from "@/app/actions/auth";
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 
 export default function ForgotPasswordPage() {
   const [state, action, pending] = useActionState(forgotPassword, undefined);
+  const [linkError, setLinkError] = useState(false);
+
+  useEffect(() => {
+    setLinkError(new URLSearchParams(window.location.search).get("error") === "reset");
+  }, []);
 
   return (
     <div className="auth-card">
@@ -24,7 +29,11 @@ export default function ForgotPasswordPage() {
         </div>
       ) : (
         <form action={action} className="auth-form">
-          {state?.error && <p className="auth-error">{state.error}</p>}
+          {(linkError || state?.error) && (
+            <p className="auth-error">
+              {state?.error || "Lien invalide ou expiré. Demandez un nouveau lien ci-dessous."}
+            </p>
+          )}
           <label>
             Email
             <input name="email" type="email" placeholder="brice@gmail.com" required />

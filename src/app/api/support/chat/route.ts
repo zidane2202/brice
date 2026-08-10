@@ -45,13 +45,13 @@ export async function POST(request: Request) {
   const messages = raw
     .filter(
       (m): m is ChatMessage =>
-        (m?.role === "user" || m?.role === "assistant") &&
+        m?.role === "user" &&
         typeof m?.content === "string" &&
         m.content.trim().length > 0
     )
     .slice(-MAX_MESSAGES)
     .map((m) => ({
-      role: m.role,
+      role: "user" as const,
       content: m.content.trim().slice(0, MAX_CONTENT_LEN),
     }));
 
@@ -59,13 +59,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Message utilisateur requis" }, { status: 400 });
   }
 
+  // Ignore client-forged assistant turns: only the latest user message is sent.
+  const apiMessages = [messages[messages.length - 1]!];
+
   try {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     const response = await client.messages.create({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 800,
       system: buildSupportSystemPrompt(),
-      messages,
+      messages: apiMessages,
     });
 
     const text = response.content

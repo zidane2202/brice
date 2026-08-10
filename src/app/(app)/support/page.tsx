@@ -1,4 +1,7 @@
 import { createSupportTicket, replyOwnSupportTicket } from "@/app/actions/support";
+import { ActionForm } from "@/components/ui/ActionForm";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
 
@@ -26,7 +29,12 @@ export default async function SupportPage() {
         </div>
       </div>
       <div className="support-layout">
-        <form action={createSupportTicket} className="panel support-ticket-form">
+        <ActionForm
+          action={createSupportTicket}
+          successMessage="Ticket envoyé"
+          errorMessage="Envoi impossible"
+          className="panel support-ticket-form"
+        >
           <h2>Nouvelle demande</h2>
           <input name="subject" required minLength={3} maxLength={120} placeholder="Sujet" />
           <textarea name="body" required maxLength={3000} rows={6} placeholder="Expliquez votre demande…" />
@@ -34,8 +42,8 @@ export default async function SupportPage() {
             <option value="normal">Priorité normale</option>
             <option value="urgent">Urgent</option>
           </select>
-          <button className="primary">Envoyer au support</button>
-        </form>
+          <SubmitButton className="primary">Envoyer au support</SubmitButton>
+        </ActionForm>
         <section className="ticket-list">
           {(tickets ?? []).map((ticket) => {
             const messages = (ticket.support_messages as unknown as TicketMessage[]) ?? [];
@@ -52,16 +60,23 @@ export default async function SupportPage() {
                   </div>
                 ))}
                 {ticket.status !== "resolved" ? (
-                  <form action={replyOwnSupportTicket} className="ticket-reply">
+                  <ActionForm
+                    action={replyOwnSupportTicket}
+                    successMessage="Réponse envoyée"
+                    errorMessage="Réponse impossible"
+                    className="ticket-reply"
+                  >
                     <input type="hidden" name="ticket_id" value={ticket.id} />
                     <textarea name="body" required maxLength={3000} placeholder="Ajouter une réponse…" />
-                    <button className="secondary">Répondre</button>
-                  </form>
+                    <SubmitButton className="secondary">Répondre</SubmitButton>
+                  </ActionForm>
                 ) : null}
               </article>
             );
           })}
-          {!tickets?.length && <div className="panel empty-state">Aucune demande pour le moment.</div>}
+          {!tickets?.length && (
+            <EmptyState title="Aucune demande" description="Vos tickets de support apparaîtront ici." />
+          )}
         </section>
       </div>
     </>

@@ -159,7 +159,7 @@ export async function addClientWithSubscription(
     const slotLabel =
       (serviceRow?.label as string | undefined) ||
       `Profil ${(serviceRow?.slot_number as number | undefined) ?? ""}`.trim();
-    const { error: transactionError } = await supabase.from("transactions").insert({
+    const { data: txRow, error: transactionError } = await supabase.from("transactions").insert({
       user_id: user.id,
       kind: "income",
       source: "new_profile",
@@ -168,7 +168,7 @@ export async function addClientWithSubscription(
       client_id: client.id,
       subscription_id: sub.id,
       label: transactionLabel,
-    });
+    }).select("id").single();
     if (transactionError) {
       await supabase.from("clients").delete().eq("id", client.id).eq("user_id", user.id);
       throw new Error(transactionError.message);
@@ -197,6 +197,9 @@ export async function addClientWithSubscription(
     }
     invoiceCode = result?.code ?? null;
     if (result) {
+      if (txRow?.id && result.id) {
+        await supabase.from("transactions").update({ invoice_id: result.id }).eq("id", txRow.id).eq("user_id", user.id);
+      }
       const paymentReference = opt(formData, "payment_reference");
       const receipt = formData.get("receipt");
       let receiptPath: string | null = null;

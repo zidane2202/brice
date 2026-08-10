@@ -1,11 +1,22 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { requireActiveSeller, requireAdmin } from "@/lib/authz";
+import { consumeRateLimit } from "@/lib/rate-limit";
+
+async function ticketAllowed(userId: string, action: string) {
+  const h = await headers();
+  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "unknown";
+  return consumeRateLimit(`${userId}:${ip}`, action, 10, 3600);
+}
 
 export async function createSupportTicket(formData: FormData) {
   const { user } = await requireActiveSeller();
+  if (!await ticketAllowed(user.id, "support-ticket-create")) {
+    throw new Error("Trop de tickets. Réessayez plus tard.");
+  }
   const subject = String(formData.get("subject") ?? "").trim().slice(0, 120);
   const body = String(formData.get("body") ?? "").trim().slice(0, 3000);
   const priority = formData.get("priority") === "urgent" ? "urgent" : "normal";
@@ -29,6 +40,9 @@ export async function createSupportTicket(formData: FormData) {
 
 export async function replyOwnSupportTicket(formData: FormData) {
   const { user } = await requireActiveSeller();
+  if (!await ticketAllowed(user.id, "support-ticket-reply")) {
+    throw new Error("Trop de réponses. Réessayez plus tard.");
+  }
   const ticketId = String(formData.get("ticket_id") ?? "");
   const body = String(formData.get("body") ?? "").trim().slice(0, 3000);
   if (!ticketId || !body) throw new Error("Réponse invalide");

@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import { renewProviderAccount, updateProviderAccountStatus } from "@/app/actions/accounts";
 import { Icon } from "@/components/Icon";
 import { ProviderGlyph } from "@/components/ProviderGlyph";
+import { ActionForm } from "@/components/ui/ActionForm";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 import { formatDate, daysUntil } from "@/lib/dates";
 import type { ProviderAccount } from "@/lib/types";
 
@@ -349,13 +351,22 @@ export function AccountCard({ account, displayName, balance = 0 }: Props) {
                   {(() => {
                     const insufficient = balance < (account.cost ?? 0);
                     return (
-                      <form action={renewProviderAccount} style={{ margin: 0 }}>
+                      <ActionForm
+                        action={renewProviderAccount}
+                        successMessage="Compte renouvelé (solde)"
+                        errorMessage="Renouvellement impossible"
+                        confirm={{
+                          title: "Renouveler avec le solde ?",
+                          description: `Débit de ${(account.cost ?? 0).toLocaleString("fr-FR")} FCFA sur votre caisse.`,
+                          confirmLabel: "Débiter le solde",
+                        }}
+                        style={{ margin: 0 }}
+                      >
                         <input type="hidden" name="id" value={account.id} />
                         <input type="hidden" name="end_date" value={account.end_date} />
                         <input type="hidden" name="duration_months" value="1" />
                         <input type="hidden" name="funded_by" value="balance" />
-                        <button
-                          type="submit"
+                        <SubmitButton
                           disabled={insufficient}
                           title={insufficient ? "Solde insuffisant" : undefined}
                           style={{
@@ -374,10 +385,6 @@ export function AccountCard({ account, displayName, balance = 0 }: Props) {
                             cursor: insufficient ? "not-allowed" : "pointer",
                             opacity: insufficient ? 0.55 : 1,
                           }}
-                          onMouseEnter={(e) => {
-                            if (!insufficient) e.currentTarget.style.background = "var(--sr-surface-3)";
-                          }}
-                          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                         >
                           <Icon
                             name="card"
@@ -397,17 +404,25 @@ export function AccountCard({ account, displayName, balance = 0 }: Props) {
                                 : `−${account.cost.toLocaleString("en-US").replace(/,/g, " ")} FCFA`}
                             </div>
                           </div>
-                        </button>
-                      </form>
+                        </SubmitButton>
+                      </ActionForm>
                     );
                   })()}
-                  <form action={renewProviderAccount} style={{ margin: 0 }}>
+                  <ActionForm
+                    action={renewProviderAccount}
+                    successMessage="Compte renouvelé"
+                    errorMessage="Renouvellement impossible"
+                    confirm={{
+                      title: "Renouveler avec argent personnel ?",
+                      confirmLabel: "Renouveler",
+                    }}
+                    style={{ margin: 0 }}
+                  >
                     <input type="hidden" name="id" value={account.id} />
                     <input type="hidden" name="end_date" value={account.end_date} />
                     <input type="hidden" name="duration_months" value="1" />
                     <input type="hidden" name="funded_by" value="personal" />
-                    <button
-                      type="submit"
+                    <SubmitButton
                       style={{
                         width: "100%",
                         justifyContent: "flex-start",
@@ -423,8 +438,6 @@ export function AccountCard({ account, displayName, balance = 0 }: Props) {
                         textAlign: "left",
                         cursor: "pointer",
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--sr-surface-3)")}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                     >
                       <Icon name="zap" size={13} style={{ color: "var(--sr-fg-muted)" }} />
                       <div style={{ flex: 1 }}>
@@ -433,17 +446,22 @@ export function AccountCard({ account, displayName, balance = 0 }: Props) {
                           aucune déduction
                         </div>
                       </div>
-                    </button>
-                  </form>
+                    </SubmitButton>
+                  </ActionForm>
                 </>
               ) : (
-                <form action={renewProviderAccount} style={{ margin: 0 }}>
+                <ActionForm
+                  action={renewProviderAccount}
+                  successMessage="Compte renouvelé"
+                  errorMessage="Renouvellement impossible"
+                  confirm={{ title: "Renouveler ce compte ?", confirmLabel: "Renouveler" }}
+                  style={{ margin: 0 }}
+                >
                   <input type="hidden" name="id" value={account.id} />
                   <input type="hidden" name="end_date" value={account.end_date} />
                   <input type="hidden" name="duration_months" value="1" />
                   <input type="hidden" name="funded_by" value="personal" />
-                  <button
-                    type="submit"
+                  <SubmitButton
                     style={{
                       width: "100%",
                       background: "transparent",
@@ -456,19 +474,29 @@ export function AccountCard({ account, displayName, balance = 0 }: Props) {
                     }}
                   >
                     Pas de coût défini, renouveler
-                  </button>
-                </form>
+                  </SubmitButton>
+                </ActionForm>
               )}
             </div>
           )}
         </div>
-        <form action={updateProviderAccountStatus} style={{ margin: 0 }}>
+        <ActionForm
+          action={updateProviderAccountStatus}
+          successMessage={account.status === "active" ? "Compte désactivé" : "Compte réactivé"}
+          errorMessage="Mise à jour impossible"
+          confirm={{
+            title: account.status === "active" ? "Désactiver ce compte ?" : "Réactiver ce compte ?",
+            confirmLabel: account.status === "active" ? "Désactiver" : "Réactiver",
+            tone: account.status === "active" ? "danger" : "default",
+          }}
+          style={{ margin: 0 }}
+        >
           <input type="hidden" name="id" value={account.id} />
           <input type="hidden" name="status" value={account.status === "active" ? "inactive" : "active"} />
-          <button type="submit" className="secondary" style={{ minHeight: 30, height: 30, fontSize: "0.75rem", paddingInline: 10 }}>
+          <SubmitButton className="secondary" style={{ minHeight: 30, height: 30, fontSize: "0.75rem", paddingInline: 10 }}>
             {account.status === "active" ? "Désactiver" : "Réactiver"}
-          </button>
-        </form>
+          </SubmitButton>
+        </ActionForm>
       </div>
     </div>
   );

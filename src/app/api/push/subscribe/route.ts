@@ -25,6 +25,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Abonnement push invalide" }, { status: 400 });
   }
 
+  const { data: existing } = await supabase
+    .from("push_subscriptions")
+    .select("user_id")
+    .eq("endpoint", subscription.endpoint)
+    .maybeSingle();
+  if (existing && existing.user_id !== user.id) {
+    return NextResponse.json({ error: "Cet appareil est déjà lié à un autre compte." }, { status: 409 });
+  }
+
   const { error } = await supabase
     .from("push_subscriptions")
     .upsert(

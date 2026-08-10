@@ -11,6 +11,7 @@ import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { requireActiveSeller } from "@/lib/authz";
 import { todayDateOnly } from "@/lib/dates";
 import { pickInvoiceToCancel } from "@/lib/invoice-reversal";
+import { sumSellerBalance } from "@/lib/ledger-sql";
 import type { ExpenseCategory } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 
@@ -60,16 +61,7 @@ export async function addManualExpense(formData: FormData) {
     EXPENSE_CATEGORIES.find((c) => c.value === category)?.label ||
     "Dépense";
 
-  const { data: txs } = await supabase
-    .from("transactions")
-    .select("kind, amount")
-    .eq("user_id", user.id)
-    .eq("affects_balance", true);
-
-  const balance = (txs ?? []).reduce((sum, t) => {
-    const amt = Number(t.amount ?? 0);
-    return sum + (t.kind === "income" ? amt : -amt);
-  }, 0);
+  const balance = await sumSellerBalance(supabase, user.id);
 
   if (balance < amount) {
     throw new Error(

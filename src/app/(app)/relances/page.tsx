@@ -1,4 +1,7 @@
 import { updateReminderStatus } from "@/app/actions/reminders";
+import { ActionForm } from "@/components/ui/ActionForm";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 import { addDays, todayDateOnly } from "@/lib/dates";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
@@ -75,7 +78,11 @@ export default async function RemindersPage() {
                 ) : (
                   <span className="badge badge--danger">Téléphone manquant</span>
                 )}
-                <form action={updateReminderStatus}>
+                <ActionForm
+                  action={updateReminderStatus}
+                  successMessage="Statut de relance enregistré"
+                  errorMessage="Enregistrement impossible"
+                >
                   <input type="hidden" name="subscription_id" value={sub.id} />
                   <input type="hidden" name="client_id" value={sub.client_id} />
                   <input type="hidden" name="message" value={message} />
@@ -84,13 +91,18 @@ export default async function RemindersPage() {
                       <option key={value} value={value}>{label}</option>
                     ))}
                   </select>
-                  <button className="secondary">Enregistrer</button>
-                </form>
+                  <SubmitButton className="secondary">Enregistrer</SubmitButton>
+                </ActionForm>
               </div>
             </article>
           );
         })}
-        {!rows.length && <div className="empty-state">Aucune relance prévue dans les 7 prochains jours.</div>}
+        {!rows.length && (
+          <EmptyState
+            title="Aucune relance prévue"
+            description="Les échéances des 7 prochains jours (et retards récents) apparaîtront ici."
+          />
+        )}
       </div>
     </>
   );

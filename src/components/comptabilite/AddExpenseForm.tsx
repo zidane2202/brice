@@ -3,20 +3,28 @@
 import { addManualExpense } from "@/app/actions/comptabilite";
 import { EXPENSE_CATEGORIES } from "@/lib/comptabilite";
 import type { ExpenseCategory } from "@/lib/types";
+import { useToast } from "@/components/ui/Toast";
 import { useState, useTransition } from "react";
 
 export function AddExpenseForm({ today }: { today: string }) {
+  const toast = useToast();
   const [category, setCategory] = useState<ExpenseCategory>("data");
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   async function handleSubmit(formData: FormData) {
     setErrorMsg(null);
+    const loadingId = toast.loading("Enregistrement…");
     startTransition(async () => {
       try {
         await addManualExpense(formData);
+        toast.dismiss(loadingId);
+        toast.success("Dépense enregistrée");
       } catch (err) {
-        setErrorMsg(err instanceof Error ? err.message : "Erreur lors de l'enregistrement");
+        toast.dismiss(loadingId);
+        const message = err instanceof Error ? err.message : "Erreur lors de l'enregistrement";
+        setErrorMsg(message);
+        toast.error("Enregistrement impossible", message);
       }
     });
   }

@@ -1,7 +1,8 @@
 import { AddExpenseForm } from "@/components/comptabilite/AddExpenseForm";
 import { ComptaView } from "@/components/comptabilite/ComptaView";
-import { computeBalance, computePeriodKpis, monthBounds } from "@/lib/comptabilite";
+import { computePeriodKpis, monthBounds } from "@/lib/comptabilite";
 import { todayDateOnly } from "@/lib/dates";
+import { sumSellerBalance } from "@/lib/ledger-sql";
 import { canUseFullCompta, normalizePlan } from "@/lib/plans";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
@@ -24,17 +25,13 @@ export default async function ComptabilitePage({
   const { from, to } = monthBounds(year, month - 1);
 
   const supabase = createSupabaseAdmin();
-  const [profileRes, allBal, periodTx] = await Promise.all([
+  const [profileRes, balance, periodTx] = await Promise.all([
     supabase
       .from("user_profiles")
       .select("plan")
       .eq("user_id", user.id)
       .maybeSingle(),
-    supabase
-      .from("transactions")
-      .select("kind, amount, affects_balance")
-      .eq("user_id", user.id)
-      .eq("affects_balance", true),
+    sumSellerBalance(supabase, user.id),
     supabase
       .from("transactions")
       .select("*")
@@ -46,7 +43,6 @@ export default async function ComptabilitePage({
   ]);
 
   const fullCompta = canUseFullCompta(normalizePlan(profileRes.data?.plan));
-  const balance = computeBalance(allBal.data ?? []);
   const txs = (periodTx.data ?? []) as Transaction[];
   for (const t of txs) {
     if (!t.occurred_on) t.occurred_on = t.created_at.slice(0, 10);

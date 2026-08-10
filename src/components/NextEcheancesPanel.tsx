@@ -2,6 +2,9 @@ import { renewProviderAccount } from "@/app/actions/accounts";
 import { renewClientSubscription } from "@/app/actions/subscriptions";
 import { Icon } from "@/components/Icon";
 import { ProviderGlyph } from "@/components/ProviderGlyph";
+import { ActionForm } from "@/components/ui/ActionForm";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 import { formatDate, daysUntil } from "@/lib/dates";
 import type { ClientSubscription, ProviderAccount } from "@/lib/types";
 
@@ -30,16 +33,10 @@ export function NextEcheancesPanel({ subscriptions, accounts = [] }: Props) {
 
   if (items.length === 0) {
     return (
-      <div
-        style={{
-          padding: "32px 16px",
-          textAlign: "center",
-          color: "var(--sr-fg-muted)",
-          font: "400 13px/1.4 var(--font-geist-sans)",
-        }}
-      >
-        Aucune relance dans les 3 prochains jours.
-      </div>
+      <EmptyState
+        title="Aucune échéance proche"
+        description="Rien à relancer dans les 3 prochains jours."
+      />
     );
   }
 
@@ -147,23 +144,21 @@ function SubRow({ sub, daysLeft, isLast }: { sub: ClientSubscription; daysLeft: 
         ) : null}
       </div>
 
-      <form action={renewClientSubscription} style={{ margin: 0 }}>
+      <ActionForm
+        action={renewClientSubscription}
+        successMessage="Abonnement renouvelé"
+        errorMessage="Renouvellement impossible"
+        confirm={{ title: "Renouveler cet abonnement ?", confirmLabel: "Renouveler" }}
+        style={{ margin: 0 }}
+      >
         <input type="hidden" name="id" value={sub.id} />
         <input type="hidden" name="end_date" value={sub.end_date} />
         <input type="hidden" name="duration_months" value="1" />
         <input type="hidden" name="status" value={sub.status} />
-        <button
-          type="submit"
-          style={{
-            minHeight: 28,
-            height: 28,
-            padding: "0 10px",
-            fontSize: "0.72rem",
-          }}
-        >
+        <SubmitButton style={{ minHeight: 28, height: 28, padding: "0 10px", fontSize: "0.72rem" }}>
           Renouveler
-        </button>
-      </form>
+        </SubmitButton>
+      </ActionForm>
     </div>
   );
 }
@@ -246,13 +241,22 @@ function AccountRow({
         ) : null}
       </div>
 
-      <form action={renewProviderAccount} style={{ margin: 0 }}>
+      <ActionForm
+        action={renewProviderAccount}
+        successMessage="Compte renouvelé"
+        errorMessage="Renouvellement impossible"
+        confirm={{
+          title: "Renouveler ce compte ?",
+          description: "Paiement marqué en argent personnel. Pour débiter le solde, passez par Mes abonnements.",
+          confirmLabel: "Renouveler",
+        }}
+        style={{ margin: 0 }}
+      >
         <input type="hidden" name="id" value={account.id} />
         <input type="hidden" name="end_date" value={account.end_date} />
         <input type="hidden" name="duration_months" value="1" />
         <input type="hidden" name="funded_by" value="personal" />
-        <button
-          type="submit"
+        <SubmitButton
           className="secondary"
           title="Renouveler avec argent personnel (pour utiliser le solde, va sur Mes abonnements)"
           style={{
@@ -267,8 +271,8 @@ function AccountRow({
         >
           <Icon name="refresh" size={11} />
           +1 mois
-        </button>
-      </form>
+        </SubmitButton>
+      </ActionForm>
     </div>
   );
 }

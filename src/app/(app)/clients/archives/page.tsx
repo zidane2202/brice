@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { restoreArchivedClient } from "@/app/actions/clients";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { RestoreArchivedButton } from "@/components/clients/RestoreArchivedButton";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,20 @@ export default async function ClientArchivesPage({ searchParams }: { searchParam
     <div className="page-header"><div><p className="eyebrow">Corbeille sécurisée</p><h1>Clients archivés</h1><p>Les données et l’historique restent conservés jusqu’à leur restauration.</p></div><Link href="/clients" className="secondary">← Mes clients</Link></div>
     <div className="panel">
       <form className="archive-search"><input name="q" defaultValue={q} placeholder="Rechercher un client archivé…"/><button className="secondary">Rechercher</button></form>
-      <div className="archive-list">{(data ?? []).map((client) => <article key={client.id} className="archive-row"><div><strong>{[client.first_name, client.last_name].filter(Boolean).join(" ")}</strong><p>{client.phone || client.email || "Aucune coordonnée"} · archivé le {new Date(client.archived_at!).toLocaleDateString("fr-FR")}</p></div><form action={restoreArchivedClient.bind(null, client.id)}><button className="secondary">Restaurer</button></form></article>)}{!data?.length && <div className="empty-state">Aucun client archivé.</div>}</div>
+      <div className="archive-list">
+        {(data ?? []).map((client) => (
+          <article key={client.id} className="archive-row">
+            <div>
+              <strong>{[client.first_name, client.last_name].filter(Boolean).join(" ")}</strong>
+              <p>{client.phone || client.email || "Aucune coordonnée"} · archivé le {new Date(client.archived_at!).toLocaleDateString("fr-FR")}</p>
+            </div>
+            <RestoreArchivedButton clientId={client.id} />
+          </article>
+        ))}
+        {!data?.length && (
+          <EmptyState title="Aucun client archivé" description="Les clients archivés apparaîtront ici et pourront être restaurés." />
+        )}
+      </div>
       {pages > 1 && <nav className="server-pagination" aria-label="Pagination"><Link aria-disabled={page <= 1} href={`/clients/archives?page=${Math.max(1,page-1)}&q=${encodeURIComponent(q)}`}>← Précédent</Link><span>Page {page} / {pages}</span><Link aria-disabled={page >= pages} href={`/clients/archives?page=${Math.min(pages,page+1)}&q=${encodeURIComponent(q)}`}>Suivant →</Link></nav>}
     </div>
   </>;

@@ -1,5 +1,8 @@
 import { renewClientSubscription, cancelClientSubscription } from "@/app/actions/subscriptions";
 import { GraceButton } from "@/components/GraceButton";
+import { ActionForm } from "@/components/ui/ActionForm";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 import { formatDate, daysUntil } from "@/lib/dates";
 import type { ClientSubscription } from "@/lib/types";
 
@@ -7,7 +10,7 @@ type Props = { subscriptions: ClientSubscription[]; emptyMessage?: string };
 
 export function ClientTable({ subscriptions, emptyMessage = "Aucun client pour le moment." }: Props) {
   if (subscriptions.length === 0) {
-    return <p className="empty">{emptyMessage}</p>;
+    return <EmptyState title={emptyMessage} description="Ajoutez une vente pour voir apparaître vos abonnements ici." />;
   }
 
   return (
@@ -59,18 +62,37 @@ export function ClientTable({ subscriptions, emptyMessage = "Aucun client pour l
                 </td>
                 <td>
                   <div className="actions">
-                    <form action={renewClientSubscription}>
+                    <ActionForm
+                      action={renewClientSubscription}
+                      successMessage="Abonnement renouvelé"
+                      errorMessage="Renouvellement impossible"
+                      confirm={{
+                        title: "Renouveler cet abonnement ?",
+                        description: "Une transaction et une facture seront créées.",
+                        confirmLabel: "Renouveler",
+                      }}
+                    >
                       <input type="hidden" name="id" value={sub.id} />
                       <input type="hidden" name="end_date" value={sub.end_date} />
                       <input type="hidden" name="duration_months" value="1" />
                       <input type="hidden" name="status" value={sub.status} />
-                      <button type="submit">Renouveler</button>
-                    </form>
+                      <SubmitButton>Renouveler</SubmitButton>
+                    </ActionForm>
                     {sub.status === "active" && (
-                      <form action={cancelClientSubscription}>
+                      <ActionForm
+                        action={cancelClientSubscription}
+                        successMessage="Abonnement annulé"
+                        errorMessage="Annulation impossible"
+                        confirm={{
+                          title: "Annuler cet abonnement ?",
+                          description: "Le profil sera libéré. L’historique reste en compta.",
+                          confirmLabel: "Annuler l’abonnement",
+                          tone: "danger",
+                        }}
+                      >
                         <input type="hidden" name="id" value={sub.id} />
-                        <button type="submit" className="secondary">Annuler</button>
-                      </form>
+                        <SubmitButton className="secondary">Annuler</SubmitButton>
+                      </ActionForm>
                     )}
                     <GraceButton
                       subId={sub.id}

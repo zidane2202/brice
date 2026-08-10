@@ -60,6 +60,9 @@ export async function updateResellerPlanRole(formData: FormData) {
 
   if (findErr) throw new Error(findErr.message);
   if (!target) throw new Error("Vendeur introuvable");
+  if (target.role === "admin" && userId !== actor.id) {
+    throw new Error("Impossible de modifier un autre administrateur");
+  }
 
   const nextPlan = plan === "__keep__" ? target.plan : plan;
   const paid = nextPlan === "pro" || nextPlan === "business";
@@ -124,6 +127,9 @@ export async function setResellerSuspended(formData: FormData) {
 
   if (findErr) throw new Error(findErr.message);
   if (!target) throw new Error("Vendeur introuvable");
+  if (target.role === "admin") {
+    throw new Error("Impossible de suspendre un administrateur");
+  }
 
   const patch: { suspended: boolean; plan_renews_on?: string } = { suspended };
   if (!suspended) {

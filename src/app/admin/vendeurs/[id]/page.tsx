@@ -2,8 +2,9 @@ import { RecordPlatformPaymentForm } from "@/components/admin/RecordPlatformPaym
 import { ResellerSettingsForm } from "@/components/admin/ResellerSettingsForm";
 import { SuspendToggle } from "@/components/admin/SuspendToggle";
 import { KpiCard } from "@/components/KpiCard";
-import { computeBalance, formatFcfa } from "@/lib/comptabilite";
+import { formatFcfa } from "@/lib/comptabilite";
 import { todayDateOnly } from "@/lib/dates";
+import { sumSellerBalance } from "@/lib/ledger-sql";
 import { PLATFORM_PAYMENT_KIND_LABELS, type PlatformPaymentKind } from "@/lib/platform-payments";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
@@ -51,7 +52,7 @@ async function getResellerDetail(userId: string) {
     authUserRes,
     accountsRes,
     subsRes,
-    balanceRes,
+    balance,
     incomeRes,
     txRes,
     invoicesRes,
@@ -77,14 +78,10 @@ async function getResellerDetail(userId: string) {
       )
       .eq("user_id", userId)
       .order("end_date", { ascending: true }),
+    sumSellerBalance(supabase, userId),
     supabase
       .from("transactions")
-      .select("kind, amount, affects_balance")
-      .eq("user_id", userId)
-      .eq("affects_balance", true),
-    supabase
-      .from("transactions")
-      .select("amount")
+      .select("amount.sum()")
       .eq("user_id", userId)
       .eq("kind", "income"),
     supabase
@@ -118,11 +115,8 @@ async function getResellerDetail(userId: string) {
   const activeAccounts = accounts.filter(
     (a) => a.status === "active" && a.end_date >= today
   ).length;
-  const balance = computeBalance(balanceRes.data ?? []);
-  const totalIncome = (incomeRes.data ?? []).reduce(
-    (sum, t) => sum + Number(t.amount ?? 0),
-    0
-  );
+  const incomeRow = Array.isArray(incomeRes.data) ? incomeRes.data[0] : incomeRes.data;
+  const totalIncome = Number((incomeRow as { sum?: number } | null)?.sum ?? 0);
   const transactions = (txRes.data ?? []) as Transaction[];
   const invoices = (invoicesRes.data ?? []) as Invoice[];
   const payments = paymentsRes.error ? [] : paymentsRes.data ?? [];

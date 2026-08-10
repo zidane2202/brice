@@ -8,12 +8,14 @@ import { RAIL_NAMES, RailGlyph } from "@/components/RailGlyph";
 import { toDateInputValue } from "@/lib/dates";
 import type { AccountSlot } from "@/lib/types";
 import { ConfirmDialog, type ConfirmDialogRow } from "@/components/ui/ConfirmDialog";
+import { useToast } from "@/components/ui/Toast";
 
 type FreeSlot = AccountSlot & { account: { id: string; service_name: string } };
 
 type Props = { freeSlots: FreeSlot[]; onClose: () => void };
 
 export function NewClientForm({ freeSlots, onClose }: Props) {
+  const toast = useToast();
   const [rail, setRail] = useState<string>("MTN MoMo");
   const [slotId, setSlotId] = useState<string>(freeSlots[0]?.id ?? "");
   const [price, setPrice] = useState<number>(0);
@@ -53,12 +55,18 @@ export function NewClientForm({ freeSlots, onClose }: Props) {
     if (!confirmation) return;
     const formData = confirmation.formData;
     setConfirmation(null);
+    const loadingId = toast.loading("Création de la vente…");
     startTransition(async () => {
       try {
         const result = await addClientWithSubscription(formData);
+        toast.dismiss(loadingId);
+        toast.success("Vente enregistrée");
         setSuccess(result);
       } catch (err) {
-        setErrorMsg(err instanceof Error ? err.message : "Erreur lors de la création");
+        toast.dismiss(loadingId);
+        const message = err instanceof Error ? err.message : "Erreur lors de la création";
+        setErrorMsg(message);
+        toast.error("Vente impossible", message);
       }
     });
   }

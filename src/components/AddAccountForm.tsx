@@ -6,6 +6,7 @@ import { PasswordInput } from "@/components/PasswordInput";
 import { PlanLimitModal } from "@/components/PlanLimitModal";
 import { PLAN_LIMIT_ACCOUNT, parsePlanLimitError } from "@/lib/plans";
 import type { PlanId } from "@/lib/plans";
+import { useToast } from "@/components/ui/Toast";
 import { useState, useTransition } from "react";
 
 type Props = {
@@ -15,6 +16,7 @@ type Props = {
 };
 
 export function AddAccountForm({ today, plan, slotCap }: Props) {
+  const toast = useToast();
   const [selectedService, setSelectedService] = useState("");
   const [slots, setSlots] = useState(1);
   const [officialMax, setOfficialMax] = useState<number | null>(null);
@@ -44,10 +46,14 @@ export function AddAccountForm({ today, plan, slotCap }: Props) {
 
   async function handleSubmit(formData: FormData) {
     setErrorMsg(null);
+    const loadingId = toast.loading("Création du compte…");
     startTransition(async () => {
       try {
         await addProviderAccount(formData);
+        toast.dismiss(loadingId);
+        toast.success("Compte fournisseur ajouté");
       } catch (err) {
+        toast.dismiss(loadingId);
         const raw = err instanceof Error ? err.message : "Erreur lors de la création";
         const parsed = parsePlanLimitError(raw);
         if (parsed) {
@@ -60,13 +66,16 @@ export function AddAccountForm({ today, plan, slotCap }: Props) {
             setLimitMode("pro-extras");
           } else {
             setErrorMsg(parsed.message);
+            toast.error("Création impossible", parsed.message);
             return;
           }
           setLimitOpen(true);
           setErrorMsg(parsed.message);
+          toast.error("Limite du pack atteinte", parsed.message);
           return;
         }
         setErrorMsg(raw);
+        toast.error("Création impossible", raw);
       }
     });
   }
