@@ -60,7 +60,8 @@ export type TransactionSource =
   | "profile_renewal"
   | "account_renewal"
   | "manual_expense"
-  | "reversal";
+  | "reversal"
+  | "invoice_payment";
 export type TransactionFunding = "balance" | "personal";
 export type ExpenseCategory =
   | "account_renewal"
@@ -109,7 +110,8 @@ export type Invoice = {
   payment_rail: string | null;
   reseller_name: string | null;
   created_at: string;
-  status: "paid" | "cancelled" | "refunded";
+  status: "unpaid" | "partially_paid" | "paid" | "cancelled" | "refunded";
+  amount_paid: number;
   payment_reference: string | null;
   receipt_url: string | null;
 };

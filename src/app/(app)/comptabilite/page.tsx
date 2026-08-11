@@ -1,6 +1,6 @@
 import { AddExpenseForm } from "@/components/comptabilite/AddExpenseForm";
 import { ComptaView } from "@/components/comptabilite/ComptaView";
-import { computePeriodKpis, monthBounds } from "@/lib/comptabilite";
+import { computePeriodKpis, computeProfit, monthBounds } from "@/lib/comptabilite";
 import { todayDateOnly } from "@/lib/dates";
 import { sumSellerBalance } from "@/lib/ledger-sql";
 import { canUseFullCompta, normalizePlan } from "@/lib/plans";
@@ -48,6 +48,7 @@ export default async function ComptabilitePage({
     if (!t.occurred_on) t.occurred_on = t.created_at.slice(0, 10);
   }
   const kpis = computePeriodKpis(txs, from, to);
+  const profit = computeProfit(txs, from, to);
 
   return (
     <ComptaView
@@ -59,6 +60,7 @@ export default async function ComptabilitePage({
       income={kpis.income}
       expenses={kpis.expenses}
       margin={kpis.margin}
+      profit={profit}
       transactions={txs}
       fullCompta={fullCompta}
       expenseForm={

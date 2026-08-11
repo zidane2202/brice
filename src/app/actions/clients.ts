@@ -34,6 +34,11 @@ export async function addClientWithSubscription(
   if (!Number.isFinite(price) || price <= 0) {
     throw new Error("Le montant payé par le client est obligatoire");
   }
+  const amountReceivedRaw = String(formData.get("amount_received") ?? "").trim();
+  const amountReceived = amountReceivedRaw ? parseFloat(amountReceivedRaw) : price;
+  if (!Number.isFinite(amountReceived) || amountReceived < 0 || amountReceived > price) {
+    throw new Error("Le montant reçu doit être entre 0 et le prix total");
+  }
   const endDate = addMonths(startDate, durationMonths);
 
   const supabase = createSupabaseAdmin();
@@ -162,19 +167,23 @@ export async function addClientWithSubscription(
     const slotLabel =
       (serviceRow?.label as string | undefined) ||
       `Profil ${(serviceRow?.slot_number as number | undefined) ?? ""}`.trim();
-    const { data: txRow, error: transactionError } = await supabase.from("transactions").insert({
-      user_id: user.id,
-      kind: "income",
-      source: "new_profile",
-      affects_balance: true,
-      amount: price,
-      client_id: client.id,
-      subscription_id: sub.id,
-      label: transactionLabel,
-    }).select("id").single();
-    if (transactionError) {
-      await supabase.from("clients").delete().eq("id", client.id).eq("user_id", user.id);
-      throw new Error(transactionError.message);
+    let txRow: { id: string } | null = null;
+    if (amountReceived > 0) {
+      const { data: txData, error: transactionError } = await supabase.from("transactions").insert({
+        user_id: user.id,
+        kind: "income",
+        source: amountReceived < price ? "invoice_payment" : "new_profile",
+        affects_balance: true,
+        amount: amountReceived,
+        client_id: client.id,
+        subscription_id: sub.id,
+        label: transactionLabel,
+      }).select("id").single();
+      if (transactionError) {
+        await supabase.from("clients").delete().eq("id", client.id).eq("user_id", user.id);
+        throw new Error(transactionError.message);
+      }
+      txRow = txData;
     }
     let result;
     try {
@@ -192,9 +201,10 @@ export async function addClientWithSubscription(
       clientPhone,
       clientEmail: email,
       paymentRail: opt(formData, "payment_rail"),
+      amountPaid: amountReceived,
       });
     } catch (error) {
-      await supabase.from("transactions").delete().eq("subscription_id", sub.id).eq("user_id", user.id).eq("source", "new_profile");
+      await supabase.from("transactions").delete().eq("subscription_id", sub.id).eq("user_id", user.id).in("source", ["new_profile", "invoice_payment"]);
       await supabase.from("client_subscriptions").update({ status: "cancelled" }).eq("id", sub.id).eq("user_id", user.id);
       throw error;
     }

@@ -8,6 +8,7 @@ import {
   renewClientSubscription,
   setGraceStatus,
 } from "@/app/actions/subscriptions";
+import { recordInvoicePayment } from "@/app/actions/comptabilite";
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -798,30 +799,7 @@ function InvoiceRow({ invoice, clientPhone }: { invoice: Invoice; clientPhone: s
           {invoice.kind === "new" ? "Vente" : "Renouvellement"} · {formatDate(invoice.created_at)} · {invoice.amount.toLocaleString("en-US").replace(/,/g, " ")} FCFA
         </div>
       </div>
-      <span
-        style={{
-          font: "600 10px/1 var(--font-geist-sans)",
-          padding: "6px 8px",
-          borderRadius: 5,
-          background:
-            invoice.status === "paid"
-              ? "var(--sr-success-bg)"
-              : "rgba(255,255,255,0.04)",
-          color:
-            invoice.status === "paid" ? "var(--sr-mint-300)" : "var(--sr-fg-subtle)",
-          border: `1px solid ${
-            invoice.status === "paid" ? "var(--sr-success-border)" : "var(--sr-border)"
-          }`,
-        }}
-      >
-        {invoice.status === "paid"
-          ? "Payée"
-          : invoice.status === "cancelled"
-            ? "Annulée"
-            : invoice.status === "refunded"
-              ? "Remboursée"
-              : String(invoice.status)}
-      </span>
+      <InvoiceStatusBadge invoice={invoice} />
       {invoice.receipt_url && <a href={`/api/receipts/${invoice.id}`} target="_blank" rel="noopener noreferrer" className="secondary" title="Voir le justificatif" style={{ width: 28, height: 28, minHeight: 28, padding: 0, display: "grid", placeItems: "center", textDecoration: "none" }}><Icon name="inbox" size={12} /></a>}
       <a
         href={`/facture/${invoice.code}`}
@@ -1190,5 +1168,76 @@ function NotesForm({
         </SubmitButton>
       </div>
     </ActionForm>
+  );
+}
+
+const INVOICE_STATUS_STYLE: Record<string, { bg: string; color: string; border: string; label: string }> = {
+  paid: { bg: "var(--sr-success-bg)", color: "var(--sr-mint-300)", border: "var(--sr-success-border)", label: "Payée" },
+  partially_paid: { bg: "rgba(255,176,32,0.12)", color: "var(--sr-gold)", border: "var(--sr-warning-border)", label: "Partiel" },
+  unpaid: { bg: "rgba(239,68,68,0.10)", color: "var(--sr-danger)", border: "var(--sr-danger-border)", label: "Impayée" },
+  cancelled: { bg: "rgba(255,255,255,0.04)", color: "var(--sr-fg-subtle)", border: "var(--sr-border)", label: "Annulée" },
+  refunded: { bg: "rgba(255,255,255,0.04)", color: "var(--sr-fg-subtle)", border: "var(--sr-border)", label: "Remboursée" },
+};
+
+function InvoiceStatusBadge({ invoice }: { invoice: Invoice }) {
+  const [showPay, setShowPay] = useState(false);
+  const s = INVOICE_STATUS_STYLE[invoice.status] ?? INVOICE_STATUS_STYLE.cancelled;
+  const remaining = Number(invoice.amount) - Number(invoice.amount_paid ?? 0);
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+      <span
+        style={{
+          font: "600 10px/1 var(--font-geist-sans)",
+          padding: "6px 8px",
+          borderRadius: 5,
+          background: s.bg,
+          color: s.color,
+          border: `1px solid ${s.border}`,
+          whiteSpace: "nowrap",
+        }}
+      >
+        {s.label}
+        {(invoice.status === "partially_paid" || invoice.status === "unpaid") && remaining > 0 && (
+          <> · {remaining.toLocaleString("en-US").replace(/,/g, " ")} dû</>
+        )}
+      </span>
+      {(invoice.status === "unpaid" || invoice.status === "partially_paid") && (
+        <>
+          {!showPay && (
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => setShowPay(true)}
+              style={{ minHeight: 24, height: 24, fontSize: "0.68rem", paddingInline: 6 }}
+            >
+              Encaisser
+            </button>
+          )}
+          {showPay && (
+            <ActionForm
+              action={recordInvoicePayment}
+              successMessage="Encaissement enregistré"
+              errorMessage="Encaissement impossible"
+              onSuccess={() => setShowPay(false)}
+              style={{ display: "inline-flex", alignItems: "center", gap: 4, margin: 0 }}
+            >
+              <input type="hidden" name="invoice_id" value={invoice.id} />
+              <input
+                name="amount"
+                type="number"
+                min={1}
+                max={remaining}
+                defaultValue={remaining}
+                step={1}
+                style={{ width: 80, minHeight: 24, height: 24, padding: "0 6px", fontSize: "0.72rem" }}
+              />
+              <SubmitButton style={{ minHeight: 24, height: 24, padding: "0 8px", fontSize: "0.68rem" }}>OK</SubmitButton>
+              <button type="button" className="secondary" onClick={() => setShowPay(false)} style={{ minHeight: 24, height: 24, padding: "0 6px", fontSize: "0.68rem" }}>✕</button>
+            </ActionForm>
+          )}
+        </>
+      )}
+    </div>
   );
 }

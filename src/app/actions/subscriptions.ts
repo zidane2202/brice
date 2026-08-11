@@ -80,6 +80,8 @@ export async function renewClientSubscription(formData: FormData) {
   }
 
   if (sub?.price && sub.price > 0) {
+    const amountReceivedRaw = String(formData.get("amount_received") ?? "").trim();
+    const amountReceived = amountReceivedRaw ? parseFloat(amountReceivedRaw) : sub.price;
     const client = sub.client as unknown as {
       first_name: string;
       last_name: string | null;
@@ -95,24 +97,29 @@ export async function renewClientSubscription(formData: FormData) {
     const service = slot?.account?.service_name ?? "profil";
     const slotLabel = slot?.label || `Profil ${slot?.slot_number ?? ""}`.trim();
     const who = client ? [client.first_name, client.last_name].filter(Boolean).join(" ") : "Client";
-    const { data: txRow, error: txErr } = await supabase
-      .from("transactions")
-      .insert({
-        user_id: user.id,
-        kind: "income",
-        source: "profile_renewal",
-        affects_balance: true,
-        amount: sub.price,
-        client_id: sub.client_id,
-        subscription_id: id,
-        occurred_on: today,
-        label: `Renouvellement ${service} · ${who}`,
-      })
-      .select("id")
-      .single();
-    if (txErr || !txRow) {
-      await rollbackSub();
-      throw new Error(txErr?.message ?? "Écriture comptable impossible");
+    const effectiveAmount = Math.max(0, Math.min(amountReceived, sub.price));
+    let txRow: { id: string } | null = null;
+    if (effectiveAmount > 0) {
+      const { data: txData, error: txErr } = await supabase
+        .from("transactions")
+        .insert({
+          user_id: user.id,
+          kind: "income",
+          source: effectiveAmount < sub.price ? "invoice_payment" : "profile_renewal",
+          affects_balance: true,
+          amount: effectiveAmount,
+          client_id: sub.client_id,
+          subscription_id: id,
+          occurred_on: today,
+          label: `Renouvellement ${service} · ${who}`,
+        })
+        .select("id")
+        .single();
+      if (txData) txRow = txData;
+      if (txErr) {
+        await rollbackSub();
+        throw new Error(txErr.message ?? "Écriture comptable impossible");
+      }
     }
     try {
       const invoice = await createInvoice(supabase, {
@@ -129,12 +136,13 @@ export async function renewClientSubscription(formData: FormData) {
         clientPhone: client?.phone ?? null,
         clientEmail: client?.email ?? null,
         paymentRail: client?.payment_rail ?? null,
+        amountPaid: effectiveAmount,
       });
-      if (invoice?.id) {
+      if (invoice?.id && txRow) {
         await supabase.from("transactions").update({ invoice_id: invoice.id }).eq("id", txRow.id).eq("user_id", user.id);
       }
     } catch (err) {
-      await supabase.from("transactions").delete().eq("id", txRow.id).eq("user_id", user.id);
+      if (txRow) await supabase.from("transactions").delete().eq("id", txRow.id).eq("user_id", user.id);
       await rollbackSub();
       throw err;
     }

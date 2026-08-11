@@ -34,6 +34,7 @@ const SOURCE_META: Record<
     iconColor: "var(--sr-danger)",
   },
   reversal: { label: "Annulation", iconBg: "var(--sr-danger-bg)", iconColor: "var(--sr-danger)" },
+  invoice_payment: { label: "Encaissement", iconBg: "var(--sr-success-bg)", iconColor: "var(--sr-mint-400)" },
 };
 
 function relTime(iso: string): string {

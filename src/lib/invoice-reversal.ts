@@ -26,7 +26,7 @@ export function pickInvoiceToCancel(invoices: ReversibleInvoice[], tx: Reversibl
   const matches = invoices.filter(
     (invoice) =>
       invoice.subscription_id === tx.subscription_id &&
-      invoice.status === "paid" &&
+      (invoice.status === "paid" || invoice.status === "partially_paid") &&
       invoice.kind === kind &&
       Number(invoice.amount) === Number(tx.amount),
   );

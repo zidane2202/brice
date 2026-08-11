@@ -15,6 +15,7 @@ const SOURCE_LABELS: Record<TransactionSource, string> = {
   account_renewal: "Renouvellement compte",
   manual_expense: "Dépense manuelle",
   reversal: "Annulation",
+  invoice_payment: "Encaissement facture",
 };
 
 export function categoryLabel(c: ExpenseCategory | null | undefined): string {
@@ -89,6 +90,22 @@ export function filterJournal(
 function csvEscape(value: string): string {
   if (/[;,"\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
   return value;
+}
+
+export function computeProfit(
+  txs: Pick<Transaction, "kind" | "amount" | "occurred_on">[],
+  from: string,
+  to: string
+): number {
+  let income = 0;
+  let expenses = 0;
+  for (const t of txs) {
+    if (t.occurred_on < from || t.occurred_on > to) continue;
+    const amt = Number(t.amount ?? 0);
+    if (t.kind === "income") income += amt;
+    else expenses += amt;
+  }
+  return income - expenses;
 }
 
 export function buildComptaCsv(txs: Transaction[]): string {

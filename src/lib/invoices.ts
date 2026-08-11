@@ -25,6 +25,7 @@ export type CreateInvoiceInput = {
   clientPhone: string | null;
   clientEmail: string | null;
   paymentRail: string | null;
+  amountPaid?: number;
 };
 
 export async function createInvoice(
@@ -46,6 +47,10 @@ export async function createInvoice(
     [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") ||
     null;
 
+  const amountPaid = input.amountPaid ?? input.amount;
+  const status =
+    amountPaid >= input.amount ? "paid" : amountPaid > 0 ? "partially_paid" : "unpaid";
+
   const { data, error } = await supabase.from("invoices").insert({
     user_id: input.userId,
     number,
@@ -53,6 +58,8 @@ export async function createInvoice(
     client_id: input.clientId,
     subscription_id: input.subscriptionId,
     amount: input.amount,
+    amount_paid: amountPaid,
+    status,
     service_name: input.serviceName,
     service_slot: input.slotLabel,
     period_start: input.periodStart,
