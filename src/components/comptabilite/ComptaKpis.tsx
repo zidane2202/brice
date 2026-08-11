@@ -12,7 +12,7 @@ type Props = {
 
 export function ComptaKpis({ balance, income, expenses, margin, profit }: Props) {
   return (
-    <div className="stats-grid" style={{ marginBottom: 20 }}>
+    <div className="stats-grid" style={{ marginBottom: 20, gridTemplateColumns: "repeat(5, 1fr)" }}>
       <KpiCard label="Solde caisse" value={balance} unit="FCFA" tone="info" accent />
       <KpiCard label="Recettes" value={income} unit="FCFA" tone="success" sub="période" />
       <KpiCard label="Dépenses (caisse)" value={expenses} unit="FCFA" tone="warning" sub="période" />
