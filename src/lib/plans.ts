@@ -109,17 +109,26 @@ export function canUsePush(plan: PlanId): boolean {
   return PLAN_LIMITS[plan].push;
 }
 
-/** Estimated SaaS MRR for one reseller (extras billed at unit rate). */
+/** Coût mensuel des extras : packs de 3 d'abord, le reste à l'unité. */
+export function extrasMonthlyFcfa(extraProviderAccounts: number): number {
+  const count = Math.max(0, Math.floor(extraProviderAccounts || 0));
+  return Math.floor(count / 3) * PLAN_PRICES_FCFA.extraPack3 + (count % 3) * PLAN_PRICES_FCFA.extraAccount;
+}
+
+/** Montant mensuel dû par le vendeur : pack + extras (Pro uniquement). */
+export function monthlyDueFcfa(plan: string | null | undefined, extraProviderAccounts = 0): number {
+  const id = normalizePlan(plan);
+  if (id === "free") return 0;
+  if (id === "business") return PLAN_PRICES_FCFA.business;
+  return PLAN_PRICES_FCFA.pro + extrasMonthlyFcfa(extraProviderAccounts);
+}
+
 export function estimateMrrFcfa(
   plan: string | null | undefined,
   extraProviderAccounts = 0,
   suspended = false
 ): number {
-  if (suspended) return 0;
-  const id = normalizePlan(plan);
-  if (id === "free") return 0;
-  if (id === "business") return PLAN_PRICES_FCFA.business;
-  return PLAN_PRICES_FCFA.pro + Math.max(0, extraProviderAccounts) * PLAN_PRICES_FCFA.extraAccount;
+  return suspended ? 0 : monthlyDueFcfa(plan, extraProviderAccounts);
 }
 
 /** Next SaaS renewal: +30-day periods from max(anchor, current renewal). */

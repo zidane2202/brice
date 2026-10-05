@@ -7,9 +7,9 @@ returns jsonb language sql stable security definer set search_path=public as $$
 with base as (
   select s.*,c.first_name,c.last_name,c.created_at client_created,
     coalesce(pa.status='active' and pa.end_date>=current_date, true) account_live
-  from client_subscriptions s join clients c on c.id=s.client_id
-  left join account_slots sl on sl.id=s.slot_id
-  left join provider_accounts pa on pa.id=sl.account_id
+  from public.client_subscriptions s join public.clients c on c.id=s.client_id
+  left join public.account_slots sl on sl.id=s.slot_id
+  left join public.provider_accounts pa on pa.id=sl.account_id
   where s.user_id=p_user and c.archived_at is null
 ), totals as (
   select count(*) filter(where account_live and status='active' and end_date>current_date+3)::int active,

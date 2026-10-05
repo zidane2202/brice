@@ -187,14 +187,14 @@ export async function recordPlatformPayment(formData: FormData) {
 
   let plan = String(formData.get("plan") ?? "").trim();
   const extrasRaw = String(formData.get("extra_provider_accounts") ?? "").trim();
-  let extras = Math.max(0, parseInt(extrasRaw || "0", 10) || 0);
+  let extras: number | null = extrasRaw === "" ? null : Math.max(0, parseInt(extrasRaw, 10) || 0);
 
   if (applyPlan) {
     const suggested = suggestedPlanForKind(kindRaw);
     if (!plan && suggested) plan = suggested.plan;
     if (!PLANS.has(plan)) throw new Error("Plan invalide pour application");
     if (plan !== "pro") extras = 0;
-    if (kindRaw === "extra_accounts" && extras <= 0) {
+    if (kindRaw === "extra_accounts" && !extras) {
       extras = 1;
     }
   }

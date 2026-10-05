@@ -10,6 +10,7 @@ import { NotificationSettings } from "@/components/profil/NotificationSettings";
 import { InstallApp } from "@/components/profil/InstallApp";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { RestoreBackup } from "@/components/profil/RestoreBackup";
+import { extrasMonthlyFcfa, monthlyDueFcfa } from "@/lib/plans";
 
 type Section = { id: string; label: string; icon: string; danger?: boolean };
 
@@ -32,6 +33,9 @@ type ProfileData = {
   role?: string | null;
   plan?: string | null;
   logo_url?: string | null;
+  extra_provider_accounts?: number | null;
+  plan_renews_on?: string | null;
+  billed_plan?: string | null;
 };
 
 type Props = {
@@ -280,7 +284,7 @@ export function ProfilView({ profile, email, createdAt, stats }: Props) {
           <PersoSection profile={profile} email={email} />
           <BizSection city={profile?.city ?? ""} />
           <SecuSection />
-          <PlanSection plan={profile?.plan ?? "free"} />
+          <PlanSection plan={profile?.plan ?? "free"} billedPlan={profile?.billed_plan ?? profile?.plan ?? "free"} extras={Number(profile?.extra_provider_accounts ?? 0)} renewsOn={profile?.plan_renews_on ?? null} />
           <PrSection id="notifications" title="Notifications" subtitle="Choisissez explicitement si cet appareil peut recevoir vos rappels.">
             <NotificationSettings enabled={(profile?.plan ?? "free") !== "free"} />
           </PrSection>
@@ -796,9 +800,13 @@ function SecuSection() {
   );
 }
 
-function PlanSection({ plan }: { plan: string }) {
+function PlanSection({ plan, billedPlan, extras = 0, renewsOn = null }: { plan: string; billedPlan: string; extras?: number; renewsOn?: string | null }) {
   const normalized = plan === "pro" || plan === "business" ? plan : "free";
   const isPaid = normalized !== "free";
+  const billed = billedPlan === "pro" || billedPlan === "business" ? billedPlan : null;
+  const paidExtras = billed === "pro" ? Math.max(0, extras) : 0;
+  const monthlyDue = monthlyDueFcfa(billed, paidExtras);
+  const renewsLabel = renewsOn ? new Date(`${renewsOn}T00:00:00`).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : null;
   const SUPPORT_WA =
     typeof process !== "undefined"
       ? process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP?.replace(/\D/g, "") || ""
@@ -864,6 +872,15 @@ function PlanSection({ plan }: { plan: string }) {
           >
             {blurb}
           </div>
+          {billed && (
+            <div style={{ marginTop: 14, display: "flex", gap: 24, flexWrap: "wrap", font: "400 12px/1.4 var(--font-geist-sans)", color: "var(--sr-fg-muted)" }}>
+              {billed === "pro" && (
+                <span>{paidExtras > 0 ? `Comptes extras : ${paidExtras} (+${extrasMonthlyFcfa(paidExtras).toLocaleString("fr-FR")} FCFA/mois)` : "Aucun compte extra"}</span>
+              )}
+              <span>{`À payer chaque mois : ${monthlyDue.toLocaleString("fr-FR")} FCFA`}</span>
+              {renewsLabel && <span>{`Prochain renouvellement : ${renewsLabel}`}</span>}
+            </div>
+          )}
         </div>
       </div>
 

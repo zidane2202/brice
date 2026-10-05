@@ -4,6 +4,7 @@ import { StatsCard } from "@/components/StatsCard";
 import { PLATFORM_PAYMENT_KIND_LABELS, type PlatformPaymentKind } from "@/lib/platform-payments";
 import {
   estimateMrrFcfa,
+  isPlanExpired,
   normalizePlan,
   PLAN_LIMITS,
   PLAN_PRICES_FCFA,
@@ -70,7 +71,7 @@ async function getFinanceData() {
       plan,
       extras,
       suspended,
-      mrr: estimateMrrFcfa(plan, extras, suspended),
+      mrr: isPlanExpired(p, todayDateOnly()) ? 0 : estimateMrrFcfa(plan, extras, suspended),
       plan_renews_on: p.plan_renews_on as string | null,
     };
   });
@@ -90,6 +91,7 @@ async function getFinanceData() {
     label: `${r.name} (${r.email})`,
     plan: r.plan,
     activePro: r.plan === "pro" && !r.suspended && Boolean(r.plan_renews_on) && r.plan_renews_on! >= todayDateOnly(),
+    extras: r.plan === "pro" ? r.extras : 0,
   }));
 
   const journal = payments.map((p) => ({
@@ -161,7 +163,7 @@ export default async function AdminFinancesPage({ searchParams }: { searchParams
         </div>
       </div>
 
-      <div className="stats-grid">
+      <div className="stats-grid stats-grid-three">
         <StatsCard label="MRR estimé (FCFA)" value={formatFcfa(mrr)} accent />
         <StatsCard label="Encaissé ce mois" value={formatFcfa(cashThisMonth)} />
         <StatsCard label="Pro" value={counts.pro} />
@@ -188,17 +190,15 @@ export default async function AdminFinancesPage({ searchParams }: { searchParams
         <h2>Journal d’encaissements</h2>
         <form method="get" className="fields journal-filters"><label>Recherche<input type="search" name="q" defaultValue={q} placeholder="Vendeur, note, référence…" /></label><label>Motif<select name="kind" defaultValue={kind}><option value="all">Tous</option>{Object.entries(PLATFORM_PAYMENT_KIND_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label>Du<input type="date" name="from" defaultValue={from} /></label><label>Au<input type="date" name="to" defaultValue={to} /></label><button type="submit">Filtrer</button></form>
         <div className="table-wrap">
-          <table>
+          <table className="payments-journal">
             <thead>
               <tr>
                 <th>Date</th>
-                <th>Référence</th>
                 <th>Vendeur</th>
                 <th>Motif</th>
-                <th>Montant</th>
-                <th>Note</th>
+                <th className="num">Montant</th>
                 <th>Plan appliqué</th>
-                <th>Extras après paiement</th>
+                <th>Note</th>
                 <th>Par</th>
                 <th></th>
               </tr>
@@ -206,15 +206,17 @@ export default async function AdminFinancesPage({ searchParams }: { searchParams
             <tbody>
               {filteredJournal.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="empty">
+                  <td colSpan={8} className="empty">
                     Aucun encaissement enregistré.
                   </td>
                 </tr>
               )}
               {filteredJournal.map((p) => (
                 <tr key={p.id}>
-                  <td>{p.occurred_on}</td>
-                  <td style={{ fontFamily: "var(--font-geist-mono)", fontSize: 11 }}>SR-{p.id.slice(0, 8).toUpperCase()}</td>
+                  <td>
+                    <div className="journal-date">{new Date(`${p.occurred_on}T00:00:00`).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}</div>
+                    <div className="journal-ref">SR-{p.id.slice(0, 8).toUpperCase()}</div>
+                  </td>
                   <td>
                     <Link href={`/admin/vendeurs/${p.reseller_user_id}`} className="btn-link">
                       {p.resellerLabel}
@@ -223,11 +225,13 @@ export default async function AdminFinancesPage({ searchParams }: { searchParams
                   <td>
                     {PLATFORM_PAYMENT_KIND_LABELS[p.kind as PlatformPaymentKind] ?? p.kind}
                   </td>
-                  <td style={{ textDecoration: p.reversal ? "line-through" : "none", color: p.reversal ? "var(--sr-fg-subtle)" : undefined }}>{formatFcfa(Number(p.amount))} FCFA</td>
-                  <td>{p.note || "—"}</td>
-                  <td>{p.applied_plan ?? "—"}</td>
-                  <td>{p.kind === "extra_accounts" ? `${p.applied_extras ?? 0} compte(s)` : "—"}</td>
-                  <td style={{ fontSize: 12 }}>{p.recorderEmail}</td>
+                  <td className="num" style={{ textDecoration: p.reversal ? "line-through" : "none", color: p.reversal ? "var(--sr-fg-subtle)" : undefined }}>{formatFcfa(Number(p.amount))} FCFA</td>
+                  <td>
+                    {p.applied_plan ? <span className="journal-plan">{p.applied_plan}</span> : "—"}
+                    {p.kind === "extra_accounts" && <div className="journal-ref">{`${p.applied_extras ?? 0} extra(s) après paiement`}</div>}
+                  </td>
+                  <td className="journal-note" title={p.note || undefined}>{p.note || "—"}</td>
+                  <td className="journal-by">{p.recorderEmail}</td>
                   <td><div className="journal-row-actions"><Link className="secondary receipt-link" href={`/admin/finances/recu/${p.id}`} target="_blank">Reçu</Link>{p.reversal ? <span className="status cancelled" title={p.reversal.reason}>Annulé</span> : <ReversePlatformPaymentButton paymentId={p.id} label={`${p.resellerLabel} · ${formatFcfa(Number(p.amount))} FCFA`} />}</div></td>
                 </tr>
               ))}

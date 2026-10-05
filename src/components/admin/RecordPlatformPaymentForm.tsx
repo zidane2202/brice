@@ -4,14 +4,15 @@ import { recordPlatformPayment } from "@/app/actions/admin";
 import {
   PLATFORM_PAYMENT_KIND_LABELS,
   PLATFORM_PAYMENT_KINDS,
-  defaultAmountForKind,
+  suggestedAmount,
   type PlatformPaymentKind,
 } from "@/lib/platform-payments";
+import { extrasMonthlyFcfa } from "@/lib/plans";
 import { todayDateOnly } from "@/lib/dates";
 import { useMemo, useState, useTransition } from "react";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
-type ResellerOption = { userId: string; label: string; plan: string; activePro?: boolean };
+type ResellerOption = { userId: string; label: string; plan: string; activePro?: boolean; extras?: number };
 
 type Confirmation = {
   formData: FormData;
@@ -38,8 +39,9 @@ export function RecordPlatformPaymentForm({
   defaultActivePro = defaultPlan === "pro",
 }: Props) {
   const [kind, setKind] = useState<PlatformPaymentKind>("pro_monthly");
-  const [amount, setAmount] = useState(String(defaultAmountForKind("pro_monthly")));
+  const [amount, setAmount] = useState(String(suggestedAmount("pro_monthly", defaultExtras)));
   const [extras, setExtras] = useState(String(defaultExtras || 0));
+  const [renewedExtras, setRenewedExtras] = useState(String(defaultExtras || 0));
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
@@ -52,13 +54,30 @@ export function RecordPlatformPaymentForm({
     ? defaultActivePro
     : Boolean(resellers.find((item) => item.userId === selectedResellerId)?.activePro);
 
+  const currentExtras = resellerUserId
+    ? defaultExtras
+    : Number(resellers.find((item) => item.userId === selectedResellerId)?.extras ?? 0);
+
+  function refreshAmount(nextKind: PlatformPaymentKind, nextExtras: string) {
+    const def = suggestedAmount(nextKind, Number(nextExtras) || 0);
+    if (def > 0) setAmount(String(def));
+  }
+
   function onKindChange(next: PlatformPaymentKind) {
     setKind(next);
-    const def = defaultAmountForKind(next);
-    if (def > 0) setAmount(String(def));
-    if (next === "extra_accounts") {
-      if (!extras || extras === "0") setExtras("1");
+    let nextExtras = next === "pro_monthly" ? renewedExtras : extras;
+    if (next === "extra_accounts" && (!extras || extras === "0")) {
+      nextExtras = "1";
+      setExtras("1");
     }
+    refreshAmount(next, nextExtras);
+  }
+
+  function onResellerChange(userId: string) {
+    setSelectedResellerId(userId);
+    const kept = String(resellers.find((item) => item.userId === userId)?.extras ?? 0);
+    setRenewedExtras(kept);
+    if (kind === "pro_monthly") refreshAmount(kind, kept);
   }
 
   function handleSubmit(formData: FormData) {
@@ -70,7 +89,12 @@ export function RecordPlatformPaymentForm({
       : resellers.find((item) => item.userId === String(formData.get("reseller_user_id")))?.label ?? "ce vendeur";
     const selectedKind = PLATFORM_PAYMENT_KIND_LABELS[kind];
     const selectedAmount = Number(formData.get("amount") ?? 0).toLocaleString("fr-FR");
-    const activationText = kind === "pro_monthly" || kind === "business_monthly"
+    const kept = Number(renewedExtras) || 0;
+    const activationText = kind === "pro_monthly"
+      ? kept > 0
+        ? `Le pack sera activé ou prolongé de 30 jours avec ${kept} extra(s).`
+        : "Le pack sera activé ou prolongé de 30 jours, sans extra."
+      : kind === "business_monthly"
       ? "\nLe pack sera activé ou prolongé de 30 jours."
       : kind === "extra_accounts"
         ? `\n${extras} compte(s) supplémentaire(s) seront ajouté(s).`
@@ -110,7 +134,7 @@ export function RecordPlatformPaymentForm({
             name="reseller_user_id"
             required
             value={selectedResellerId}
-            onChange={(event) => setSelectedResellerId(event.target.value)}
+            onChange={(event) => onResellerChange(event.target.value)}
           >
             <option value="" disabled>
               Choisir…
@@ -166,7 +190,26 @@ export function RecordPlatformPaymentForm({
       </div>
 
       {kind !== "other" && <input type="hidden" name="apply_plan" value="true" />}
-      {kind === "pro_monthly" && <input type="hidden" name="plan" value="pro" />}
+      {kind === "pro_monthly" && (
+        <>
+          <input type="hidden" name="plan" value="pro" />
+          <label>
+            Comptes extras renouvelés
+            <input
+              name="extra_provider_accounts"
+              type="number"
+              min={0}
+              value={renewedExtras}
+              onChange={(e) => { setRenewedExtras(e.target.value); refreshAmount(kind, e.target.value); }}
+            />
+          </label>
+          <p style={{ margin: 0, fontSize: 12, color: "var(--sr-fg-subtle)" }}>
+            {currentExtras > 0
+              ? `Le vendeur a ${currentExtras} extra(s). Les extras sont mensuels : seuls ceux payés avec ce renouvellement sont conservés (${extrasMonthlyFcfa(Number(renewedExtras) || 0).toLocaleString("fr-FR")} FCFA inclus dans le montant).`
+              : "Aucun extra en cours. Indiquez un nombre pour en ajouter avec ce renouvellement."}
+          </p>
+        </>
+      )}
       {kind === "business_monthly" && <input type="hidden" name="plan" value="business" />}
       {kind === "extra_accounts" && (
         <>
@@ -178,7 +221,7 @@ export function RecordPlatformPaymentForm({
               type="number"
               min={1}
               value={extras}
-              onChange={(e) => setExtras(e.target.value)}
+              onChange={(e) => { setExtras(e.target.value); refreshAmount(kind, e.target.value); }}
             />
           </label>
         </>
@@ -187,7 +230,7 @@ export function RecordPlatformPaymentForm({
       {kind === "extra_accounts" && (
         <p style={{ margin: 0, fontSize: 12, color: canAddExtras ? "var(--sr-mint-300)" : "var(--sr-warning)" }}>
           {canAddExtras
-            ? "Les comptes seront ajoutés au pack Pro actuel sans modifier son échéance."
+            ? "Les comptes seront ajoutés au pack Pro actuel jusqu'à son échéance, puis à renouveler chaque mois avec le pack."
             : "Sélectionnez un vendeur ayant un pack Pro actif. Les extras ne peuvent pas activer ou renouveler un pack."}
         </p>
       )}

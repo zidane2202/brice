@@ -1,4 +1,4 @@
-import { PLAN_PRICES_FCFA } from "./plans.ts";
+import { extrasMonthlyFcfa, monthlyDueFcfa, PLAN_PRICES_FCFA } from "./plans.ts";
 
 export const PLATFORM_PAYMENT_KINDS = [
   "pro_monthly",
@@ -21,6 +21,13 @@ export function defaultAmountForKind(kind: PlatformPaymentKind): number {
   if (kind === "business_monthly") return PLAN_PRICES_FCFA.business;
   if (kind === "extra_accounts") return PLAN_PRICES_FCFA.extraAccount;
   return 0;
+}
+
+/** Montant suggéré : renouvellement Pro = pack + extras gardés ; ajout d'extras = prix des extras ajoutés. */
+export function suggestedAmount(kind: PlatformPaymentKind, extras: number): number {
+  if (kind === "pro_monthly") return monthlyDueFcfa("pro", extras);
+  if (kind === "extra_accounts") return extrasMonthlyFcfa(Math.max(1, extras));
+  return defaultAmountForKind(kind);
 }
 
 export function suggestedPlanForKind(
@@ -60,19 +67,23 @@ export function planStateAfterReverse(payment: {
   };
 }
 
+/**
+ * Extras are monthly: a Pro renewal keeps only the extras paid with it
+ * (`requestedExtras`, or all current ones when not specified).
+ */
 export function resolveAppliedExtras(input: {
   kind: PlatformPaymentKind;
   applyPlan: boolean;
   currentExtras: number;
-  requestedExtras: number;
+  requestedExtras: number | null;
   targetPlan: string;
 }): number {
   const current = Math.max(0, input.currentExtras);
   if (!input.applyPlan) return current;
   if (input.kind === "extra_accounts") {
-    const add = input.requestedExtras > 0 ? input.requestedExtras : 1;
+    const add = input.requestedExtras && input.requestedExtras > 0 ? input.requestedExtras : 1;
     return current + add;
   }
-  if (input.targetPlan === "pro") return current;
-  return 0;
+  if (input.targetPlan !== "pro") return 0;
+  return input.requestedExtras == null ? current : Math.max(0, input.requestedExtras);
 }

@@ -3,9 +3,22 @@ import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { listAllAuthUsers } from "@/lib/auth-users";
 import { firstOfMonthDateOnly, todayDateOnly } from "@/lib/dates";
 import { sumPlatformCash } from "@/lib/ledger-sql";
+import { isPlanExpired, isTrialActive, monthlyDueFcfa, trialEndsOn } from "@/lib/plans";
+import { occupiesSlot, withAccountRule } from "@/lib/slots";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
+
+const PAGE = 1000;
+
+type AdminSub = {
+  user_id: string;
+  price: number | null;
+  status: string;
+  end_date: string;
+  grace_until: string | null;
+  slot: { account: { status: string; end_date: string } | null } | null;
+};
 
 async function getAdminStats() {
   const supabase = createSupabaseAdmin();
@@ -13,26 +26,44 @@ async function getAdminStats() {
   const today = todayDateOnly();
   const firstOfMonth = firstOfMonthDateOnly();
   const in15Days = todayDateOnly(new Date(Date.now() + 15 * 86400000));
-  const [profilesResult, subsResult, users, platformRevenueThisMonth] = await Promise.all([
-    supabase.from("user_profiles").select("user_id, plan, suspended, plan_renews_on, created_at").eq("role", "reseller"),
-    supabase.from("client_subscriptions").select("user_id, price, status, end_date, created_at").in("status", ["active", "grace"]),
+  const fetchLiveSubs = async () => {
+    const rows: AdminSub[] = [];
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await supabase
+        .from("client_subscriptions")
+        .select("user_id, price, status, end_date, grace_until, client:clients!inner(archived_at), slot:account_slots(account:provider_accounts(status, end_date))")
+        .in("status", ["active", "grace"])
+        .is("clients.archived_at", null)
+        .order("id")
+        .range(from, from + PAGE - 1);
+      if (error) throw new Error(error.message);
+      rows.push(...((data ?? []) as unknown as AdminSub[]));
+      if (!data || data.length < PAGE) return rows;
+    }
+  };
+  const [profilesResult, subs, users, platformRevenueThisMonth] = await Promise.all([
+    supabase.from("user_profiles").select("user_id, plan, suspended, plan_renews_on, created_at, extra_provider_accounts").eq("role", "reseller"),
+    fetchLiveSubs(),
     listAllAuthUsers(supabase),
     sumPlatformCash(supabase, firstOfMonth, today),
   ]);
 
   const profiles = profilesResult.data ?? [];
-  const subs = subsResult.data ?? [];
 
-  const activeSubs = subs.filter((s) => s.status === "grace" || (s.status === "active" && s.end_date >= today));
-  const totalRevenue = activeSubs.reduce((sum, s) => sum + (s.price ?? 0), 0);
+  const activeSubs = subs.map((s) => withAccountRule(s, today)).filter((s) => occupiesSlot(s, today));
 
   const newThisMonth = profiles.filter((p) => p.created_at >= `${firstOfMonth}T00:00:00`).length;
   const suspendedCount = profiles.filter((p) => p.suspended).length;
   const planCounts = profiles.reduce((counts, p) => {
-    const plan: "free" | "pro" | "business" = p.plan === "pro" || p.plan === "business" ? p.plan : "free";
-    counts[plan]++;
+    if (p.plan === "pro") counts.pro++;
+    else if (p.plan === "business") counts.business++;
+    else if (isTrialActive(p, today)) counts.trial++;
+    else counts.trialOver++;
     return counts;
-  }, { free: 0, pro: 0, business: 0 });
+  }, { trial: 0, trialOver: 0, pro: 0, business: 0 });
+  const activeExtras = profiles
+    .filter((p) => p.plan === "pro" && !p.suspended && !isPlanExpired(p, today))
+    .reduce((sum, p) => sum + Math.max(0, Number(p.extra_provider_accounts ?? 0)), 0);
 
   const resellerIds = new Set(profiles.map((p) => p.user_id));
   const emailMap = new Map(users.map((u) => [u.id, u.email ?? "—"]));
@@ -55,10 +86,13 @@ async function getAdminStats() {
     .slice(0, 5);
 
   const renewals = profiles
-    .filter((p) => p.plan_renews_on && p.plan_renews_on <= in15Days)
+    .map((p) => ({ ...p, plan_renews_on: p.plan === "pro" || p.plan === "business" ? p.plan_renews_on : trialEndsOn(p) }))
+    .filter((p) => !p.suspended && p.plan_renews_on && p.plan_renews_on <= in15Days)
     .map((p) => ({
       ...p,
       email: emailMap.get(p.user_id) ?? "—",
+      extras: Math.max(0, Number(p.extra_provider_accounts ?? 0)),
+      due: monthlyDueFcfa(p.plan, Number(p.extra_provider_accounts ?? 0)),
       days: Math.round((new Date(`${p.plan_renews_on}T00:00:00`).getTime() - new Date(`${today}T00:00:00`).getTime()) / 86400000),
     }))
     .sort((a, b) => (a.plan_renews_on ?? "").localeCompare(b.plan_renews_on ?? ""));
@@ -68,7 +102,7 @@ async function getAdminStats() {
   return {
     totalResellers: profiles.length,
     totalActiveClients: activeSubs.length,
-    totalRevenue,
+    activeExtras,
     newThisMonth,
     platformRevenueThisMonth,
     suspendedCount,
@@ -108,6 +142,7 @@ export default async function AdminDashboardPage() {
         <StatsCard label="Packs qui expirent (15 j)" value={stats.upcomingPacks} />
         <StatsCard label="Packs expirés (lecture seule)" value={stats.expiredPacks} />
         <StatsCard label="Comptes suspendus" value={stats.suspendedCount} />
+        <StatsCard label="Comptes extras actifs (Pro)" value={stats.activeExtras} />
       </div>
 
       <div className="panel" style={{ marginBottom: 20 }}>
@@ -122,15 +157,19 @@ export default async function AdminDashboardPage() {
         </div>
         <div className="table-wrap" style={{ marginTop: 14 }}>
           <table>
-            <thead><tr><th>Vendeur</th><th>Plan</th><th>Fin du pack</th><th>Statut</th><th></th></tr></thead>
+            <thead><tr><th>Vendeur</th><th>Plan</th><th>Fin du pack</th><th>Statut</th><th>À encaisser</th><th></th></tr></thead>
             <tbody>
-              {stats.renewals.length === 0 && <tr><td colSpan={5} className="empty">Aucun pack n’expire dans les 15 prochains jours.</td></tr>}
+              {stats.renewals.length === 0 && <tr><td colSpan={6} className="empty">Aucun pack n’expire dans les 15 prochains jours.</td></tr>}
               {stats.renewals.map((row) => (
                 <tr key={row.user_id}>
                   <td><strong>{row.email}</strong></td>
                   <td><span className={`status ${row.plan === "pro" || row.plan === "business" ? "active" : "grace"}`}>{row.plan === "pro" || row.plan === "business" ? row.plan : "essai"}</span></td>
                   <td>{new Date(`${row.plan_renews_on}T00:00:00`).toLocaleDateString("fr-FR")}</td>
                   <td><span className={`status ${row.days <= 3 ? "cancelled" : "grace"}`}>{renewalStatus(row.days)}</span></td>
+                  <td style={{ whiteSpace: "nowrap" }}>
+                    {row.due > 0 ? `${row.due.toLocaleString("fr-FR")} FCFA` : "—"}
+                    {row.plan === "pro" && row.extras > 0 && <div style={{ color: "var(--sr-fg-subtle)", fontSize: 11 }}>{`dont ${row.extras} extra(s)`}</div>}
+                  </td>
                   <td><Link href={`/admin/vendeurs/${row.user_id}`} className="btn-link">Renouveler →</Link></td>
                 </tr>
               ))}
@@ -138,7 +177,7 @@ export default async function AdminDashboardPage() {
           </table>
         </div>
         <p style={{ margin: "12px 0 0", color: "var(--sr-fg-subtle)", fontSize: 12 }}>
-          {`Répartition des vendeurs : Free ${stats.planCounts.free} · Pro ${stats.planCounts.pro} · Business ${stats.planCounts.business}`}
+          {`Répartition des vendeurs : essai en cours ${stats.planCounts.trial} · essai terminé ${stats.planCounts.trialOver} · Pro ${stats.planCounts.pro} · Business ${stats.planCounts.business}`}
         </p>
       </div>
 
@@ -165,7 +204,7 @@ export default async function AdminDashboardPage() {
               {stats.topResellers.map((r) => (
                 <tr key={r.user_id}>
                   <td><strong>{r.email}</strong></td>
-                  <td><span className="status active">{r.plan}</span></td>
+                  <td><span className={`status ${r.plan === "pro" || r.plan === "business" ? "active" : "grace"}`}>{r.plan === "pro" || r.plan === "business" ? r.plan : "essai"}</span></td>
                   <td>{r.active_clients}</td>
                   <td>{new Date(r.created_at).toLocaleDateString("fr-FR")}</td>
                   <td>

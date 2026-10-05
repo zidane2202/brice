@@ -241,27 +241,6 @@ export async function addClientWithSubscription(
   return { invoiceCode, clientName, clientPhone };
 }
 
-async function createImportedClient(db: ReturnType<typeof createSupabaseAdmin>, userId: string, row: ImportRow) {
-  const firstName = row.first_name || row.last_name || row.phone || row.email || "Client";
-  const lastName = row.first_name ? row.last_name ?? null : null;
-  if (row.phone || row.email) {
-    let duplicateQuery = db.from("clients").select("first_name, last_name").eq("user_id", userId);
-    duplicateQuery = row.phone ? duplicateQuery.eq("phone", row.phone) : duplicateQuery.ilike("email", row.email!);
-    const { data: duplicate } = await duplicateQuery.limit(1).maybeSingle();
-    if (duplicate) {
-      const name = [duplicate.first_name, duplicate.last_name].filter(Boolean).join(" ");
-      throw new Error(`Un client existe déjà avec ${row.phone ? "ce numéro" : "cet e-mail"} (${name}).`);
-    }
-  }
-  const { data: client, error } = await db
-    .from("clients")
-    .insert({ user_id: userId, first_name: firstName, last_name: lastName, phone: row.phone ?? null, email: row.email ?? null, payment_rail: row.payment_rail ?? null, pin_code: row.pin_code ?? null })
-    .select("id")
-    .single();
-  if (error) throw new Error(error.message);
-  await recordClientEvent(db, { userId, clientId: client.id, type: "client_imported", title: "Client importé" });
-}
-
 export async function importClientsCsv(input: Array<Record<string, unknown>>) {
   const { user } = await requireActiveSeller();
   if (!Array.isArray(input)) throw new Error("Import invalide.");
@@ -275,51 +254,44 @@ export async function importClientsCsv(input: Array<Record<string, unknown>>) {
   const takenSlots = new Set((occupying ?? []).filter((sub) => occupiesSlot(sub, today)).map((sub) => sub.slot_id));
 
   const results: Array<{ line: number; ok: boolean; message: string }> = [];
+  const planned: Array<{ line: number; row: ImportRow; slotId: string }> = [];
+  const problems: Array<{ line: number; ok: false; message: string }> = [];
+  const chosen = new Set<string>();
   for (let index = 0; index < rows.length; index++) {
     const row = rows[index];
     const line = index + 2;
-    if (!hasIdentity(row)) { results.push({ line, ok: false, message: "Ligne vide : ni nom, ni téléphone, ni e-mail" }); continue; }
-
-    let withoutSubscription: string | null = null;
-    let slotId: string | null = null;
-    const chosenSlotId = typeof input[index]?.slot_id === "string" ? String(input[index].slot_id).trim() : "";
-    if (chosenSlotId) {
-      const slot = (slots ?? []).find((item) => item.id === chosenSlotId);
-      const account = slot?.provider_accounts as unknown as { service_name: string; status: string; end_date: string } | undefined;
-      if (!slot || !account) withoutSubscription = "profil introuvable sur vos comptes";
-      else if (!row.price) withoutSubscription = "prix manquant";
-      else if (!accountOffersSlots(account, today)) withoutSubscription = `compte ${account.service_name} expiré ou inactif`;
-      else if (takenSlots.has(slot.id)) withoutSubscription = `${slot.label || `Profil ${slot.slot_number}`} est déjà occupé`;
-      else slotId = slot.id;
-    } else if (!row.service && !row.profile) withoutSubscription = "aucun abonnement indiqué";
-    else if (!row.service || !row.profile) withoutSubscription = "service ou profil manquant";
-    else if (!row.price) withoutSubscription = "prix manquant";
+    const slotId = typeof input[index]?.slot_id === "string" ? String(input[index].slot_id).trim() : "";
+    const slot = slotId ? (slots ?? []).find((item) => item.id === slotId) : undefined;
+    const account = slot?.provider_accounts as unknown as { service_name: string; status: string; end_date: string } | undefined;
+    const fail = (message: string) => problems.push({ line, ok: false, message });
+    if (!hasIdentity(row)) fail("Ligne vide : ni nom, ni téléphone, ni e-mail");
+    else if (!slotId) fail("aucun compte ni profil assigné");
+    else if (!slot || !account) fail("profil introuvable sur vos comptes");
+    else if (!accountOffersSlots(account, today)) fail(`compte ${account.service_name} expiré ou inactif`);
+    else if (takenSlots.has(slot.id) || chosen.has(slot.id)) fail(`${slot.label || `Profil ${slot.slot_number}`} est déjà occupé`);
+    else if (!row.price) fail("montant manquant");
     else {
-      const service = row.service.toLowerCase();
-      const profile = row.profile.toLowerCase();
-      const slot = (slots ?? []).find((item) => {
-        const account = item.provider_accounts as unknown as { service_name: string };
-        const label = (item.label || `Profil ${item.slot_number}`).toLowerCase();
-        return account.service_name.toLowerCase() === service && label === profile;
-      });
-      const account = slot?.provider_accounts as unknown as { status: string; end_date: string } | undefined;
-      if (!slot || !account) withoutSubscription = `profil « ${row.profile} » introuvable sur ${row.service}`;
-      else if (!accountOffersSlots(account, today)) withoutSubscription = `compte ${row.service} expiré ou inactif`;
-      else if (takenSlots.has(slot.id)) withoutSubscription = `${row.profile} est déjà occupé`;
-      else slotId = slot.id;
+      chosen.add(slot.id);
+      planned.push({ line, row, slotId: slot.id });
     }
+  }
+  if (problems.length) {
+    return {
+      imported: 0,
+      failed: problems.length,
+      blocked: "Veuillez au préalable assigner un compte et un profil à tous les clients pour continuer. Aucun client n'a été importé.",
+      results: problems,
+    };
+  }
 
+  for (const { line, row, slotId } of planned) {
     try {
-      if (slotId) {
-        const fd = new FormData();
-        Object.entries({ start_date: today, duration_months: "1", ...row, slot_id: slotId }).forEach(([key, value]) => fd.set(key, String(value ?? "")));
-        await addClientWithSubscription(fd);
-        takenSlots.add(slotId);
-        results.push({ line, ok: true, message: "Client et abonnement importés" });
-      } else {
-        await createImportedClient(db, user.id, row);
-        results.push({ line, ok: true, message: `Client importé sans abonnement (${withoutSubscription})` });
-      }
+      const fd = new FormData();
+      const firstName = row.first_name || row.last_name || row.phone || row.email || "Client";
+      const lastName = row.first_name ? row.last_name ?? "" : "";
+      Object.entries({ start_date: today, duration_months: "1", ...row, first_name: firstName, last_name: lastName, slot_id: slotId }).forEach(([key, value]) => fd.set(key, String(value ?? "")));
+      await addClientWithSubscription(fd);
+      results.push({ line, ok: true, message: "Client et abonnement importés" });
     } catch (caught) {
       results.push({ line, ok: false, message: caught instanceof Error ? caught.message : "Échec de l’import" });
     }
@@ -327,7 +299,7 @@ export async function importClientsCsv(input: Array<Record<string, unknown>>) {
   revalidatePath("/clients");
   revalidatePath("/abonnements");
   revalidatePath("/dashboard");
-  return { imported: results.filter((item) => item.ok).length, failed: results.filter((item) => !item.ok).length, results };
+  return { imported: results.filter((item) => item.ok).length, failed: results.filter((item) => !item.ok).length, blocked: null as string | null, results };
 }
 
 export async function archiveClient(clientId: string) {

@@ -420,6 +420,24 @@ export const UI_EN_APP: Record<string, string> = {
   "Réactiver les notifications": "Re-enable notifications",
   "Compte expiré": "Account expired",
   "Profil invalide.": "Invalid profile.",
+  "Veuillez au préalable assigner un compte et un profil à tous les clients pour continuer.":
+    "Please assign an account and a profile to every client first to continue.",
+  "Veuillez au préalable assigner des comptes pour continuer : aucun profil libre, ajoutez ou renouvelez un compte dans Mes abonnements.":
+    "Please assign accounts first to continue: no free profile, add or renew an account in My subscriptions.",
+  "Veuillez au préalable assigner un compte et un profil à tous les clients pour continuer. Aucun client n'a été importé.":
+    "Please assign an account and a profile to every client first to continue. No client was imported.",
+  "Aucun profil libre sur vos comptes actifs. Ajoutez ou renouvelez un compte dans Mes abonnements avant d'importer vos clients.":
+    "No free profile on your active accounts. Add or renew an account in My subscriptions before importing your clients.",
+  "{n} clients pour {n} profil(s) libre(s) : ajoutez des comptes ou retirez des lignes pour que chaque client ait un profil.":
+    "{n} clients for {n} free profile(s): add accounts or remove rows so that every client gets a profile.",
+  "{n} client(s) sans compte : assigner": "{n} client(s) without an account: assign",
+  "Choisir un compte...": "Choose an account...",
+  "Choisir un compte": "Choose an account",
+  "{n} extra(s) après paiement": "{n} extra(s) after payment",
+  "{x} ({n} libres)": "{x} ({n} free)",
+  "{x} ({n} libre)": "{x} ({n} free)",
+  "{n} client(s) · {n} prêt(s) à importer": "{n} client(s) · {n} ready to import",
+  "· {n} sans compte ni profil": "· {n} without an account or profile",
   "L'import doit contenir entre 1 et {n} comptes.": "The import must contain between 1 and {n} accounts.",
   "Nombre de profils manquant": "Number of profiles missing",
   "Importer des comptes": "Import accounts",
@@ -734,7 +752,23 @@ export const UI_EN_APP: Record<string, string> = {
   "Expire ce soir": "Expires tonight",
   "Expire demain": "Expires tomorrow",
   "Expire dans {n} jours": "Expires in {n} days",
-  "Répartition des vendeurs : Free {n} · Pro {n} · Business {n}": "Sellers by plan: Free {n} · Pro {n} · Business {n}",
+  "Répartition des vendeurs : essai en cours {n} · essai terminé {n} · Pro {n} · Business {n}":
+    "Sellers by plan: trial running {n} · trial ended {n} · Pro {n} · Business {n}",
+  "Comptes extras actifs (Pro)": "Active extra accounts (Pro)",
+  "À encaisser": "To collect",
+  "dont {n} extra(s)": "incl. {n} extra(s)",
+  "Le pack sera activé ou prolongé de 30 jours avec {n} extra(s).": "The plan will be activated or extended by 30 days with {n} extra(s).",
+  "Le pack sera activé ou prolongé de 30 jours, sans extra.": "The plan will be activated or extended by 30 days, without extras.",
+  "Comptes extras renouvelés": "Renewed extra accounts",
+  "Le vendeur a {n} extra(s). Les extras sont mensuels : seuls ceux payés avec ce renouvellement sont conservés ({n} FCFA inclus dans le montant).":
+    "The seller has {n} extra(s). Extras are monthly: only those paid with this renewal are kept ({n} FCFA included in the amount).",
+  "Aucun extra en cours. Indiquez un nombre pour en ajouter avec ce renouvellement.": "No extras running. Enter a number to add some with this renewal.",
+  "Les comptes seront ajoutés au pack Pro actuel jusqu'à son échéance, puis à renouveler chaque mois avec le pack.":
+    "The accounts are added to the current Pro plan until it ends, then renewed every month with the plan.",
+  "Comptes extras : {n} (+{n} FCFA/mois)": "Extra accounts: {n} (+{n} FCFA/month)",
+  "Aucun compte extra": "No extra accounts",
+  "À payer chaque mois : {n} FCFA": "Due every month: {n} FCFA",
+  "Prochain renouvellement : {x}": "Next renewal: {x}",
 
   "Un client existe déjà avec {x} ({x}).": "A client already exists with {x} ({x}).",
   "Import invalide.": "Invalid import.",

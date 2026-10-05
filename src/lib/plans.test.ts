@@ -100,6 +100,18 @@ test("extendPlanRenewal", async () => {
   assert.equal(extendPlanRenewal("2026-07-01", "2026-08-01"), "2026-08-31");
 });
 
+test("extras are billed monthly, packs of 3 first", async () => {
+  const { extrasMonthlyFcfa, monthlyDueFcfa, estimateMrrFcfa } = await import("./plans.ts");
+  assert.equal(extrasMonthlyFcfa(0), 0);
+  assert.equal(extrasMonthlyFcfa(1), 2_000);
+  assert.equal(extrasMonthlyFcfa(3), 5_000);
+  assert.equal(extrasMonthlyFcfa(4), 7_000);
+  assert.equal(monthlyDueFcfa("pro", 3), 15_000);
+  assert.equal(monthlyDueFcfa("business", 3), 22_500);
+  assert.equal(monthlyDueFcfa("free", 3), 0);
+  assert.equal(estimateMrrFcfa("pro", 3, true), 0);
+});
+
 test("activatePlanFor30Days", () => {
   assert.equal(activatePlanFor30Days("2026-02-01"), "2026-03-03");
 });

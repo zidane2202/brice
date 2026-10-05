@@ -6,7 +6,10 @@ import { Icon } from "@/components/Icon";
 import { autoAssignSlots, IMPORT_MAX_ROWS, importSlotName, parseImportCsv, toImportCsv, type ImportRow, type ImportSlot } from "@/lib/client-import";
 import { blockIfPlanExpired } from "@/lib/plan-expired-client";
 
-type Report = { imported: number; failed: number; results: Array<{ line: number; ok: boolean; message: string }> };
+type Report = { imported: number; failed: number; blocked?: string | null; results: Array<{ line: number; ok: boolean; message: string }> };
+
+const ASSIGN_FIRST = "Veuillez au préalable assigner un compte et un profil à tous les clients pour continuer.";
+const ASSIGN_FIRST_NO_SLOTS = "Veuillez au préalable assigner des comptes pour continuer : aucun profil libre, ajoutez ou renouvelez un compte dans Mes abonnements.";
 
 export function downloadImportCsv(rows: ImportRow[], filename: string) {
   const url = URL.createObjectURL(new Blob(["\uFEFF", toImportCsv(rows)], { type: "text/csv;charset=utf-8" }));
@@ -75,6 +78,20 @@ export function ClientCsvImportModal({ open, onClose, initialRows, freeSlots = [
   };
   const chooseSlot = (index: number, slotId: string) =>
     setSlotIds((prev) => prev.map((id, i) => (i === index ? slotId || null : id)));
+  const assignAllMissing = (accountId: string) => {
+    if (!accountId) return;
+    const taken = new Set(slotIds.filter(Boolean) as string[]);
+    const free = freeSlots.filter((slot) => slot.account.id === accountId && !taken.has(slot.id));
+    const nextSlots = [...slotIds];
+    const nextAccounts = [...accountIds];
+    rows.forEach((_, index) => {
+      if (nextSlots[index] || free.length === 0) return;
+      nextSlots[index] = free.shift()!.id;
+      nextAccounts[index] = accountId;
+    });
+    setSlotIds(nextSlots);
+    setAccountIds(nextAccounts);
+  };
   const removeRow = (index: number) => {
     setRows((prev) => prev.filter((_, i) => i !== index));
     setSlotIds((prev) => prev.filter((_, i) => i !== index));
@@ -89,6 +106,8 @@ export function ClientCsvImportModal({ open, onClose, initialRows, freeSlots = [
   });
   const withSubscription = payload.filter((row) => row.slot_id && row.price).length;
   const missingPrice = payload.filter((row) => row.slot_id && !row.price).length;
+  const missingSlot = payload.filter((row) => !row.slot_id).length;
+  const freeLeft = freeSlots.length - slotIds.filter(Boolean).length;
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 1250, display: "grid", placeItems: "center", padding: 20, background: "rgba(0,0,0,.72)", backdropFilter: "blur(5px)" }} onMouseDown={(event) => { if (event.target === event.currentTarget && !pending) onClose(); }}>
@@ -97,7 +116,7 @@ export function ClientCsvImportModal({ open, onClose, initialRows, freeSlots = [
           <div>
             <h2 style={{ margin: 0 }}>Importer des clients</h2>
             <p style={{ color: "var(--sr-fg-subtle)", fontSize: 12, lineHeight: 1.5 }}>
-              {`Maximum ${IMPORT_MAX_ROWS} clients. Aucune colonne n'est obligatoire : un nom, un téléphone ou un e-mail suffit. Corrigez les champs directement dans le tableau, puis choisissez le compte et le profil : seuls les comptes actifs avec des profils libres sont proposés. Sans compte ou sans montant, le client est importé sans abonnement.`}
+              {`Maximum ${IMPORT_MAX_ROWS} clients. Un nom, un téléphone ou un e-mail suffit pour identifier le client, mais chaque client doit obligatoirement recevoir un compte, un profil et un montant. Seuls les comptes actifs avec des profils libres sont proposés.`}
             </p>
           </div>
           <button type="button" className="secondary" onClick={onClose} aria-label="Fermer"><Icon name="x" size={14} /></button>
@@ -119,12 +138,26 @@ export function ClientCsvImportModal({ open, onClose, initialRows, freeSlots = [
             </button>
           )}
         </div>
-        {freeSlots.length === 0 && rows.length > 0 && (
-          <p style={{ color: "var(--sr-warning)", fontSize: 12 }}>
-            Aucun profil libre sur vos comptes actifs : les clients seront importés sans abonnement.
+        {rows.length > 0 && freeSlots.length === 0 && (
+          <p style={{ color: "var(--sr-danger)", fontSize: 12 }}>
+            Aucun profil libre sur vos comptes actifs. Ajoutez ou renouvelez un compte dans Mes abonnements avant d&apos;importer vos clients.
           </p>
         )}
-        {error && <p style={{ color: "var(--sr-danger)", fontSize: 12 }}>{error}</p>}
+        {rows.length > 0 && freeSlots.length > 0 && rows.length > freeSlots.length && (
+          <p style={{ color: "var(--sr-warning)", fontSize: 12 }}>
+            {`${rows.length} clients pour ${freeSlots.length} profil(s) libre(s) : ajoutez des comptes ou retirez des lignes pour que chaque client ait un profil.`}
+          </p>
+        )}
+        {rows.length > 0 && missingSlot > 0 && freeLeft > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, fontSize: 12, flexWrap: "wrap" }}>
+            <span style={{ color: "var(--sr-fg-muted)" }}>{`${missingSlot} client(s) sans compte : assigner`}</span>
+            <select style={{ ...cellInput, width: "auto", minWidth: 200, height: 30, fontSize: 12 }} value="" onChange={(e) => assignAllMissing(e.target.value)}>
+              <option value="">Choisir un compte…</option>
+              {accounts.filter((account) => freeSlots.some((slot) => slot.account.id === account.id && !slotIds.includes(slot.id))).map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+            </select>
+          </div>
+        )}
+        {error && rows.length === 0 && <p style={{ color: "var(--sr-danger)", fontSize: 12 }}>{error}</p>}
         {rows.length > 0 && (
           <>
             <div style={{ overflowX: "auto", border: "1px solid var(--sr-border-subtle)", borderRadius: 8 }}>
@@ -148,6 +181,9 @@ export function ClientCsvImportModal({ open, onClose, initialRows, freeSlots = [
                     const accountId = accountIds[index] ?? "";
                     const taken = takenElsewhere(index);
                     const profileOptions = freeSlots.filter((slot) => slot.account.id === accountId && !taken.has(slot.id));
+                    const accountOptions = accounts
+                      .map((account) => ({ ...account, left: freeSlots.filter((slot) => slot.account.id === account.id && !taken.has(slot.id)).length }))
+                      .filter((account) => account.left > 0 || account.id === accountId);
                     const fileHint = row.service && !accountId ? `${row.service}${row.profile ? ` · ${row.profile}` : ""}` : "";
                     return (
                       <tr key={index} style={{ borderTop: "1px solid var(--sr-border-subtle)" }}>
@@ -156,14 +192,14 @@ export function ClientCsvImportModal({ open, onClose, initialRows, freeSlots = [
                         <td><input style={cellInput} value={row.last_name ?? ""} onChange={(e) => updateRow(index, "last_name", e.target.value)} /></td>
                         <td><input style={cellInput} type="tel" value={row.phone ?? ""} onChange={(e) => updateRow(index, "phone", e.target.value)} /></td>
                         <td style={{ minWidth: 150 }}>
-                          <select style={cellInput} value={accountId} onChange={(e) => chooseAccount(index, e.target.value)}>
-                            <option value="">Aucun abonnement</option>
-                            {accounts.map((account) => <option key={account.id} value={account.id}>{`${account.name} (${account.free} libre${account.free > 1 ? "s" : ""})`}</option>)}
+                          <select style={{ ...cellInput, borderColor: accountId ? undefined : "var(--sr-danger)" }} value={accountId} onChange={(e) => chooseAccount(index, e.target.value)}>
+                            <option value="">Choisir un compte</option>
+                            {accountOptions.map((account) => <option key={account.id} value={account.id}>{account.left > 1 ? `${account.name} (${account.left} libres)` : `${account.name} (${account.left} libre)`}</option>)}
                           </select>
                           {fileHint && <div title="Valeur du fichier, introuvable parmi les comptes disponibles" style={{ marginTop: 2, color: "var(--sr-warning)", fontSize: 10 }} data-no-i18n>{fileHint}</div>}
                         </td>
                         <td style={{ minWidth: 120 }}>
-                          <select style={cellInput} value={slotIds[index] ?? ""} disabled={!accountId} onChange={(e) => chooseSlot(index, e.target.value)}>
+                          <select style={{ ...cellInput, borderColor: accountId && !slotIds[index] ? "var(--sr-danger)" : undefined }} value={slotIds[index] ?? ""} disabled={!accountId} onChange={(e) => chooseSlot(index, e.target.value)}>
                             <option value="">{accountId ? "Choisir un profil" : "—"}</option>
                             {profileOptions.map((slot) => <option key={slot.id} value={slot.id}>{importSlotName(slot)}</option>)}
                           </select>
@@ -171,7 +207,7 @@ export function ClientCsvImportModal({ open, onClose, initialRows, freeSlots = [
                         <td><input style={{ ...cellInput, colorScheme: "dark" }} type="date" value={row.start_date ?? ""} onChange={(e) => updateRow(index, "start_date", e.target.value)} /></td>
                         <td style={{ width: 56 }}><input style={cellInput} type="number" min={1} max={24} value={row.duration_months ?? ""} placeholder="1" onChange={(e) => updateRow(index, "duration_months", e.target.value)} /></td>
                         <td style={{ width: 90 }}>
-                          <input style={{ ...cellInput, borderColor: slotIds[index] && !row.price ? "var(--sr-warning)" : undefined }} type="number" min={1} value={row.price ?? ""} placeholder="FCFA" onChange={(e) => updateRow(index, "price", e.target.value)} />
+                          <input style={{ ...cellInput, borderColor: !row.price ? "var(--sr-danger)" : undefined }} type="number" min={1} value={row.price ?? ""} placeholder="FCFA" onChange={(e) => updateRow(index, "price", e.target.value)} />
                         </td>
                         <td><button type="button" className="secondary" aria-label="Retirer la ligne" onClick={() => removeRow(index)} style={{ minHeight: 26, height: 26, width: 26, padding: 0, justifyContent: "center" }}><Icon name="x" size={11} /></button></td>
                       </tr>
@@ -181,26 +217,42 @@ export function ClientCsvImportModal({ open, onClose, initialRows, freeSlots = [
               </table>
             </div>
             <p style={{ color: "var(--sr-fg-subtle)", fontSize: 11 }}>
-              {`${rows.length} client(s) · ${withSubscription} avec abonnement · ${rows.length - withSubscription} sans abonnement`}
-              {missingPrice > 0 && <span style={{ color: "var(--sr-warning)" }}>{` · ${missingPrice} profil(s) choisi(s) sans montant`}</span>}
+              {`${rows.length} client(s) · ${withSubscription} prêt(s) à importer`}
+              {missingSlot > 0 && <span style={{ color: "var(--sr-danger)" }}>{` · ${missingSlot} sans compte ni profil`}</span>}
+              {missingPrice > 0 && <span style={{ color: "var(--sr-danger)" }}>{` · ${missingPrice} profil(s) choisi(s) sans montant`}</span>}
             </p>
           </>
         )}
         {report && (
           <div style={{ padding: 12, borderRadius: 8, background: "var(--sr-bg)", fontSize: 12 }}>
-            <strong style={{ color: "var(--sr-success)" }}>{`${report.imported} importé(s)`}</strong> · <strong style={{ color: report.failed ? "var(--sr-danger)" : "var(--sr-fg)" }}>{`${report.failed} refusé(s)`}</strong>
-            {report.results.filter((item) => !item.ok || item.message.includes("sans abonnement")).map((item) => (
+            {report.blocked ? (
+              <strong style={{ color: "var(--sr-danger)" }}>{report.blocked}</strong>
+            ) : (
+              <><strong style={{ color: "var(--sr-success)" }}>{`${report.imported} importé(s)`}</strong> · <strong style={{ color: report.failed ? "var(--sr-danger)" : "var(--sr-fg)" }}>{`${report.failed} refusé(s)`}</strong></>
+            )}
+            {report.results.filter((item) => !item.ok).map((item) => (
               <div key={item.line} style={{ marginTop: 6, color: item.ok ? "var(--sr-fg-subtle)" : "var(--sr-danger)" }}>{`Ligne ${item.line} : ${item.message}`}</div>
             ))}
           </div>
         )}
+        {error && rows.length > 0 && (
+          <p role="alert" style={{ marginTop: 14, padding: "10px 12px", borderRadius: 8, border: "1px solid var(--sr-danger)", color: "var(--sr-danger)", fontSize: 12 }}>{error}</p>
+        )}
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 18 }}>
           <button type="button" className="secondary" onClick={onClose} disabled={pending}>Fermer</button>
-          <button type="button" disabled={!rows.length || pending || Boolean(report)} onClick={() => !blockIfPlanExpired() && startTransition(async () => {
+          <button type="button" disabled={!rows.length || pending || Boolean(report && !report.blocked)} onClick={() => {
+            if (blockIfPlanExpired()) return;
+            if (missingSlot > 0 || missingPrice > 0) {
+              setReport(null);
+              setError(freeSlots.length === 0 ? ASSIGN_FIRST_NO_SLOTS : ASSIGN_FIRST);
+              return;
+            }
+            startTransition(async () => {
             setError("");
             try { setReport(await importClientsCsv(payload)); }
             catch (caught) { setError(caught instanceof Error ? caught.message : "Import impossible"); }
-          })}>
+            });
+          }}>
             {pending ? "Import en cours…" : `Importer ${rows.length} client(s)`}
           </button>
         </div>

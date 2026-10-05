@@ -2,17 +2,20 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { planStateAfterReverse, resolveAppliedExtras } from "./platform-payments.ts";
 
-test("pro monthly renewal keeps purchased extras", () => {
-  assert.equal(
-    resolveAppliedExtras({
-      kind: "pro_monthly",
-      applyPlan: true,
-      currentExtras: 3,
-      requestedExtras: 0,
-      targetPlan: "pro",
-    }),
-    3
-  );
+test("pro monthly renewal keeps only the extras paid with it", () => {
+  const base = { kind: "pro_monthly" as const, applyPlan: true, currentExtras: 3, targetPlan: "pro" };
+  assert.equal(resolveAppliedExtras({ ...base, requestedExtras: 1 }), 1);
+  assert.equal(resolveAppliedExtras({ ...base, requestedExtras: 0 }), 0);
+  assert.equal(resolveAppliedExtras({ ...base, requestedExtras: null }), 3);
+});
+
+test("suggested amount includes the monthly extras", async () => {
+  const { suggestedAmount } = await import("./platform-payments.ts");
+  assert.equal(suggestedAmount("pro_monthly", 0), 10_000);
+  assert.equal(suggestedAmount("pro_monthly", 3), 15_000);
+  assert.equal(suggestedAmount("extra_accounts", 1), 2_000);
+  assert.equal(suggestedAmount("extra_accounts", 3), 5_000);
+  assert.equal(suggestedAmount("business_monthly", 3), 22_500);
 });
 
 test("extra_accounts adds to current extras", () => {
