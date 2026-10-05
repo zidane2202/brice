@@ -623,11 +623,6 @@ button.danger:hover { background: rgba(255,107,107,0.18); border-color: var(--sr
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
-
-.stats-grid-three {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
 .stats-card {
   position: relative;
   display: grid;

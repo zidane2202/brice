@@ -76,12 +76,16 @@ async function getFinanceData() {
     };
   });
 
-  const counts = { free: 0, pro: 0, business: 0, suspended: 0 };
+  const counts = { free: 0, pro: 0, business: 0, suspended: 0, expired: 0, extras: 0 };
   let mrr = 0;
+  const today = todayDateOnly();
   for (const r of rows) {
     if (r.suspended) counts.suspended += 1;
     counts[r.plan] += 1;
     mrr += r.mrr;
+    const expired = r.plan !== "free" && Boolean(r.plan_renews_on) && r.plan_renews_on! < today;
+    if (expired) counts.expired += 1;
+    if (r.plan === "pro" && !r.suspended && !expired) counts.extras += r.extras;
   }
 
   const reversalMap = new Map((reversalsRes.data ?? []).map((row) => [row.payment_id, row]));
@@ -163,12 +167,14 @@ export default async function AdminFinancesPage({ searchParams }: { searchParams
         </div>
       </div>
 
-      <div className="stats-grid stats-grid-three">
+      <div className="stats-grid">
         <StatsCard label="MRR estimé (FCFA)" value={formatFcfa(mrr)} accent />
         <StatsCard label="Encaissé ce mois" value={formatFcfa(cashThisMonth)} />
         <StatsCard label="Pro" value={counts.pro} />
         <StatsCard label="Business" value={counts.business} />
         <StatsCard label="Free" value={counts.free} />
+        <StatsCard label="Packs expirés" value={counts.expired} />
+        <StatsCard label="Comptes extras actifs" value={counts.extras} />
         <StatsCard label="Suspendus" value={counts.suspended} />
       </div>
 

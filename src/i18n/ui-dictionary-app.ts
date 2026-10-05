@@ -756,6 +756,8 @@ export const UI_EN_APP: Record<string, string> = {
     "Sellers by plan: trial running {n} · trial ended {n} · Pro {n} · Business {n}",
   "Comptes extras actifs (Pro)": "Active extra accounts (Pro)",
   "À encaisser": "To collect",
+  "Packs expirés": "Expired plans",
+  "Comptes extras actifs": "Active extra accounts",
   "dont {n} extra(s)": "incl. {n} extra(s)",
   "Le pack sera activé ou prolongé de 30 jours avec {n} extra(s).": "The plan will be activated or extended by 30 days with {n} extra(s).",
   "Le pack sera activé ou prolongé de 30 jours, sans extra.": "The plan will be activated or extended by 30 days, without extras.",
