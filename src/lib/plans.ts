@@ -1,4 +1,4 @@
-import { addDays } from "./dates.ts";
+import { addDays, todayDateOnly } from "./dates.ts";
 
 export type PlanId = "free" | "pro" | "business";
 
@@ -37,6 +37,54 @@ export const PLAN_LIMITS = {
 export function normalizePlan(plan: string | null | undefined): PlanId {
   if (plan === "pro" || plan === "business") return plan;
   return "free";
+}
+
+type PlanProfile = {
+  plan?: string | null;
+  role?: string | null;
+  extra_provider_accounts?: number | null;
+  plan_renews_on?: string | null;
+  created_at?: string | null;
+} | null | undefined;
+
+export const ADMIN_UNLIMITED = 100_000;
+export const TRIAL_DAYS = 7;
+
+export function isAdminProfile(profile: PlanProfile) {
+  return profile?.role === "admin";
+}
+
+/** Fin de l'essai gratuit (dernier jour inclus) : `plan_renews_on`, à défaut inscription + 7 jours. */
+export function trialEndsOn(profile: PlanProfile): string | null {
+  if (!profile || normalizePlan(profile.plan) !== "free") return null;
+  if (profile.plan_renews_on) return profile.plan_renews_on;
+  if (!profile.created_at) return null;
+  return addDays(todayDateOnly(new Date(profile.created_at)), TRIAL_DAYS);
+}
+
+/** Free = essai : fonctionnalités Pro pendant 7 jours. */
+export function isTrialActive(profile: PlanProfile, today = todayDateOnly()): boolean {
+  const end = trialEndsOn(profile);
+  return Boolean(end && end >= today);
+}
+
+/** Les admins ont tous les droits ; un essai en cours donne les droits Pro. */
+export function effectivePlan(profile: PlanProfile, today = todayDateOnly()): PlanId {
+  if (isAdminProfile(profile)) return "business";
+  const plan = normalizePlan(profile?.plan);
+  return plan === "free" && isTrialActive(profile, today) ? "pro" : plan;
+}
+
+export function accountCapFor(profile: PlanProfile, today = todayDateOnly()): number {
+  if (isAdminProfile(profile)) return ADMIN_UNLIMITED;
+  const plan = effectivePlan(profile, today);
+  const extras = normalizePlan(profile?.plan) === "pro" ? Number(profile?.extra_provider_accounts ?? 0) : 0;
+  return accountCap(plan, extras);
+}
+
+export function clientsPerAccountFor(profile: PlanProfile, today = todayDateOnly()): number {
+  if (isAdminProfile(profile)) return ADMIN_UNLIMITED;
+  return clientsPerAccount(effectivePlan(profile, today));
 }
 
 export function accountCap(plan: PlanId, extraProviderAccounts = 0): number {
@@ -89,6 +137,20 @@ export function extendPlanRenewal(
 export function activatePlanFor30Days(activationDate: string): string {
   return addDays(activationDate, 30);
 }
+
+/** Pack échu ou essai terminé : le vendeur passe en lecture seule jusqu'au passage à Pro ou Business. */
+export function isPlanExpired(profile: PlanProfile, today: string): boolean {
+  if (!profile || isAdminProfile(profile)) return false;
+  if (normalizePlan(profile.plan) === "free") {
+    const end = trialEndsOn(profile);
+    return Boolean(end && end < today);
+  }
+  return Boolean(profile.plan_renews_on && profile.plan_renews_on < today);
+}
+
+export const PLAN_EXPIRED = "PLAN_EXPIRED";
+export const PLAN_EXPIRED_PARAM = "pack";
+export const PLAN_EXPIRED_VALUE = "expire";
 
 /** Prefixed errors so UI can open upgrade modal */
 export const PLAN_LIMIT_ACCOUNT = "PLAN_LIMIT_ACCOUNT";

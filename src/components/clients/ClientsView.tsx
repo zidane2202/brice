@@ -13,6 +13,7 @@ import { BulkActionBar } from "@/components/clients/BulkActionBar";
 import { ClientDrawer } from "@/components/clients/ClientDrawer";
 import { NewClientForm } from "@/components/clients/NewClientForm";
 import { ClientCsvImport } from "@/components/clients/ClientCsvImport";
+import { ClientImportAssistant } from "@/components/clients/ClientImportAssistant";
 import { formatDate, daysUntil, toDateInputValue } from "@/lib/dates";
 import type { AccountSlot, ClientSubscription, Invoice } from "@/lib/types";
 
@@ -284,7 +285,8 @@ export function ClientsView({ subscriptions, freeSlots, invoices, events, initia
               </div>
             </div>
 
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <ClientImportAssistant />
               <ClientCsvImport />
               <button type="button" className="secondary" onClick={exportCsv} disabled={subscriptions.length === 0}>
                 <Icon name="download" size={14} /> Exporter CSV

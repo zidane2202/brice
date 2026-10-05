@@ -4,7 +4,7 @@ import { addProviderAccount } from "@/app/actions/accounts";
 import { CATEGORIES, SERVICES } from "@/lib/services";
 import { PasswordInput } from "@/components/PasswordInput";
 import { PlanLimitModal } from "@/components/PlanLimitModal";
-import { PLAN_LIMIT_ACCOUNT, parsePlanLimitError } from "@/lib/plans";
+import { ADMIN_UNLIMITED, PLAN_LIMIT_ACCOUNT, parsePlanLimitError } from "@/lib/plans";
 import type { PlanId } from "@/lib/plans";
 import { useToast } from "@/components/ui/Toast";
 import { useState, useTransition } from "react";
@@ -111,7 +111,7 @@ export function AddAccountForm({ today, plan, slotCap }: Props) {
           Nombre de profils
           {selectedService && (
             <span className="service-slots-hint">
-              max plan : {slotCap}
+              {slotCap >= ADMIN_UNLIMITED ? "admin : sans limite" : `max plan : ${slotCap}`}
               {officialMax != null ? ` · max officiel : ${officialMax}` : ""}
             </span>
           )}

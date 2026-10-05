@@ -9,22 +9,22 @@ import {
 import {
   PLAN_LIMIT_BRANDING,
   canUseBranding,
-  normalizePlan,
+  effectivePlan,
   planLimitError,
 } from "@/lib/plans";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { requireActiveSeller, requireUser } from "@/lib/authz";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 
 async function requirePlanForBranding(userId: string) {
   const supabase = createSupabaseAdmin();
   const { data: profile } = await supabase
     .from("user_profiles")
-    .select("plan")
+    .select("plan, role, plan_renews_on, created_at")
     .eq("user_id", userId)
     .maybeSingle();
-  const plan = normalizePlan(profile?.plan);
+  const plan = effectivePlan(profile);
   if (!canUseBranding(plan)) {
     throw planLimitError(
       PLAN_LIMIT_BRANDING,
@@ -40,7 +40,8 @@ export async function updateProfile(
   let user;
   try {
     ({ user } = await requireActiveSeller());
-  } catch {
+  } catch (e) {
+    unstable_rethrow(e);
     return { error: "Non authentifié" };
   }
 
@@ -83,7 +84,8 @@ export async function uploadCompanyLogo(formData: FormData) {
   let user;
   try {
     ({ user } = await requireActiveSeller());
-  } catch {
+  } catch (e) {
+    unstable_rethrow(e);
     return { error: "Non authentifié" };
   }
 
@@ -138,7 +140,8 @@ export async function removeCompanyLogo() {
   let user;
   try {
     ({ user } = await requireActiveSeller());
-  } catch {
+  } catch (e) {
+    unstable_rethrow(e);
     return { error: "Non authentifié" };
   }
   const supabase = createSupabaseAdmin();

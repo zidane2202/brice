@@ -3,7 +3,7 @@ import { ComptaView } from "@/components/comptabilite/ComptaView";
 import { computePeriodKpis, computeProfit, monthBounds } from "@/lib/comptabilite";
 import { todayDateOnly } from "@/lib/dates";
 import { sumSellerBalance } from "@/lib/ledger-sql";
-import { canUseFullCompta, normalizePlan } from "@/lib/plans";
+import { canUseFullCompta, effectivePlan } from "@/lib/plans";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
 import type { Transaction } from "@/lib/types";
@@ -28,7 +28,7 @@ export default async function ComptabilitePage({
   const [profileRes, balance, periodTx] = await Promise.all([
     supabase
       .from("user_profiles")
-      .select("plan")
+      .select("plan, role, plan_renews_on, created_at")
       .eq("user_id", user.id)
       .maybeSingle(),
     sumSellerBalance(supabase, user.id),
@@ -42,7 +42,7 @@ export default async function ComptabilitePage({
       .order("created_at", { ascending: false }),
   ]);
 
-  const fullCompta = canUseFullCompta(normalizePlan(profileRes.data?.plan));
+  const fullCompta = canUseFullCompta(effectivePlan(profileRes.data));
   const txs = (periodTx.data ?? []) as Transaction[];
   for (const t of txs) {
     if (!t.occurred_on) t.occurred_on = t.created_at.slice(0, 10);

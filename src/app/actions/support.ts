@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
-import { requireActiveSeller, requireAdmin } from "@/lib/authz";
+import { requireAdmin, requireSeller } from "@/lib/authz";
 import { consumeRateLimit } from "@/lib/rate-limit";
 import { notifyUser } from "@/lib/push";
 
@@ -14,7 +14,7 @@ async function ticketAllowed(userId: string, action: string) {
 }
 
 export async function createSupportTicket(formData: FormData) {
-  const { user } = await requireActiveSeller();
+  const { user } = await requireSeller();
   if (!await ticketAllowed(user.id, "support-ticket-create")) {
     throw new Error("Trop de tickets. Réessayez plus tard.");
   }
@@ -40,7 +40,7 @@ export async function createSupportTicket(formData: FormData) {
 }
 
 export async function replyOwnSupportTicket(formData: FormData) {
-  const { user } = await requireActiveSeller();
+  const { user } = await requireSeller();
   if (!await ticketAllowed(user.id, "support-ticket-reply")) {
     throw new Error("Trop de réponses. Réessayez plus tard.");
   }

@@ -10,9 +10,10 @@ import { countOccupiedSlots } from "@/lib/slots";
 import {
   PLAN_LIMIT_ACCOUNT,
   PLAN_LIMIT_SLOTS,
-  accountCap,
-  clientsPerAccount,
-  normalizePlan,
+  accountCapFor,
+  clientsPerAccountFor,
+  effectivePlan,
+  isAdminProfile,
   planLimitError,
 } from "@/lib/plans";
 
@@ -43,14 +44,14 @@ export async function addProviderAccount(formData: FormData) {
 
   const { data: profile } = await supabase
     .from("user_profiles")
-    .select("plan, extra_provider_accounts")
+    .select("plan, role, extra_provider_accounts, plan_renews_on, created_at")
     .eq("user_id", user.id)
     .maybeSingle();
 
-  const plan = normalizePlan(profile?.plan);
-  const extras = Number(profile?.extra_provider_accounts ?? 0);
-  const cap = accountCap(plan, extras);
-  const slotCap = clientsPerAccount(plan);
+  const plan = effectivePlan(profile);
+  const admin = isAdminProfile(profile);
+  const cap = accountCapFor(profile);
+  const slotCap = clientsPerAccountFor(profile);
 
   if (!Number.isFinite(maxSlots) || maxSlots < 1) {
     throw new Error("Nombre de profils invalide");
@@ -83,7 +84,7 @@ export async function addProviderAccount(formData: FormData) {
     .eq("status", "active");
 
   const today = toDateInputValue();
-  for (const acc of (existing ?? []) as Array<{
+  for (const acc of (admin ? [] : existing ?? []) as Array<{
     id: string;
     max_slots: number;
     end_date: string;

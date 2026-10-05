@@ -74,7 +74,7 @@ export async function proxy(request: NextRequest) {
       .eq("user_id", user.id)
       .single();
 
-    if (profile?.role !== "admin" || profile?.suspended) {
+    if (profile?.role !== "admin") {
       return copyCookies(supabaseResponse, NextResponse.redirect(new URL("/dashboard", request.url)));
     }
   }

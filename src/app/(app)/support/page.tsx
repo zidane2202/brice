@@ -34,6 +34,7 @@ export default async function SupportPage() {
           successMessage="Ticket envoyé"
           errorMessage="Envoi impossible"
           className="panel support-ticket-form"
+          data-readonly-ok
         >
           <h2>Nouvelle demande</h2>
           <input name="subject" required minLength={3} maxLength={120} placeholder="Sujet" />
@@ -65,6 +66,7 @@ export default async function SupportPage() {
                     successMessage="Réponse envoyée"
                     errorMessage="Réponse impossible"
                     className="ticket-reply"
+                    data-readonly-ok
                   >
                     <input type="hidden" name="ticket_id" value={ticket.id} />
                     <textarea name="body" required maxLength={3000} placeholder="Ajouter une réponse…" />

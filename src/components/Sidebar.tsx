@@ -115,7 +115,7 @@ export function Sidebar({
           <div className="sidebar-account-name">{displayName}</div>
           {userEmail && <div className="sidebar-account-email">{userEmail}</div>}
         </div>
-        <form action={logout} style={{ margin: 0 }}>
+        <form action={logout} style={{ margin: 0 }} data-readonly-ok>
           <button type="submit" className="sidebar-logout" title={t("logout")} aria-label={t("logout")}>
             <Icon name="logout" size={13} />
           </button>

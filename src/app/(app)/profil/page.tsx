@@ -1,4 +1,5 @@
 import { ProfilView } from "@/components/profil/ProfilView";
+import { effectivePlan } from "@/lib/plans";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
 
@@ -41,7 +42,7 @@ export default async function ProfilPage() {
 
   return (
     <ProfilView
-      profile={profile}
+      profile={profile ? { ...profile, plan: effectivePlan(profile) } : profile}
       email={user.email ?? ""}
       createdAt={user.created_at}
       stats={stats}

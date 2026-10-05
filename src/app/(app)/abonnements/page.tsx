@@ -1,7 +1,7 @@
 import { AbonnementsView } from "@/components/abonnements/AbonnementsView";
 import { todayDateOnly } from "@/lib/dates";
 import { sumSellerBalance } from "@/lib/ledger-sql";
-import { accountCap, clientsPerAccount, normalizePlan } from "@/lib/plans";
+import { clientsPerAccountFor, effectivePlan } from "@/lib/plans";
 import { countOccupiedSlots } from "@/lib/slots";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
@@ -43,14 +43,12 @@ export default async function AbonnementsPage() {
   const supabase = createSupabaseAdmin();
   const { data: profile } = await supabase
     .from("user_profiles")
-    .select("plan, extra_provider_accounts")
+    .select("plan, role, extra_provider_accounts, plan_renews_on, created_at")
     .eq("user_id", user.id)
     .maybeSingle();
 
-  const plan = normalizePlan(profile?.plan);
-  const slotCap = clientsPerAccount(plan);
-  // extras used by server actions; keep for future UI display
-  void accountCap(plan, Number(profile?.extra_provider_accounts ?? 0));
+  const plan = effectivePlan(profile);
+  const slotCap = clientsPerAccountFor(profile);
 
   const [accounts, balance] = await Promise.all([getAccounts(user.id), getBalance(user.id)]);
 

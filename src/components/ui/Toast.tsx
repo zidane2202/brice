@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { Icon } from "@/components/Icon";
+import { blockIfPlanExpired } from "@/lib/plan-expired-client";
 
 export type ToastTone = "success" | "error" | "info" | "loading";
 
@@ -62,6 +63,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         push({ tone: "success", title, detail });
       },
       error: (title, detail) => {
+        if (detail === "NEXT_REDIRECT" && blockIfPlanExpired()) return;
         push({ tone: "error", title, detail });
       },
       info: (title, detail) => {

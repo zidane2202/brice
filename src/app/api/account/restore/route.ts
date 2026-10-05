@@ -3,7 +3,7 @@ import { activeSellerOrResponse } from "@/lib/api-auth";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 
 export async function POST(request: Request) {
-  const authz = await activeSellerOrResponse();
+  const authz = await activeSellerOrResponse({ write: true });
   if (!authz.ok) return authz.response;
   const user = authz.user;
   const body = await request.json().catch(() => null); const data = body?.data;

@@ -3,7 +3,7 @@
 import {
   PLAN_LIMIT_COMPTA,
   canUseFullCompta,
-  normalizePlan,
+  effectivePlan,
   planLimitError,
 } from "@/lib/plans";
 import { EXPENSE_CATEGORIES } from "@/lib/comptabilite";
@@ -29,11 +29,11 @@ export async function addManualExpense(formData: FormData) {
   const supabase = createSupabaseAdmin();
   const { data: profile } = await supabase
     .from("user_profiles")
-    .select("plan")
+    .select("plan, role, plan_renews_on, created_at")
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (!canUseFullCompta(normalizePlan(profile?.plan))) {
+  if (!canUseFullCompta(effectivePlan(profile))) {
     throw planLimitError(
       PLAN_LIMIT_COMPTA,
       "Les dépenses manuelles et exports avancés sont réservés aux plans Pro et Business."
@@ -93,8 +93,8 @@ export async function recordInvoicePayment(formData: FormData) {
   const { user } = await requireActiveSeller();
   const db = createSupabaseAdmin();
 
-  const { data: profile } = await db.from("user_profiles").select("plan").eq("user_id", user.id).maybeSingle();
-  if (!canUseFullCompta(normalizePlan(profile?.plan))) {
+  const { data: profile } = await db.from("user_profiles").select("plan, role, plan_renews_on, created_at").eq("user_id", user.id).maybeSingle();
+  if (!canUseFullCompta(effectivePlan(profile))) {
     throw planLimitError(PLAN_LIMIT_COMPTA, "Les encaissements sont réservés aux plans Pro et Business.");
   }
 
@@ -151,8 +151,8 @@ export async function reverseTransaction(transactionId: string, reason: string) 
   const cleanReason = reason.trim();
   if (cleanReason.length < 3 || cleanReason.length > 300) throw new Error("Indiquez une raison entre 3 et 300 caractères.");
   const db = createSupabaseAdmin();
-  const { data: profile } = await db.from("user_profiles").select("plan").eq("user_id", user.id).maybeSingle();
-  if (!canUseFullCompta(normalizePlan(profile?.plan))) {
+  const { data: profile } = await db.from("user_profiles").select("plan, role, plan_renews_on, created_at").eq("user_id", user.id).maybeSingle();
+  if (!canUseFullCompta(effectivePlan(profile))) {
     throw planLimitError(PLAN_LIMIT_COMPTA, "Les annulations d’écritures sont réservées aux plans Pro et Business.");
   }
   const { data: original, error: findError } = await db.from("transactions").select("*").eq("id", transactionId).eq("user_id", user.id).single();

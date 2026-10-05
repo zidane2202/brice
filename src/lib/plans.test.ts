@@ -8,7 +8,64 @@ import {
   PLAN_LIMIT_ACCOUNT,
   activatePlanFor30Days,
   planLimitError,
+  accountCapFor,
+  clientsPerAccountFor,
+  effectivePlan,
+  canUseFullCompta,
+  canUsePush,
+  canUseBranding,
+  ADMIN_UNLIMITED,
+  isPlanExpired,
+  isTrialActive,
+  trialEndsOn,
 } from "./plans.ts";
+
+test("a paid pack becomes read-only once its renewal date has passed", () => {
+  const today = "2026-10-05";
+  assert.equal(isPlanExpired({ plan: "pro", plan_renews_on: "2026-10-04" }, today), true);
+  assert.equal(isPlanExpired({ plan: "business", plan_renews_on: "2026-09-01" }, today), true);
+  assert.equal(isPlanExpired({ plan: "pro", plan_renews_on: "2026-10-05" }, today), false);
+  assert.equal(isPlanExpired({ plan: "pro", plan_renews_on: null }, today), false);
+  assert.equal(isPlanExpired({ plan: "pro", role: "admin", plan_renews_on: "2026-01-01" }, today), false);
+  assert.equal(isPlanExpired(null, today), false);
+});
+
+test("free is a 7-day trial with Pro features, then read-only", () => {
+  const today = "2026-10-05";
+  const trial = { plan: "free", plan_renews_on: "2026-10-08" };
+  assert.equal(isTrialActive(trial, today), true);
+  assert.equal(effectivePlan(trial, today), "pro");
+  assert.equal(accountCapFor(trial, today), accountCap("pro"));
+  assert.equal(clientsPerAccountFor(trial, today), clientsPerAccount("pro"));
+  assert.equal(isPlanExpired(trial, today), false);
+
+  const ended = { plan: "free", plan_renews_on: "2026-10-04" };
+  assert.equal(isTrialActive(ended, today), false);
+  assert.equal(effectivePlan(ended, today), "free");
+  assert.equal(isPlanExpired(ended, today), true);
+
+  assert.equal(trialEndsOn({ plan: "free", created_at: "2026-10-01T10:00:00Z" }), "2026-10-08");
+  assert.equal(trialEndsOn({ plan: "pro", plan_renews_on: "2026-10-08" }), null);
+});
+
+test("admins get every feature with no limits, whatever their stored plan", () => {
+  const admin = { role: "admin", plan: "free", extra_provider_accounts: 0 };
+  assert.equal(effectivePlan(admin), "business");
+  assert.ok(canUseFullCompta(effectivePlan(admin)));
+  assert.ok(canUsePush(effectivePlan(admin)));
+  assert.ok(canUseBranding(effectivePlan(admin)));
+  assert.equal(accountCapFor(admin), ADMIN_UNLIMITED);
+  assert.equal(clientsPerAccountFor(admin), ADMIN_UNLIMITED);
+});
+
+test("resellers keep their plan limits", () => {
+  const free = { role: "reseller", plan: "free" };
+  assert.equal(effectivePlan(free), "free");
+  assert.equal(accountCapFor(free), 2);
+  assert.equal(clientsPerAccountFor(free), 3);
+  assert.equal(accountCapFor({ role: "reseller", plan: "pro", extra_provider_accounts: 3 }), 18);
+  assert.equal(effectivePlan(null), "free");
+});
 
 test("normalizePlan", () => {
   assert.equal(normalizePlan("pro"), "pro");

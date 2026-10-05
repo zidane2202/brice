@@ -73,7 +73,7 @@ export async function updateResellerPlanRole(formData: FormData) {
     target.suspended
   );
   const planRenewsOn = !paid
-    ? null
+    ? (target.plan === "free" || !target.plan ? target.plan_renews_on : null)
     : isActivation
       ? activatePlanFor30Days(todayStr())
       : target.plan_renews_on;
@@ -132,7 +132,7 @@ export async function setResellerSuspended(formData: FormData) {
   }
 
   const patch: { suspended: boolean; plan_renews_on?: string } = { suspended };
-  if (!suspended) {
+  if (!suspended && (target.plan === "pro" || target.plan === "business")) {
     const today = todayStr();
     if (!target.plan_renews_on || target.plan_renews_on < today) {
       patch.plan_renews_on = activatePlanFor30Days(today);
@@ -242,7 +242,7 @@ export async function recordPlatformPayment(formData: FormData) {
     const planRenewsOn = kindRaw === "extra_accounts"
       ? target.plan_renews_on
       : paid
-        ? extendPlanRenewal(target.plan_renews_on, occurredOn)
+        ? extendPlanRenewal(target.plan === "pro" || target.plan === "business" ? target.plan_renews_on : null, occurredOn)
         : null;
 
     appliedPlan = plan;

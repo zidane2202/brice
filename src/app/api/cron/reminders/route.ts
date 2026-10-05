@@ -1,5 +1,5 @@
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
-import { todayDateOnly } from "@/lib/dates";
+import { addDays, todayDateOnly } from "@/lib/dates";
 import { notifyUser } from "@/lib/push";
 import { NextResponse } from "next/server";
 
@@ -17,7 +17,7 @@ export async function GET(request: Request) {
 
   let clientSent = 0;
   let planRemindSent = 0;
-  let autoSuspended = 0;
+  let planExpiredSent = 0;
   const errors: string[] = [];
 
   try {
@@ -73,18 +73,22 @@ export async function GET(request: Request) {
     const { data: renewing } = await supabase
       .from("user_profiles")
       .select("user_id, plan, plan_renews_on, plan_renewal_notified_on")
-      .in("plan", ["pro", "business"])
+      .in("plan", ["free", "pro", "business"])
+      .neq("role", "admin")
       .eq("suspended", false)
       .gte("plan_renews_on", today)
       .lte("plan_renews_on", in3Days);
 
     for (const row of renewing ?? []) {
       if (row.plan_renewal_notified_on && row.plan_renewal_notified_on >= today) continue;
+      const trial = row.plan === "free";
       planRemindSent += await notifyUser(supabase, {
         userId: row.user_id,
         type: "plan_expiry",
-        title: "Pack SubResell bientôt à renouveler",
-        body: `Votre plan ${row.plan} expire le ${row.plan_renews_on}. Contactez le support pour renouveler.`,
+        title: trial ? "Essai SubResell bientôt terminé" : "Pack SubResell bientôt à renouveler",
+        body: trial
+          ? `Votre essai gratuit se termine le ${row.plan_renews_on}. Passez à Pro ou Business pour continuer à modifier vos données.`
+          : `Votre plan ${row.plan} expire le ${row.plan_renews_on}. Contactez le support pour renouveler.`,
         url: "/profil#section-plan",
         dedupKey: `plan-expiry-${row.plan_renews_on}`,
       });
@@ -101,39 +105,30 @@ export async function GET(request: Request) {
     const { data: overdue } = await supabase
       .from("user_profiles")
       .select("user_id, plan, plan_renews_on")
-      .in("plan", ["pro", "business"])
+      .in("plan", ["free", "pro", "business"])
+      .neq("role", "admin")
       .eq("suspended", false)
-      .not("plan_renews_on", "is", null)
+      .gte("plan_renews_on", addDays(today, -3))
       .lt("plan_renews_on", today);
 
     for (const row of overdue ?? []) {
-      const { error: susErr } = await supabase
-        .from("user_profiles")
-        .update({ suspended: true })
-        .eq("user_id", row.user_id);
-      if (!susErr) {
-        autoSuspended++;
-        await notifyUser(supabase, {
-          userId: row.user_id,
-          type: "account_suspended",
-          title: "Compte SubResell suspendu",
-          body: "Votre pack a expiré. Contactez le support pour le réactiver.",
-          url: "/profil#section-plan",
-          dedupKey: `suspended-${row.plan_renews_on}`,
-        });
-        await supabase.from("admin_audit_logs").insert({
-          actor_user_id: row.user_id,
-          target_user_id: row.user_id,
-          action: "account_suspended",
-          details: { source: "cron", plan: row.plan, plan_renews_on: row.plan_renews_on },
-        });
-      }
+      const trial = row.plan === "free";
+      planExpiredSent += await notifyUser(supabase, {
+        userId: row.user_id,
+        type: "plan_expired",
+        title: trial ? "Essai SubResell terminé" : "Pack SubResell expiré",
+        body: trial
+          ? `Votre essai gratuit s'est terminé le ${row.plan_renews_on}. Votre compte est en lecture seule : passez à Pro ou Business pour continuer.`
+          : `Votre plan ${row.plan} a expiré le ${row.plan_renews_on}. Votre compte est en lecture seule : renouvelez pour continuer.`,
+        url: "/profil#section-plan",
+        dedupKey: `plan-expired-${row.plan_renews_on}`,
+      });
     }
   } catch (err) {
-    errors.push(`suspend:${err instanceof Error ? err.message : "unknown"}`);
+    errors.push(`expired:${err instanceof Error ? err.message : "unknown"}`);
   }
 
-  const result = { clientSent, planRemindSent, autoSuspended, errors };
+  const result = { clientSent, planRemindSent, planExpiredSent, errors };
   await supabase.from("system_job_runs").insert({
     job_name: "reminders",
     status: errors.length ? "failed" : "success",

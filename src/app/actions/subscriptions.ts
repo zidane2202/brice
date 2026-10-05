@@ -6,7 +6,7 @@ import { requireActiveSeller } from "@/lib/authz";
 import { addMonths, todayDateOnly } from "@/lib/dates";
 import { createInvoice } from "@/lib/invoices";
 import { recordClientEvent } from "@/lib/client-events";
-import { canUseFullCompta, normalizePlan } from "@/lib/plans";
+import { canUseFullCompta, effectivePlan } from "@/lib/plans";
 import { currentSlotSubscription, occupiesSlot } from "@/lib/slots";
 
 function req(fd: FormData, key: string) {
@@ -306,7 +306,7 @@ export async function updateInvoiceStatus(formData: FormData) {
     throw new Error("Pour annuler une facture, utilisez Annuler dans le journal (écriture liée).");
   }
   if (status !== "paid") throw new Error("Statut de facture invalide");
-  if (!canUseFullCompta(normalizePlan(profile?.plan))) {
+  if (!canUseFullCompta(effectivePlan(profile))) {
     throw new Error("Réservé au pack Pro / Business");
   }
   const db = createSupabaseAdmin();

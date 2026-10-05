@@ -374,8 +374,8 @@ create policy "users see own push subs" on public.push_subscriptions
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer as $$
 begin
-  insert into public.user_profiles (user_id)
-  values (new.id);
+  insert into public.user_profiles (user_id, plan_renews_on)
+  values (new.id, (now() at time zone 'Africa/Lagos')::date + 7);
   return new;
 end;
 $$;

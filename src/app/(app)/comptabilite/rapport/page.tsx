@@ -10,7 +10,7 @@ import {
 } from "@/lib/comptabilite";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
-import { canUseFullCompta, normalizePlan } from "@/lib/plans";
+import { canUseFullCompta, effectivePlan } from "@/lib/plans";
 import { redirect } from "next/navigation";
 import type { ExpenseCategory, Transaction } from "@/lib/types";
 
@@ -32,10 +32,10 @@ export default async function ComptabiliteRapportPage({
   const supabasePlan = createSupabaseAdmin();
   const { data: profile } = await supabasePlan
     .from("user_profiles")
-    .select("plan")
+    .select("plan, role, plan_renews_on, created_at")
     .eq("user_id", user.id)
     .maybeSingle();
-  if (!canUseFullCompta(normalizePlan(profile?.plan))) {
+  if (!canUseFullCompta(effectivePlan(profile))) {
     redirect("/comptabilite");
   }
 

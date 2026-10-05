@@ -3,6 +3,7 @@ import { createSupabaseServer } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { consumeRateLimit, requestIp } from "@/lib/rate-limit";
 import { todayDateOnly } from "@/lib/dates";
+import { canUsePush, effectivePlan, isAdminProfile, isPlanExpired } from "@/lib/plans";
 
 export async function POST(request: Request) {
   const supabaseServer = await createSupabaseServer();
@@ -14,9 +15,10 @@ export async function POST(request: Request) {
 
   const supabase = createSupabaseAdmin();
   const { data: profile } = await supabase.from("user_profiles")
-    .select("plan, suspended, plan_renews_on").eq("user_id", user.id).single();
+    .select("plan, role, suspended, plan_renews_on, created_at").eq("user_id", user.id).single();
   const today = todayDateOnly();
-  if (!profile || !["pro", "business"].includes(profile.plan) || profile.suspended || (profile.plan_renews_on && profile.plan_renews_on < today)) {
+  const paidActive = profile && canUsePush(effectivePlan(profile, today)) && !profile.suspended && !isPlanExpired(profile, today);
+  if (!profile || (!isAdminProfile(profile) && !paidActive)) {
     return NextResponse.json({ error: "Les notifications push nécessitent un pack Pro ou Business actif." }, { status: 403 });
   }
   const subscription = await request.json().catch(() => null);
