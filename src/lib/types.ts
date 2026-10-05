@@ -125,7 +125,8 @@ export type ClientSubscription = {
   end_date: string;
   duration_months: number;
   price: number | null;
-  status: "active" | "cancelled" | "grace";
+  /** « expired » n'existe pas en base : statut dérivé quand le compte fournisseur est échu ou désactivé. */
+  status: "active" | "cancelled" | "grace" | "expired";
   grace_until: string | null;
   last_notified_on: string | null;
   created_at: string;

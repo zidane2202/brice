@@ -1,7 +1,7 @@
 import { ClientsView } from "@/components/clients/ClientsView";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { todayDateOnly } from "@/lib/dates";
-import { occupiesSlot } from "@/lib/slots";
+import { accountOffersSlots, occupiesSlot, withAccountRule } from "@/lib/slots";
 import { getUser } from "@/lib/supabase-server";
 import type { AccountSlot, ClientSubscription, Invoice } from "@/lib/types";
 
@@ -14,6 +14,14 @@ async function getData(userId: string, page: number, filter: string, search: str
   const today = todayDateOnly();
   const soon = todayDateOnly(new Date(Date.now() + 3 * 86400000));
   const searchSafe = search.replace(/[%_,().]/g, " ").replaceAll(",", " ").trim();
+  const { data: ownAccounts } = await supabase
+    .from("provider_accounts")
+    .select("status, end_date, account_slots(id)")
+    .eq("user_id", userId);
+  const deadSlotIds = (ownAccounts ?? [])
+    .filter((account) => !accountOffersSlots(account, today))
+    .flatMap((account) => (account.account_slots ?? []).map((slot) => slot.id));
+  const deadList = deadSlotIds.join(",");
   let subsQuery = supabase
       .from("client_subscriptions")
       .select(`
@@ -21,11 +29,15 @@ async function getData(userId: string, page: number, filter: string, search: str
         client:clients!inner(*),
         slot:account_slots(
           id, slot_number, label,
-          account:provider_accounts(id, service_name)
+          account:provider_accounts(id, service_name, status, end_date)
         )
       `, { count: "exact" })
       .eq("user_id", userId).is("client.archived_at",null);
-  if(filter==="grace")subsQuery=subsQuery.eq("status","grace");else if(filter==="warning")subsQuery=subsQuery.eq("status","active").gte("end_date",today).lte("end_date",soon);else if(filter==="danger")subsQuery=subsQuery.or(`status.eq.cancelled,and(status.neq.grace,end_date.lt.${today})`);else subsQuery=subsQuery.eq("status","active").gt("end_date",soon);
+  if(filter==="danger")subsQuery=subsQuery.or(`status.eq.cancelled,and(status.neq.grace,end_date.lt.${today}),and(status.eq.grace,grace_until.lt.${today})${deadList?`,slot_id.in.(${deadList})`:""}`);
+  else{
+    if(filter==="grace")subsQuery=subsQuery.eq("status","grace").or(`grace_until.is.null,grace_until.gte.${today}`);else if(filter==="warning")subsQuery=subsQuery.eq("status","active").gte("end_date",today).lte("end_date",soon);else subsQuery=subsQuery.eq("status","active").gt("end_date",soon);
+    if(deadList)subsQuery=subsQuery.not("slot_id","in",`(${deadList})`);
+  }
   if(searchSafe) subsQuery=subsQuery.or(`first_name.ilike.%${searchSafe}%,last_name.ilike.%${searchSafe}%,email.ilike.%${searchSafe}%,phone.ilike.%${searchSafe}%`,{referencedTable:"clients"});
   subsQuery=subsQuery.order(sort==="echeance"?"end_date":"created_at",{ascending:sort==="echeance"}).range((page-1)*PAGE_SIZE,page*PAGE_SIZE-1);
   const [subsResult, slotsResult, summaryResult, occResult] = await Promise.all([
@@ -34,7 +46,7 @@ async function getData(userId: string, page: number, filter: string, search: str
       .from("account_slots")
       .select(`
         id, slot_number, label,
-        account:provider_accounts!inner(id, service_name, status, end_date, user_id)
+        account:provider_accounts!inner(id, service_name, label, status, end_date, user_id)
       `)
       .eq("provider_accounts.user_id", userId)
       .eq("provider_accounts.status", "active")
@@ -57,7 +69,7 @@ async function getData(userId: string, page: number, filter: string, search: str
   );
 
   return {
-    subscriptions: ((subsResult.data ?? []) as unknown as ClientSubscription[]),
+    subscriptions: ((subsResult.data ?? []) as unknown as ClientSubscription[]).map((sub) => withAccountRule(sub, today)),
     freeSlots: freeSlots as unknown as (AccountSlot & { account: { id: string; service_name: string } })[],
     summary: summaryResult.data as {active:number;warning:number;danger:number;grace:number;visible:number;totalRevenue:number;clients:number;acquired:number;topClient:{name:string;total:number}|null},
     totalRows: subsResult.count ?? 0,

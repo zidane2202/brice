@@ -94,12 +94,14 @@ export function ClientTable({ subscriptions, emptyMessage = "Aucun client pour l
                         <SubmitButton className="secondary">Annuler</SubmitButton>
                       </ActionForm>
                     )}
-                    <GraceButton
-                      subId={sub.id}
-                      currentStatus={sub.status}
-                      graceUntil={sub.grace_until ?? null}
-                      endDate={sub.end_date}
-                    />
+                    {sub.status !== "expired" && (
+                      <GraceButton
+                        subId={sub.id}
+                        currentStatus={sub.status}
+                        graceUntil={sub.grace_until ?? null}
+                        endDate={sub.end_date}
+                      />
+                    )}
                   </div>
                 </td>
               </tr>

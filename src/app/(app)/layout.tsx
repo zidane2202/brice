@@ -9,7 +9,7 @@ import { canUsePush, effectivePlan, isPlanExpired, isTrialActive, normalizePlan,
 import { TrialBanner } from "@/components/TrialBanner";
 import { addDays, firstOfMonthDateOnly, todayDateOnly } from "@/lib/dates";
 import { sumSellerPeriod } from "@/lib/ledger-sql";
-import { occupiesSlot } from "@/lib/slots";
+import { occupiesSlot, withAccountRule } from "@/lib/slots";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser, getUserProfile } from "@/lib/supabase-server";
 
@@ -31,13 +31,16 @@ async function getSidebarStats(userId: string) {
       .gte("end_date", today),
     supabase
       .from("client_subscriptions")
-      .select("client_id, status, end_date, grace_until, client:clients!inner(archived_at)")
+      .select("client_id, status, end_date, grace_until, client:clients!inner(archived_at), slot:account_slots(account:provider_accounts(status, end_date))")
       .eq("user_id", userId)
       .in("status", ["active", "grace"])
       .is("client.archived_at", null),
   ]);
   const activeClients = new Set(
-    (clientsRes.data ?? []).filter((sub) => occupiesSlot(sub, today)).map((sub) => sub.client_id)
+    ((clientsRes.data ?? []) as unknown as Array<{ client_id: string; status: string; end_date: string; grace_until: string | null; slot: { account: { status: string; end_date: string } | null } | null }>)
+      .map((sub) => withAccountRule(sub, today))
+      .filter((sub) => occupiesSlot(sub, today))
+      .map((sub) => sub.client_id)
   );
 
   const monthlyRevenue = monthKpis.income;

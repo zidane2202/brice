@@ -2,7 +2,7 @@ import { AbonnementsView } from "@/components/abonnements/AbonnementsView";
 import { todayDateOnly } from "@/lib/dates";
 import { sumSellerBalance } from "@/lib/ledger-sql";
 import { clientsPerAccountFor, effectivePlan } from "@/lib/plans";
-import { countOccupiedSlots } from "@/lib/slots";
+import { accountOffersSlots, countOccupiedSlots, currentSlotSubscription, paidBeyondAccount } from "@/lib/slots";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
 import type { ProviderAccount } from "@/lib/types";
@@ -25,10 +25,17 @@ async function getAccounts(userId: string) {
       (a as {
         account_slots?: { id: string; client_subscriptions?: { id: string; status: string; end_date: string; grace_until: string | null }[] }[];
       }).account_slots ?? [];
+    const live = accountOffersSlots(a, today);
     return {
       ...a,
       used_slots: countOccupiedSlots(slots, today),
-    } as unknown as ProviderAccount & { used_slots: number };
+      beyond_slots: live
+        ? slots.filter((slot) => {
+            const current = currentSlotSubscription(slot.client_subscriptions, today);
+            return current !== null && paidBeyondAccount(current, a, today);
+          }).length
+        : 0,
+    } as unknown as ProviderAccount & { used_slots: number; beyond_slots: number };
   });
 }
 

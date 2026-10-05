@@ -52,10 +52,29 @@ const HEADER_ALIASES: Record<string, ImportColumn> = {
   code_pin: "pin_code",
 };
 
-function normalizeHeader(value: string): string {
+function normalizeHeader(value: string, columns: readonly string[], aliases: Record<string, string>): string {
   const key = value.trim().toLowerCase().replace(/\s+/g, "_");
-  if ((IMPORT_COLUMNS as readonly string[]).includes(key)) return key;
-  return HEADER_ALIASES[key] ?? key;
+  if (columns.includes(key)) return key;
+  return aliases[key] ?? key;
+}
+
+/** Lit un CSV (séparateur ; , ou tabulation) en ne gardant que les colonnes connues. */
+export function parseCsvTable<C extends string>(text: string, columns: readonly C[], aliases: Record<string, C>): Array<Partial<Record<C, string>>> {
+  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim());
+  if (lines.length < 2) throw new Error("Le fichier ne contient aucune donnée.");
+  const separator = lines[0].includes(";") ? ";" : lines[0].includes("\t") ? "\t" : ",";
+  const headers = parseLine(lines[0], separator).map((header) => normalizeHeader(header, columns, aliases));
+  if (!headers.some((header) => (columns as readonly string[]).includes(header))) {
+    throw new Error(`Aucune colonne reconnue. Colonnes attendues : ${columns.join(", ")}`);
+  }
+  return lines.slice(1).map((line) => {
+    const values = parseLine(line, separator);
+    const row: Partial<Record<C, string>> = {};
+    headers.forEach((header, index) => {
+      if ((columns as readonly string[]).includes(header) && values[index]) row[header as C] = values[index];
+    });
+    return row;
+  });
 }
 
 function parseLine(line: string, separator: string) {
@@ -79,23 +98,7 @@ function parseLine(line: string, separator: string) {
 
 /** Lit un CSV au format de la plateforme ; toutes les colonnes sont facultatives. */
 export function parseImportCsv(text: string): ImportRow[] {
-  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim());
-  if (lines.length < 2) throw new Error("Le fichier ne contient aucune donnée.");
-  const separator = lines[0].includes(";") ? ";" : lines[0].includes("\t") ? "\t" : ",";
-  const headers = parseLine(lines[0], separator).map(normalizeHeader);
-  if (!headers.some((header) => (IMPORT_COLUMNS as readonly string[]).includes(header))) {
-    throw new Error(`Aucune colonne reconnue. Colonnes attendues : ${IMPORT_COLUMNS.join(", ")}`);
-  }
-  const rows = lines.slice(1).map((line) => {
-    const values = parseLine(line, separator);
-    const row: ImportRow = {};
-    headers.forEach((header, index) => {
-      if ((IMPORT_COLUMNS as readonly string[]).includes(header) && values[index]) {
-        row[header as ImportColumn] = values[index];
-      }
-    });
-    return normalizeImportRow(row);
-  });
+  const rows = parseCsvTable(text, IMPORT_COLUMNS, HEADER_ALIASES).map(normalizeImportRow);
   const filled = rows.filter(hasIdentity);
   if (filled.length > IMPORT_MAX_ROWS) {
     throw new Error(`Maximum ${IMPORT_MAX_ROWS} clients par import (${filled.length} trouvés). Découpez le fichier.`);
@@ -107,7 +110,7 @@ export function hasIdentity(row: ImportRow): boolean {
   return Boolean(row.first_name || row.last_name || row.phone || row.email);
 }
 
-function normalizeDate(value: string): string {
+export function normalizeDate(value: string): string {
   const v = value.trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
   const fr = v.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2}|\d{4})$/);
@@ -118,13 +121,13 @@ function normalizeDate(value: string): string {
   return v;
 }
 
-function normalizeAmount(value: string): string {
+export function normalizeAmount(value: string): string {
   const digits = value.replace(/[^\d.,]/g, "").replace(/[.,](?=\d{3}\b)/g, "").replace(",", ".");
   const amount = Number.parseFloat(digits);
   return Number.isFinite(amount) && amount > 0 ? String(Math.round(amount)) : "";
 }
 
-function normalizeDuration(value: string): string {
+export function normalizeDuration(value: string): string {
   const months = Number.parseInt(value.replace(/[^\d]/g, ""), 10);
   return Number.isInteger(months) && months >= 1 && months <= 24 ? String(months) : "";
 }
@@ -152,7 +155,37 @@ export function normalizeImportRow(input: Record<string, unknown>): ImportRow {
   return row;
 }
 
-function csvCell(value: string): string {
+export type ImportSlot = {
+  id: string;
+  slot_number: number;
+  label: string | null;
+  account: { id: string; service_name: string; label?: string | null };
+};
+
+export function importSlotName(slot: Pick<ImportSlot, "label" | "slot_number">) {
+  return slot.label || `Profil ${slot.slot_number}`;
+}
+
+/** Propose un profil libre par ligne : même service, profil du fichier en priorité, jamais deux fois le même. */
+export function autoAssignSlots(rows: ImportRow[], slots: ImportSlot[]): Array<string | null> {
+  const used = new Set<string>();
+  return rows.map((row) => {
+    const service = row.service?.trim().toLowerCase();
+    if (!service) return null;
+    const candidates = slots.filter(
+      (slot) =>
+        !used.has(slot.id) &&
+        (slot.account.service_name.toLowerCase() === service || slot.account.label?.toLowerCase() === service)
+    );
+    const profile = row.profile?.trim().toLowerCase();
+    const pick = candidates.find((slot) => profile && importSlotName(slot).toLowerCase() === profile) ?? candidates[0];
+    if (!pick) return null;
+    used.add(pick.id);
+    return pick.id;
+  });
+}
+
+export function csvCell(value: string): string {
   return /[";\n\r]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }
 

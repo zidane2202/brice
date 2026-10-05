@@ -7,7 +7,7 @@ import { addMonths, todayDateOnly } from "@/lib/dates";
 import { createInvoice } from "@/lib/invoices";
 import { recordClientEvent } from "@/lib/client-events";
 import { canUseFullCompta, effectivePlan } from "@/lib/plans";
-import { currentSlotSubscription, occupiesSlot } from "@/lib/slots";
+import { accountOffersSlots, currentSlotSubscription, occupiesSlot } from "@/lib/slots";
 
 function req(fd: FormData, key: string) {
   return String(fd.get(key) ?? "").trim();
@@ -35,6 +35,22 @@ async function assertSlotNotResold(supabase: ReturnType<typeof createSupabaseAdm
   throw new Error(`Ce profil a été revendu à ${name}. Créez une nouvelle vente sur un profil libre.`);
 }
 
+/** Le client dépend du compte fournisseur : renvoie l'échéance du compte, ou refuse si le compte est échu ou désactivé. */
+async function assertAccountLive(supabase: ReturnType<typeof createSupabaseAdmin>, userId: string, subscriptionId: string) {
+  const { data } = await supabase
+    .from("client_subscriptions")
+    .select("slot:account_slots(account:provider_accounts(service_name, status, end_date))")
+    .eq("id", subscriptionId)
+    .eq("user_id", userId)
+    .single();
+  const account = (data?.slot as unknown as { account?: { service_name: string; status: string; end_date: string } | null } | null)?.account;
+  if (!account) return null;
+  if (!accountOffersSlots(account, todayDateOnly())) {
+    throw new Error(`Le compte ${account.service_name} a expiré : renouvelez d'abord le compte dans Mes abonnements, ou réabonnez ce client sur un autre profil.`);
+  }
+  return account.end_date;
+}
+
 export async function renewClientSubscription(formData: FormData) {
   const { user } = await requireActiveSeller();
 
@@ -52,6 +68,7 @@ export async function renewClientSubscription(formData: FormData) {
     .eq("user_id", user.id)
     .single();
   if (!existing) throw new Error("Abonnement introuvable.");
+  await assertAccountLive(supabase, user.id, id);
   const today = todayDateOnly();
   if (!occupiesSlot(existing, today)) await assertSlotNotResold(supabase, user.id, id);
   const baseDate =
@@ -201,7 +218,14 @@ export async function setGraceStatus(formData: FormData) {
 
   const id = req(formData, "id");
   const graceUntil = req(formData, "grace_until");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(graceUntil) || graceUntil < todayDateOnly()) {
+    throw new Error("Date de grâce invalide.");
+  }
   const supabase = createSupabaseAdmin();
+  const accountEnd = await assertAccountLive(supabase, user.id, id);
+  if (accountEnd && graceUntil > accountEnd) {
+    throw new Error(`La grâce ne peut pas dépasser l'échéance du compte (${accountEnd.split("-").reverse().join("/")}).`);
+  }
   await assertSlotNotResold(supabase, user.id, id);
 
   const { data: graceSub, error } = await supabase

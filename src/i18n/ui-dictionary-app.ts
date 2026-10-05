@@ -418,6 +418,51 @@ export const UI_EN_APP: Record<string, string> = {
   "Activation en cours...": "Enabling...",
   "Activer les notifications": "Enable notifications",
   "Réactiver les notifications": "Re-enable notifications",
+  "Compte expiré": "Account expired",
+  "Profil invalide.": "Invalid profile.",
+  "L'import doit contenir entre 1 et {n} comptes.": "The import must contain between 1 and {n} accounts.",
+  "Nombre de profils manquant": "Number of profiles missing",
+  "Importer des comptes": "Import accounts",
+  "Maximum {n} comptes. Le service et le nombre de profils sont indispensables, le reste est facultatif. Indiquez l'échéance si vous la connaissez, sinon le compte démarre aujourd'hui pour la durée choisie. Le coût sert aux prochains renouvellements : aucune dépense n'est ajoutée à la comptabilité.":
+    "Maximum {n} accounts. The service and the number of profiles are required, the rest is optional. Enter the due date if you know it, otherwise the account starts today for the chosen duration. The cost is used for future renewals: no expense is added to the accounting.",
+  "· maximum {n} profils par compte sur votre pack": "· maximum {n} profiles per account on your pack",
+  "· {n} sans nombre de profils": "· {n} without a number of profiles",
+  "· {n} au-delà de la limite du pack": "· {n} over the pack limit",
+  "Importer {n} compte(s)": "Import {n} account(s)",
+  "Envoyez-moi la liste de vos comptes fournisseurs, sous n'importe quelle forme : texte collé, capture d'écran, PDF, Excel ou Word. Je récupère le service, les identifiants, le nombre de profils, l'échéance et le coût, puis je prépare un CSV à vérifier avant l'import.":
+    "Send me the list of your provider accounts in any form: pasted text, screenshot, PDF, Excel or Word. I pick up the service, credentials, number of profiles, due date and cost, then prepare a CSV to check before importing.",
+  "Assistant d'import de comptes": "Account import assistant",
+  "{n} compte(s) trouvé(s)": "{n} account(s) found",
+  "{n} client(s) trouvé(s)": "{n} client(s) found",
+  "Maximum {n} comptes par import ({n} trouvés). Découpez le fichier.": "Maximum {n} accounts per import ({n} found). Split the file.",
+  "Télécharger le CSV corrigé": "Download the corrected CSV",
+  "Aucun profil libre sur vos comptes actifs : les clients seront importés sans abonnement.":
+    "No free profile on your active accounts: clients will be imported without a subscription.",
+  "Aucun abonnement": "No subscription",
+  "Valeur du fichier, introuvable parmi les comptes disponibles": "Value from the file, not found among available accounts",
+  "Choisir un profil": "Choose a profile",
+  "Retirer la ligne": "Remove the row",
+  "· {n} profil(s) choisi(s) sans montant": "· {n} profile(s) chosen without an amount",
+  "Excel, CSV, Word, PDF, image ou texte": "Excel, CSV, Word, PDF, image or text",
+  "Ce compte fournisseur est expiré ou désactivé : choisissez un profil sur un compte actif.":
+    "This provider account is expired or disabled: choose a profile on an active account.",
+  "Ce profil est déjà occupé par {x}.": "This profile is already taken by {x}.",
+  "Profil modifié": "Profile changed",
+  "Aucun profil libre sur vos comptes actifs.": "No free profile on your active accounts.",
+  "Le compte {x} a expiré le {x} : ce client n'a plus d'accès. Renouvelez d'abord le compte dans Mes abonnements (le client retrouve alors ses dates), ou réabonnez-le sur un autre profil.":
+    "The {x} account expired on {x}: this client no longer has access. Renew the account first in My subscriptions (the client then gets their dates back), or resubscribe them on another profile.",
+  "Le compte {x} a expiré : ce client n'a plus d'accès. Renouvelez d'abord le compte dans Mes abonnements (le client retrouve alors ses dates), ou réabonnez-le sur un autre profil.":
+    "The {x} account has expired: this client no longer has access. Renew the account first in My subscriptions (the client then gets their dates back), or resubscribe them on another profile.",
+  "Suspend les relances jusqu'à la date choisie, au plus tard le {x} (échéance du compte).":
+    "Pauses reminders until the chosen date, at the latest {x} (account due date).",
+  "Le compte {x} a expiré : renouvelez d'abord le compte dans Mes abonnements, ou réabonnez ce client sur un autre profil.":
+    "The {x} account has expired: renew the account first in My subscriptions, or resubscribe this client on another profile.",
+  "Date de grâce invalide.": "Invalid grace date.",
+  "La grâce ne peut pas dépasser l'échéance du compte ({x}).": "Grace cannot go beyond the account due date ({x}).",
+  "Clients payés au-delà de l'échéance du compte": "Clients paid beyond the account due date",
+  "Si le compte n'est pas renouvelé à temps, ces clients perdent leur accès et passent en expiré.":
+    "If the account is not renewed in time, these clients lose access and become expired.",
+  "{x} : {n} client{x}, compte à renouveler avant le {x}": "{x}: {n} client{x}, renew the account before {x}",
   "Comment les débloquer": "How to unblock them",
   "Désactivation...": "Disabling...",
   "Les notifications sont incluses dans l'essai gratuit et les packs Pro et Business. Votre compte est en lecture seule : passez à Pro ou Business pour les activer.":

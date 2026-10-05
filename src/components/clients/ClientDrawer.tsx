@@ -28,16 +28,20 @@ type Props = {
   invoices: Invoice[];
   events: Array<{ id: string; type: string; title: string; details: Record<string, unknown>; created_at: string }>;
   mergeCandidates: Array<{ id: string; name: string }>;
+  freeSlots: SlotOption[];
   onClose: () => void;
 };
+
+type SlotOption = { id: string; slot_number: number; label: string | null; account: { id: string; service_name: string } };
 
 const STATUS_LABEL: Record<ClientSubscription["status"], { tone: string; label: string; dot: string }> = {
   active:    { tone: "success", label: "Actif",         dot: "var(--sr-mint-500)" },
   grace:     { tone: "warning", label: "En grâce",      dot: "var(--sr-warning)"  },
   cancelled: { tone: "danger",  label: "Expiré",        dot: "var(--sr-danger)"   },
+  expired:   { tone: "danger",  label: "Compte expiré", dot: "var(--sr-danger)"   },
 };
 
-export function ClientDrawer({ sub, lifetime, cyclesCount, history, invoices, events, mergeCandidates, onClose }: Props) {
+export function ClientDrawer({ sub, lifetime, cyclesCount, history, invoices, events, mergeCandidates, freeSlots, onClose }: Props) {
   const toast = useToast();
   const client = sub.client;
   if (!client) return null;
@@ -45,6 +49,8 @@ export function ClientDrawer({ sub, lifetime, cyclesCount, history, invoices, ev
   const fullName = [client.first_name, client.last_name].filter(Boolean).join(" ");
   const serviceName = sub.slot?.account?.service_name ?? "—";
   const slotLabel = sub.slot?.label || `Profil ${sub.slot?.slot_number ?? ""}`;
+  const accountExpired = sub.status === "expired";
+  const accountEnd = sub.slot?.account?.end_date ?? null;
   const [editingNotes, setEditingNotes] = useState(false);
   const [rail, setRail] = useState<string>(client.payment_rail ?? "");
   const [mergeTarget, setMergeTarget] = useState("");
@@ -192,6 +198,13 @@ export function ClientDrawer({ sub, lifetime, cyclesCount, history, invoices, ev
             />
           </div>
 
+          {accountExpired ? (
+            <div style={{ marginTop: 12, padding: "10px 12px", borderRadius: 6, border: "1px solid var(--sr-danger)", color: "var(--sr-fg)", font: "400 12px/1.5 var(--font-geist-sans)" }}>
+              {accountEnd
+                ? `Le compte ${serviceName} a expiré le ${formatDate(accountEnd)} : ce client n'a plus d'accès. Renouvelez d'abord le compte dans Mes abonnements (le client retrouve alors ses dates), ou réabonnez-le sur un autre profil.`
+                : `Le compte ${serviceName} a expiré : ce client n'a plus d'accès. Renouvelez d'abord le compte dans Mes abonnements (le client retrouve alors ses dates), ou réabonnez-le sur un autre profil.`}
+            </div>
+          ) : (
           <div style={{ marginTop: 12, display: "flex", gap: 6, flexWrap: "wrap" }}>
             <ActionForm
               action={renewClientSubscription}
@@ -222,6 +235,7 @@ export function ClientDrawer({ sub, lifetime, cyclesCount, history, invoices, ev
             </ActionForm>
             {sub.status !== "cancelled" && <CancelButton subId={sub.id} />}
           </div>
+          )}
 
           <ActionForm
             action={updateClientMeta}
@@ -258,9 +272,11 @@ export function ClientDrawer({ sub, lifetime, cyclesCount, history, invoices, ev
             </SubmitButton>
           </ActionForm>
 
-          <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px dashed var(--sr-border-subtle)" }}>
-            <GraceControl subId={sub.id} status={sub.status} graceUntil={sub.grace_until} endDate={sub.end_date} />
-          </div>
+          {!accountExpired && (
+            <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px dashed var(--sr-border-subtle)" }}>
+              <GraceControl subId={sub.id} status={sub.status} graceUntil={sub.grace_until} endDate={sub.end_date} accountEnd={accountEnd} />
+            </div>
+          )}
         </div>
       </Section>
 
@@ -276,6 +292,9 @@ export function ClientDrawer({ sub, lifetime, cyclesCount, history, invoices, ev
           paymentRail={client.payment_rail ?? ""}
           price={sub.price ?? 0}
           notes={client.notes ?? ""}
+          currentSlotId={sub.slot_id}
+          currentSlotName={`${serviceName} · ${slotLabel}`}
+          freeSlots={freeSlots}
         />
       </Section>
 
@@ -575,6 +594,9 @@ function ClientDetailsForm({
   paymentRail,
   price,
   notes,
+  currentSlotId,
+  currentSlotName,
+  freeSlots,
 }: {
   clientId: string;
   subscriptionId: string;
@@ -586,8 +608,18 @@ function ClientDetailsForm({
   paymentRail: string;
   price: number;
   notes: string;
+  currentSlotId: string;
+  currentSlotName: string;
+  freeSlots: SlotOption[];
 }) {
   const [rail, setRail] = useState(paymentRail);
+  const [slotId, setSlotId] = useState(currentSlotId);
+  useEffect(() => setSlotId(currentSlotId), [currentSlotId]);
+  const slotsByService = Array.from(
+    freeSlots
+      .filter((slot) => slot.id !== currentSlotId)
+      .reduce((map, slot) => map.set(slot.account.service_name, [...(map.get(slot.account.service_name) ?? []), slot]), new Map<string, SlotOption[]>())
+  ).sort((a, b) => a[0].localeCompare(b[0]));
 
   return (
     <ActionForm
@@ -616,6 +648,26 @@ function ClientDetailsForm({
           <input name="last_name" defaultValue={lastName} />
         </EditField>
       </div>
+
+      <EditField label="Profil">
+        <select name="slot_id" value={slotId} onChange={(e) => setSlotId(e.target.value)}>
+          <option value={currentSlotId}>{`${currentSlotName} (actuel)`}</option>
+          {slotsByService.map(([service, slots]) => (
+            <optgroup key={service} label={service}>
+              {slots.map((slot) => (
+                <option key={slot.id} value={slot.id}>
+                  {`${service} · ${slot.label || `Profil ${slot.slot_number}`}`}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+        {freeSlots.length === 0 && (
+          <span style={{ font: "400 11px/1.4 var(--font-geist-sans)", color: "var(--sr-fg-subtle)" }}>
+            Aucun profil libre sur vos comptes actifs.
+          </span>
+        )}
+      </EditField>
 
       <EditField label="Téléphone WhatsApp">
         <input name="phone" type="tel" defaultValue={phone} placeholder="+237..." />
@@ -1015,15 +1067,18 @@ function GraceControl({
   status,
   graceUntil,
   endDate,
+  accountEnd,
 }: {
   subId: string;
   status: ClientSubscription["status"];
   graceUntil: string | null;
   endDate: string;
+  accountEnd: string | null;
 }) {
-  const defaultGraceDate =
+  const proposed =
     graceUntil ??
     (endDate > toDateInputValue() ? addDays(endDate, 7) : addDays(toDateInputValue(), 7));
+  const defaultGraceDate = accountEnd && proposed > accountEnd ? accountEnd : proposed;
   const [graceDate, setGraceDate] = useState(defaultGraceDate);
 
   if (status === "grace") {
@@ -1071,7 +1126,9 @@ function GraceControl({
           Délai de paiement
         </div>
         <div style={{ marginTop: 4, font: "400 11px/1.3 var(--font-geist-sans)", color: "var(--sr-fg-muted)" }}>
-          Suspend les relances jusqu&apos;à la date choisie.
+          {accountEnd
+            ? `Suspend les relances jusqu'à la date choisie, au plus tard le ${formatDate(accountEnd)} (échéance du compte).`
+            : "Suspend les relances jusqu'à la date choisie."}
         </div>
       </div>
       <input
@@ -1079,6 +1136,7 @@ function GraceControl({
         name="grace_until"
         value={graceDate}
         min={toDateInputValue()}
+        max={accountEnd ?? undefined}
         onChange={(e) => setGraceDate(e.target.value)}
         style={{
           minHeight: 30,

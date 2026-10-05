@@ -1,7 +1,7 @@
 import { RemindersView, type ReminderRow } from "@/components/relances/RemindersView";
 import { todayDateOnly } from "@/lib/dates";
 import { daysLeft, reminderCategory, type ReminderTemplate } from "@/lib/reminder-templates";
-import { occupiesSlot } from "@/lib/slots";
+import { occupiesSlot, withAccountRule } from "@/lib/slots";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
 
@@ -15,7 +15,7 @@ type SubRow = {
   status: string;
   grace_until: string | null;
   client: { first_name: string; last_name: string | null; phone: string | null; archived_at: string | null } | null;
-  slot: { account?: { service_name?: string } | null } | null;
+  slot: { account?: { service_name?: string; status?: string; end_date?: string } | null } | null;
 };
 
 export default async function RemindersPage() {
@@ -27,7 +27,7 @@ export default async function RemindersPage() {
   const [{ data: subsData }, { data: invoices }, templatesResult, { data: tracked }, { data: profile }] = await Promise.all([
     db
       .from("client_subscriptions")
-      .select("id,client_id,end_date,price,status,grace_until,client:clients(first_name,last_name,phone,archived_at),slot:account_slots(account:provider_accounts(service_name))")
+      .select("id,client_id,end_date,price,status,grace_until,client:clients(first_name,last_name,phone,archived_at),slot:account_slots(account:provider_accounts(service_name,status,end_date))")
       .eq("user_id", user.id)
       .neq("status", "cancelled")
       .order("end_date", { ascending: false })
@@ -42,7 +42,9 @@ export default async function RemindersPage() {
     db.from("user_profiles").select("first_name,last_name,company_name").eq("user_id", user.id).maybeSingle(),
   ]);
 
-  const subs = ((subsData ?? []) as unknown as SubRow[]).filter((sub) => sub.client && !sub.client.archived_at);
+  const subs = ((subsData ?? []) as unknown as SubRow[])
+    .filter((sub) => sub.client && !sub.client.archived_at)
+    .map((sub) => withAccountRule(sub, today));
   const trackedMap = new Map((tracked ?? []).map((row) => [row.subscription_id as string, row as { status: string; sent_at: string | null }]));
   const currentClients = new Set(subs.filter((sub) => occupiesSlot(sub, today)).map((sub) => sub.client_id));
   const subById = new Map(subs.map((sub) => [sub.id, sub]));

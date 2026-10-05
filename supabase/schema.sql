@@ -578,14 +578,17 @@ grant execute on function public.restore_account_backup_atomic(uuid,jsonb) to se
 create or replace function public.client_list_summary(p_user uuid)
 returns jsonb language sql stable security definer set search_path=public as $$
 with base as (
-  select s.*,c.first_name,c.last_name,c.created_at client_created
+  select s.*,c.first_name,c.last_name,c.created_at client_created,
+    coalesce(pa.status='active' and pa.end_date>=current_date, true) account_live
   from client_subscriptions s join clients c on c.id=s.client_id
+  left join account_slots sl on sl.id=s.slot_id
+  left join provider_accounts pa on pa.id=sl.account_id
   where s.user_id=p_user and c.archived_at is null
 ), totals as (
-  select count(*) filter(where status='active' and end_date>current_date+3)::int active,
-    count(*) filter(where status='active' and end_date between current_date and current_date+3)::int warning,
-    count(*) filter(where status='cancelled' or (status<>'grace' and end_date<current_date))::int danger,
-    count(*) filter(where status='grace')::int grace,
+  select count(*) filter(where account_live and status='active' and end_date>current_date+3)::int active,
+    count(*) filter(where account_live and status='active' and end_date between current_date and current_date+3)::int warning,
+    count(*) filter(where status='cancelled' or not account_live or (status='active' and end_date<current_date) or (status='grace' and grace_until<current_date))::int danger,
+    count(*) filter(where account_live and status='grace' and (grace_until is null or grace_until>=current_date))::int grace,
     coalesce(sum(price),0) revenue,
     count(distinct client_id)::int clients,
     count(distinct client_id) filter(where date_trunc('month',client_created)=date_trunc('month',current_date))::int acquired

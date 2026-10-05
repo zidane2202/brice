@@ -47,7 +47,7 @@ function looksFrench(text: string) {
 }
 
 // Volontairement en français : messages WhatsApp envoyés aux clients finaux, noms propres, config serveur, consignes envoyées au modèle d'import.
-const INTENTIONAL = /^(Bonjour\b|Salut\b|Aïcha$|Yaoundé$|PROVIDER_CREDENTIALS_KEY\b|a expiré il y a|expire dans \d+ jour|Renvoie la liste des clients extraits|Réponse courte au vendeur|7 CSV généré|7 \[Fichiers envoyés)/;
+const INTENTIONAL = /^(Bonjour\b|Salut\b|Aïcha$|Yaoundé$|PROVIDER_CREDENTIALS_KEY\b|a expiré il y a|expire dans \d+ jour|Renvoie la liste des clients extraits|Renvoie la liste des comptes fournisseurs extraits|libellé libre pour distinguer|Compte 1$|compte@mail\.com$|Réponse courte au vendeur|7 CSV généré|7 \[Fichiers envoyés)/;
 
 function covered(text: string) {
   const t = normalizeUiKey(text).replace(/\{n\}/g, "7");

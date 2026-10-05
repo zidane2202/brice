@@ -5,7 +5,7 @@ import { TopProvidersPanel } from "@/components/TopProvidersPanel";
 import { TransactionsHistoryPanel } from "@/components/TransactionsHistoryPanel";
 import { addDays, daysUntil, firstOfMonthDateOnly, todayDateOnly } from "@/lib/dates";
 import { sumSellerBalance, sumSellerPeriod } from "@/lib/ledger-sql";
-import { occupiesSlot } from "@/lib/slots";
+import { occupiesSlot, withAccountRule } from "@/lib/slots";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
 import type { ClientSubscription, ProviderAccount, Transaction } from "@/lib/types";
@@ -28,7 +28,7 @@ async function getDashboardData(userId: string) {
         client:clients(id, first_name, last_name, phone),
         slot:account_slots(
           id, slot_number, label,
-          account:provider_accounts(id, service_name)
+          account:provider_accounts(id, service_name, status, end_date)
         )
       `)
       .eq("user_id", userId)
@@ -49,15 +49,15 @@ async function getDashboardData(userId: string) {
     supabase.from("invoices").select("kind,status,amount,service_name,created_at").eq("user_id",userId).gte("created_at", `${monthStart}T00:00:00`),
   ]);
 
-  const subscriptions = (subsResult.data ?? []) as unknown as ClientSubscription[];
+  const subscriptions = ((subsResult.data ?? []) as unknown as ClientSubscription[]).map((s) => withAccountRule(s, today));
   const accounts = (accountsResult.data ?? []) as unknown as (ProviderAccount & { account_slots: { id: string }[] })[];
   const transactions = (txResult.data ?? []) as unknown as Transaction[];
   const liveAccounts = accounts.filter((a) => a.end_date >= today);
   const activeClients = subscriptions.filter(
     (s) => s.status === "active" && s.end_date >= today
   );
-  const expiredClients = subscriptions.filter((s) => s.status === "cancelled" || (s.status !== "grace" && s.end_date < today));
-  const graceClients = subscriptions.filter((s) => s.status === "grace");
+  const expiredClients = subscriptions.filter((s) => s.status === "cancelled" || s.status === "expired" || (s.status === "active" && s.end_date < today) || (s.status === "grace" && !occupiesSlot(s, today)));
+  const graceClients = subscriptions.filter((s) => s.status === "grace" && occupiesSlot(s, today));
   const urgent = activeClients.filter((s) => {
     const d = daysUntil(s.end_date);
     return d >= 0 && d <= 3;
@@ -92,7 +92,7 @@ async function getDashboardData(userId: string) {
   const renewalInvoices = paidInvoices.filter((invoice) => invoice.kind === "renewal");
   const renewalRate = paidInvoices.length ? Math.round((renewalInvoices.length / paidInvoices.length) * 100) : 0;
   const forecast = (days: number) => subscriptions.filter((subscription) => {
-    if (subscription.status === "cancelled") return false;
+    if (subscription.status === "cancelled" || subscription.status === "expired") return false;
     const remaining = daysUntil(subscription.end_date);
     return remaining >= 0 && remaining <= days;
   }).reduce((sum, subscription) => sum + Number(subscription.price ?? 0), 0);

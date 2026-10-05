@@ -46,8 +46,9 @@ const STATUS_META: Record<
 };
 
 function bucket(sub: ClientSubscription, today: string): FilterKey {
-  if (sub.status === "grace") return "grace";
-  if (sub.status === "cancelled" || sub.end_date < today) return "danger";
+  if (sub.status === "cancelled" || sub.status === "expired") return "danger";
+  if (sub.status === "grace") return sub.grace_until && sub.grace_until < today ? "danger" : "grace";
+  if (sub.end_date < today) return "danger";
   const d = daysUntil(sub.end_date);
   if (d >= 0 && d <= 3) return "warning";
   return "active";
@@ -286,8 +287,8 @@ export function ClientsView({ subscriptions, freeSlots, invoices, events, initia
             </div>
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <ClientImportAssistant />
-              <ClientCsvImport />
+              <ClientImportAssistant freeSlots={freeSlots} />
+              <ClientCsvImport freeSlots={freeSlots} />
               <button type="button" className="secondary" onClick={exportCsv} disabled={subscriptions.length === 0}>
                 <Icon name="download" size={14} /> Exporter CSV
               </button>
@@ -537,6 +538,7 @@ export function ClientsView({ subscriptions, freeSlots, invoices, events, initia
         invoices={selectedInvoices}
             events={events.filter((event) => event.client_id === selectedSub.client_id)}
             mergeCandidates={Array.from(new Map(subscriptions.filter((item) => item.client && item.client_id !== selectedSub.client_id && !item.client.archived_at).map((item) => [item.client_id, { id: item.client_id, name: [item.client!.first_name, item.client!.last_name].filter(Boolean).join(" ") }])).values())}
+            freeSlots={freeSlots}
             onClose={() => setDrawerOpen(false)}
           />
         </div>,

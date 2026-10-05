@@ -26,11 +26,13 @@ export async function GET(request: Request) {
       .select(`
         id, end_date, user_id,
         client:clients(first_name, last_name),
-        slot:account_slots(label, slot_number, account:provider_accounts(service_name))
+        slot:account_slots!inner(label, slot_number, account:provider_accounts!inner(service_name, status, end_date))
       `)
       .eq("status", "active")
       .gte("end_date", today)
       .lte("end_date", in3Days)
+      .eq("account_slots.provider_accounts.status", "active")
+      .gte("account_slots.provider_accounts.end_date", today)
       .or(`last_notified_on.is.null,last_notified_on.lt.${today}`);
 
     if (error) {

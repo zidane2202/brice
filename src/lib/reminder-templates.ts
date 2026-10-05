@@ -59,6 +59,7 @@ export function reminderCategory(sub: { status: string; end_date: string }, toda
   if (sub.status === "cancelled") return null;
   if (sub.status === "grace") return "grace";
   const days = daysLeft(sub.end_date, today);
+  if (sub.status === "expired") return Math.min(days, -1) >= -30 ? "expired" : "lapsed";
   if (days === 0) return "today";
   if (days >= 1 && days <= 3) return "soon3";
   if (days >= 4 && days <= 7) return "soon7";

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { accountOffersSlots, countOccupiedSlots, currentSlotSubscription, occupiesSlot } from "./slots.ts";
+import { accountOffersSlots, countOccupiedSlots, currentSlotSubscription, effectiveSubscription, occupiesSlot, paidBeyondAccount, withAccountRule } from "./slots.ts";
 
 const today = "2026-10-05";
 
@@ -40,4 +40,34 @@ test("inactive or expired provider accounts offer no slots", () => {
   assert.equal(accountOffersSlots({ status: "active", end_date: "2026-11-01" }, today), true);
   assert.equal(accountOffersSlots({ status: "active", end_date: "2026-09-04" }, today), false);
   assert.equal(accountOffersSlots({ status: "inactive", end_date: "2026-11-01" }, today), false);
+});
+
+test("clients of an expired account are expired, even in grace", () => {
+  const expiredAccount = { status: "active", end_date: "2026-10-01" };
+  const grace = effectiveSubscription({ status: "grace", end_date: "2026-09-28", grace_until: "2026-10-12" }, expiredAccount, today);
+  assert.equal(grace.status, "expired");
+  assert.equal(grace.grace_until, null);
+  assert.equal(occupiesSlot(grace, today), false);
+
+  const paidLater = effectiveSubscription({ status: "active", end_date: "2026-11-20" }, expiredAccount, today);
+  assert.equal(paidLater.status, "expired");
+  assert.equal(paidLater.end_date, "2026-10-01");
+
+  const disabled = effectiveSubscription({ status: "active", end_date: "2026-11-20" }, { status: "inactive", end_date: "2026-12-01" }, today);
+  assert.equal(disabled.status, "expired");
+});
+
+test("renewing the account brings its clients back with their own dates", () => {
+  const sub = { status: "active", end_date: "2026-11-20" };
+  assert.deepEqual(effectiveSubscription(sub, { status: "active", end_date: "2026-11-01" }, today), sub);
+  assert.equal(withAccountRule({ ...sub, slot: { account: { status: "active", end_date: "2026-12-01" } } }, today).status, "active");
+  assert.equal(withAccountRule({ ...sub, slot: null }, today).status, "active");
+  assert.equal(effectiveSubscription({ status: "cancelled", end_date: "2026-11-20" }, { status: "inactive", end_date: "2026-01-01" }, today).status, "cancelled");
+});
+
+test("flags clients paid beyond the account due date", () => {
+  const account = { status: "active", end_date: "2026-10-20" };
+  assert.equal(paidBeyondAccount({ status: "active", end_date: "2026-11-05" }, account, today), true);
+  assert.equal(paidBeyondAccount({ status: "active", end_date: "2026-10-15" }, account, today), false);
+  assert.equal(paidBeyondAccount({ status: "cancelled", end_date: "2026-11-05" }, account, today), false);
 });

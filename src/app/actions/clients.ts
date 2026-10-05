@@ -282,7 +282,16 @@ export async function importClientsCsv(input: Array<Record<string, unknown>>) {
 
     let withoutSubscription: string | null = null;
     let slotId: string | null = null;
-    if (!row.service && !row.profile) withoutSubscription = "aucun abonnement indiqué";
+    const chosenSlotId = typeof input[index]?.slot_id === "string" ? String(input[index].slot_id).trim() : "";
+    if (chosenSlotId) {
+      const slot = (slots ?? []).find((item) => item.id === chosenSlotId);
+      const account = slot?.provider_accounts as unknown as { service_name: string; status: string; end_date: string } | undefined;
+      if (!slot || !account) withoutSubscription = "profil introuvable sur vos comptes";
+      else if (!row.price) withoutSubscription = "prix manquant";
+      else if (!accountOffersSlots(account, today)) withoutSubscription = `compte ${account.service_name} expiré ou inactif`;
+      else if (takenSlots.has(slot.id)) withoutSubscription = `${slot.label || `Profil ${slot.slot_number}`} est déjà occupé`;
+      else slotId = slot.id;
+    } else if (!row.service && !row.profile) withoutSubscription = "aucun abonnement indiqué";
     else if (!row.service || !row.profile) withoutSubscription = "service ou profil manquant";
     else if (!row.price) withoutSubscription = "prix manquant";
     else {
@@ -404,10 +413,53 @@ export async function updateClientDetails(formData: FormData) {
 
   if (clientError) throw new Error(clientError.message);
 
-  if (subscriptionId && price) {
+  const newSlotId = opt(formData, "slot_id");
+  let moved: { from: string; to: string } | null = null;
+  if (subscriptionId && newSlotId) {
+    const { data: current } = await supabase
+      .from("client_subscriptions")
+      .select("slot_id, client_id, slot:account_slots(label, slot_number, account:provider_accounts(service_name))")
+      .eq("id", subscriptionId)
+      .eq("user_id", user.id)
+      .single();
+    if (!current || current.client_id !== clientId) throw new Error("Abonnement introuvable.");
+    if (current.slot_id !== newSlotId) {
+      const { data: target } = await supabase
+        .from("account_slots")
+        .select("id, label, slot_number, provider_accounts(user_id, service_name, status, end_date)")
+        .eq("id", newSlotId)
+        .single();
+      const account = target?.provider_accounts as unknown as { user_id: string; service_name: string; status: string; end_date: string } | null;
+      if (!target || !account || account.user_id !== user.id) throw new Error("Profil invalide.");
+      const today = todayDateOnly();
+      if (!accountOffersSlots(account, today)) {
+        throw new Error("Ce compte fournisseur est expiré ou désactivé : choisissez un profil sur un compte actif.");
+      }
+      const { data: occupying } = await supabase
+        .from("client_subscriptions")
+        .select("id, status, end_date, grace_until, client:clients(first_name, last_name)")
+        .eq("slot_id", newSlotId)
+        .eq("user_id", user.id)
+        .neq("id", subscriptionId)
+        .in("status", ["active", "grace"]);
+      const occupant = currentSlotSubscription(occupying, today);
+      if (occupant) {
+        const other = occupant.client as unknown as { first_name?: string; last_name?: string | null } | null;
+        const otherName = [other?.first_name, other?.last_name].filter(Boolean).join(" ") || "un autre client";
+        throw new Error(`Ce profil est déjà occupé par ${otherName}.`);
+      }
+      const previous = current.slot as unknown as { label: string | null; slot_number: number; account: { service_name: string } | null } | null;
+      moved = {
+        from: `${previous?.account?.service_name ?? ""} · ${previous?.label || `Profil ${previous?.slot_number ?? ""}`}`.trim(),
+        to: `${account.service_name} · ${target.label || `Profil ${target.slot_number}`}`,
+      };
+    }
+  }
+
+  if (subscriptionId && (price || moved)) {
     const { error: subError } = await supabase
       .from("client_subscriptions")
-      .update({ price })
+      .update({ ...(price ? { price } : {}), ...(moved ? { slot_id: newSlotId } : {}) })
       .eq("id", subscriptionId)
       .eq("user_id", user.id);
 
@@ -415,6 +467,9 @@ export async function updateClientDetails(formData: FormData) {
   }
 
   await recordClientEvent(supabase, { userId: user.id, clientId, subscriptionId, type: "client_updated", title: "Informations du client modifiées", details: { amount: price, paymentRail } });
+  if (moved) {
+    await recordClientEvent(supabase, { userId: user.id, clientId, subscriptionId, type: "subscription_moved", title: "Profil modifié", details: moved });
+  }
 
   revalidatePath("/clients");
   revalidatePath("/abonnements");

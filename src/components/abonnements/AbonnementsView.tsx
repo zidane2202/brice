@@ -3,13 +3,14 @@
 import { useMemo, useState } from "react";
 import { AccountCard } from "@/components/AccountCard";
 import { AddAccountForm } from "@/components/AddAccountForm";
+import { AccountCsvImport, AccountImportAssistant } from "@/components/abonnements/AccountImport";
 import { Icon } from "@/components/Icon";
 import { FilterPill } from "@/components/ui/FilterPill";
 import { daysUntil, toDateInputValue } from "@/lib/dates";
 import type { ProviderAccount } from "@/lib/types";
 import type { PlanId } from "@/lib/plans";
 
-type AccountWithSlots = ProviderAccount & { used_slots: number };
+type AccountWithSlots = ProviderAccount & { used_slots: number; beyond_slots?: number };
 
 type FilterKey = "active" | "warning" | "expired";
 
@@ -47,6 +48,11 @@ export function AbonnementsView({ accounts, displayNames, balance, plan, slotCap
   const filtered = useMemo(() => {
     return accounts.filter((a) => bucket(a) === filter);
   }, [accounts, filter]);
+
+  const atRisk = useMemo(
+    () => accounts.filter((a) => (a.beyond_slots ?? 0) > 0).sort((x, y) => x.end_date.localeCompare(y.end_date)),
+    [accounts]
+  );
 
   const byName = (x: { id: string }, y: { id: string }) =>
     displayNames[x.id].localeCompare(displayNames[y.id]);
@@ -87,10 +93,14 @@ export function AbonnementsView({ accounts, displayNames, balance, plan, slotCap
               </div>
             </div>
 
-            <button type="button" onClick={() => setFormOpen((v) => !v)}>
-              <Icon name={formOpen ? "x" : "plus"} size={14} />
-              {formOpen ? "Fermer" : "Nouveau compte"}
-            </button>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+              <AccountImportAssistant slotCap={slotCap} />
+              <AccountCsvImport slotCap={slotCap} />
+              <button type="button" onClick={() => setFormOpen((v) => !v)}>
+                <Icon name={formOpen ? "x" : "plus"} size={14} />
+                {formOpen ? "Fermer" : "Nouveau compte"}
+              </button>
+            </div>
           </div>
 
           <div
@@ -201,6 +211,39 @@ export function AbonnementsView({ accounts, displayNames, balance, plan, slotCap
             </div>
           </div>
         </Collapse>
+
+        {atRisk.length > 0 && (
+          <div className="mobile-section-pad" style={{ padding: "20px 32px 0" }}>
+            <div
+              role="alert"
+              style={{
+                display: "flex",
+                gap: 10,
+                padding: "12px 14px",
+                borderRadius: 8,
+                border: "1px solid var(--sr-warning)",
+                background: "rgba(245, 158, 11, 0.06)",
+                font: "400 12.5px/1.5 var(--font-geist-sans)",
+                color: "var(--sr-fg)",
+              }}
+            >
+              <Icon name="alert" size={14} style={{ color: "var(--sr-warning)", flexShrink: 0, marginTop: 2 }} />
+              <div>
+                <strong style={{ color: "var(--sr-fg-strong)" }}>Clients payés au-delà de l&apos;échéance du compte</strong>
+                <div style={{ marginTop: 2, color: "var(--sr-fg-muted)" }}>
+                  Si le compte n&apos;est pas renouvelé à temps, ces clients perdent leur accès et passent en expiré.
+                </div>
+                <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+                  {atRisk.map((a) => (
+                    <li key={a.id}>
+                      {`${displayNames[a.id]} : ${a.beyond_slots} client${(a.beyond_slots ?? 0) > 1 ? "s" : ""}, compte à renouveler avant le ${a.end_date.split("-").reverse().join("/")}`}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div
           className="mobile-toolbar"

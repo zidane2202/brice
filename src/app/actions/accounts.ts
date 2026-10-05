@@ -7,6 +7,7 @@ import { addMonths, todayDateOnly, toDateInputValue } from "@/lib/dates";
 import { decryptCredential, encryptCredential } from "@/lib/provider-credentials";
 import { sumSellerBalance } from "@/lib/ledger-sql";
 import { countOccupiedSlots } from "@/lib/slots";
+import { ACCOUNT_IMPORT_MAX_ROWS, accountPeriod, normalizeAccountRow } from "@/lib/account-import";
 import {
   PLAN_LIMIT_ACCOUNT,
   PLAN_LIMIT_SLOTS,
@@ -21,6 +22,105 @@ function req(fd: FormData, key: string) {
   const v = String(fd.get(key) ?? "").trim();
   if (!v) throw new Error(`${key} requis`);
   return v;
+}
+
+type NewAccount = {
+  service_name: string;
+  label: string | null;
+  account_email: string | null;
+  account_password: string | null;
+  start_date: string;
+  end_date: string;
+  duration_months: number;
+  max_slots: number;
+  cost: number | null;
+};
+
+async function insertProviderAccount(supabase: ReturnType<typeof createSupabaseAdmin>, userId: string, input: NewAccount) {
+  const { data: account, error } = await supabase
+    .from("provider_accounts")
+    .insert({ ...input, user_id: userId, account_password: encryptCredential(input.account_password), status: "active" })
+    .select("id")
+    .single();
+  if (error) throw new Error(error.message);
+
+  const slots = Array.from({ length: input.max_slots }, (_, i) => ({
+    account_id: account.id,
+    slot_number: i + 1,
+    label: `Profil ${i + 1}`,
+  }));
+  const { error: slotError } = await supabase.from("account_slots").insert(slots);
+  if (slotError) {
+    await supabase.from("provider_accounts").delete().eq("id", account.id).eq("user_id", userId);
+    throw new Error(slotError.message);
+  }
+  return account;
+}
+
+/** Import de comptes existants : pas d'écriture comptable (l'achat a déjà eu lieu), le coût sert aux renouvellements. */
+export async function importProviderAccounts(input: Array<Record<string, unknown>>) {
+  const { user } = await requireActiveSeller();
+  if (!Array.isArray(input)) throw new Error("Import invalide.");
+  const rows = input.map(normalizeAccountRow);
+  if (rows.length < 1 || rows.length > ACCOUNT_IMPORT_MAX_ROWS) {
+    throw new Error(`L'import doit contenir entre 1 et ${ACCOUNT_IMPORT_MAX_ROWS} comptes.`);
+  }
+
+  const supabase = createSupabaseAdmin();
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("plan, role, extra_provider_accounts, plan_renews_on, created_at")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const plan = effectivePlan(profile);
+  const cap = accountCapFor(profile);
+  const slotCap = clientsPerAccountFor(profile);
+
+  const { data: existing } = await supabase
+    .from("provider_accounts")
+    .select("service_name, account_email, status")
+    .eq("user_id", user.id);
+  let activeCount = (existing ?? []).filter((a) => a.status === "active").length;
+  const known = new Set(
+    (existing ?? []).filter((a) => a.account_email).map((a) => `${a.service_name.toLowerCase()}|${String(a.account_email).toLowerCase()}`)
+  );
+
+  const today = todayDateOnly();
+  const results: Array<{ line: number; ok: boolean; message: string }> = [];
+  for (let index = 0; index < rows.length; index++) {
+    const row = rows[index];
+    const line = index + 2;
+    if (!row.service_name) { results.push({ line, ok: false, message: "Service manquant" }); continue; }
+    const maxSlots = Number(row.max_slots);
+    if (!Number.isInteger(maxSlots) || maxSlots < 1) { results.push({ line, ok: false, message: "Nombre de profils manquant" }); continue; }
+    if (maxSlots > slotCap) { results.push({ line, ok: false, message: `Votre pack ${plan} autorise au maximum ${slotCap} profils par compte` }); continue; }
+    if (activeCount >= cap) { results.push({ line, ok: false, message: `Limite de ${cap} compte(s) atteinte sur le pack ${plan}` }); continue; }
+    const key = row.account_email ? `${row.service_name.toLowerCase()}|${row.account_email}` : "";
+    if (key && known.has(key)) { results.push({ line, ok: false, message: `${row.service_name} (${row.account_email}) est déjà enregistré` }); continue; }
+
+    const period = accountPeriod(row, today);
+    try {
+      await insertProviderAccount(supabase, user.id, {
+        service_name: row.service_name,
+        label: row.label ?? null,
+        account_email: row.account_email ?? null,
+        account_password: row.account_password ?? null,
+        ...period,
+        max_slots: maxSlots,
+        cost: row.cost ? Number(row.cost) : null,
+      });
+      activeCount++;
+      if (key) known.add(key);
+      results.push({ line, ok: true, message: period.end_date < today ? "Compte importé (déjà expiré)" : "Compte importé" });
+    } catch (caught) {
+      results.push({ line, ok: false, message: caught instanceof Error ? caught.message : "Échec de l'import" });
+    }
+  }
+
+  revalidatePath("/abonnements");
+  revalidatePath("/clients");
+  revalidatePath("/dashboard");
+  return { imported: results.filter((item) => item.ok).length, failed: results.filter((item) => !item.ok).length, results };
 }
 
 export async function addProviderAccount(formData: FormData) {
@@ -100,34 +200,17 @@ export async function addProviderAccount(formData: FormData) {
     }
   }
 
-  const { data: account, error } = await supabase
-    .from("provider_accounts")
-    .insert({
-      user_id: user.id,
-      service_name: serviceName,
-      label,
-      account_email: accountEmail,
-      account_password: encryptCredential(accountPassword),
-      start_date: startDate,
-      end_date: endDate,
-      duration_months: durationMonths,
-      max_slots: maxSlots,
-      cost,
-      status: "active",
-    })
-    .select("id")
-    .single();
-
-  if (error) throw new Error(error.message);
-
-  const slots = Array.from({ length: maxSlots }, (_, i) => ({
-    account_id: account.id,
-    slot_number: i + 1,
-    label: `Profil ${i + 1}`,
-  }));
-
-  const { error: slotError } = await supabase.from("account_slots").insert(slots);
-  if (slotError) throw new Error(slotError.message);
+  const account = await insertProviderAccount(supabase, user.id, {
+    service_name: serviceName,
+    label,
+    account_email: accountEmail,
+    account_password: accountPassword,
+    start_date: startDate,
+    end_date: endDate,
+    duration_months: durationMonths,
+    max_slots: maxSlots,
+    cost,
+  });
 
   if (cost != null && cost > 0) {
     await supabase.from("transactions").insert({
