@@ -24,7 +24,7 @@ async function getDashboardData(userId: string) {
     supabase
       .from("client_subscriptions")
       .select(`
-        id, start_date, end_date, price, status,
+        id, start_date, end_date, price, status, grace_until,
         client:clients(id, first_name, last_name, phone),
         slot:account_slots(
           id, slot_number, label,
@@ -70,7 +70,7 @@ async function getDashboardData(userId: string) {
   const totalSlots = liveAccounts.reduce((sum, a) => sum + a.max_slots, 0);
   const liveAccountIds = new Set(liveAccounts.map((a) => a.id));
   const usedSlots = subscriptions.filter(
-    (s) => occupiesSlot(s) && liveAccountIds.has((s.slot as { account?: { id: string } } | null)?.account?.id ?? "")
+    (s) => occupiesSlot(s, today) && liveAccountIds.has((s.slot as { account?: { id: string } } | null)?.account?.id ?? "")
   ).length;
 
   const now = new Date();

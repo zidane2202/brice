@@ -34,14 +34,15 @@ async function getData(userId: string, page: number, filter: string, search: str
       .from("account_slots")
       .select(`
         id, slot_number, label,
-        account:provider_accounts!inner(id, service_name, status, user_id)
+        account:provider_accounts!inner(id, service_name, status, end_date, user_id)
       `)
       .eq("provider_accounts.user_id", userId)
-      .eq("provider_accounts.status", "active"),
+      .eq("provider_accounts.status", "active")
+      .gte("provider_accounts.end_date", today),
     supabase.rpc("client_list_summary",{p_user:userId}),
     supabase
       .from("client_subscriptions")
-      .select("slot_id, status, end_date")
+      .select("slot_id, status, end_date, grace_until")
       .eq("user_id", userId)
       .in("status", ["active", "grace"]),
   ]);
@@ -49,7 +50,7 @@ async function getData(userId: string, page: number, filter: string, search: str
   if (subsResult.error) throw new Error(subsResult.error.message);
   if (slotsResult.error) throw new Error(slotsResult.error.message);
 
-  const occupiedSlotIds = new Set((occResult.data ?? []).filter(occupiesSlot).map((s) => s.slot_id));
+  const occupiedSlotIds = new Set((occResult.data ?? []).filter((s) => occupiesSlot(s, today)).map((s) => s.slot_id));
 
   const freeSlots = (slotsResult.data ?? []).filter(
     (slot) => !occupiedSlotIds.has(slot.id)

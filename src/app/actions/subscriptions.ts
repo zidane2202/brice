@@ -7,9 +7,32 @@ import { addMonths, todayDateOnly } from "@/lib/dates";
 import { createInvoice } from "@/lib/invoices";
 import { recordClientEvent } from "@/lib/client-events";
 import { canUseFullCompta, normalizePlan } from "@/lib/plans";
+import { currentSlotSubscription, occupiesSlot } from "@/lib/slots";
 
 function req(fd: FormData, key: string) {
   return String(fd.get(key) ?? "").trim();
+}
+
+async function assertSlotNotResold(supabase: ReturnType<typeof createSupabaseAdmin>, userId: string, subscriptionId: string) {
+  const { data: sub } = await supabase
+    .from("client_subscriptions")
+    .select("slot_id")
+    .eq("id", subscriptionId)
+    .eq("user_id", userId)
+    .single();
+  if (!sub?.slot_id) return;
+  const { data: others } = await supabase
+    .from("client_subscriptions")
+    .select("id, status, end_date, grace_until, client:clients(first_name, last_name)")
+    .eq("slot_id", sub.slot_id)
+    .eq("user_id", userId)
+    .neq("id", subscriptionId)
+    .in("status", ["active", "grace"]);
+  const occupant = currentSlotSubscription(others, todayDateOnly());
+  if (!occupant) return;
+  const client = occupant.client as unknown as { first_name?: string; last_name?: string | null } | null;
+  const name = [client?.first_name, client?.last_name].filter(Boolean).join(" ") || "un autre client";
+  throw new Error(`Ce profil a été revendu à ${name}. Créez une nouvelle vente sur un profil libre.`);
 }
 
 export async function renewClientSubscription(formData: FormData) {
@@ -30,6 +53,7 @@ export async function renewClientSubscription(formData: FormData) {
     .single();
   if (!existing) throw new Error("Abonnement introuvable.");
   const today = todayDateOnly();
+  if (!occupiesSlot(existing, today)) await assertSlotNotResold(supabase, user.id, id);
   const baseDate =
     existing.status === "grace" || existing.end_date >= today ? existing.end_date : today;
   const newEndDate = addMonths(baseDate, durationMonths);
@@ -178,6 +202,7 @@ export async function setGraceStatus(formData: FormData) {
   const id = req(formData, "id");
   const graceUntil = req(formData, "grace_until");
   const supabase = createSupabaseAdmin();
+  await assertSlotNotResold(supabase, user.id, id);
 
   const { data: graceSub, error } = await supabase
     .from("client_subscriptions")

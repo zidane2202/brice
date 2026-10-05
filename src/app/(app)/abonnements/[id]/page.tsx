@@ -1,6 +1,6 @@
 import { CredentialReveal } from "@/components/CredentialReveal";
 import { SlotTable } from "@/components/SlotTable";
-import { formatDate, daysUntil } from "@/lib/dates";
+import { formatDate, daysUntil, todayDateOnly } from "@/lib/dates";
 import { currentSlotSubscription } from "@/lib/slots";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
@@ -30,13 +30,14 @@ async function getAccount(id: string, userId: string) {
 
   if (error || !data) return null;
 
+  const today = todayDateOnly();
   const slots = (data.account_slots ?? []).map((slot: any) => {
     const subs: any[] = Array.isArray(slot.active_subscription)
       ? slot.active_subscription
       : slot.active_subscription
         ? [slot.active_subscription]
         : [];
-    return { ...slot, active_subscription: currentSlotSubscription(subs) };
+    return { ...slot, active_subscription: currentSlotSubscription(subs, today) };
   });
 
   return { ...data, account_slots: slots } as ProviderAccount & { account_slots: AccountSlot[] };

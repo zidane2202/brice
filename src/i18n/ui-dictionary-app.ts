@@ -99,6 +99,10 @@ export const UI_EN_APP: Record<string, string> = {
   "Passer en français": "Switch to French",
 
   // Modèles avec valeurs
+  "Ce profil a été revendu à {x}. Créez une nouvelle vente sur un profil libre.":
+    "This profile was resold to {x}. Create a new sale on a free profile.",
+  "Ce compte fournisseur est expiré ou désactivé : renouvelez-le avant d'y placer un client.":
+    "This provider account is expired or disabled: renew it before adding a client.",
   "Ce profil est déjà occupé par {x}. Action annulée.": "This profile is already taken by {x}. Action cancelled.",
   "Champ requis : {x}": "Required field: {x}",
   "Débit de {x} FCFA sur votre caisse.": "{x} FCFA will be debited from your cash balance.",

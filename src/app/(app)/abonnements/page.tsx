@@ -1,4 +1,5 @@
 import { AbonnementsView } from "@/components/abonnements/AbonnementsView";
+import { todayDateOnly } from "@/lib/dates";
 import { sumSellerBalance } from "@/lib/ledger-sql";
 import { accountCap, clientsPerAccount, normalizePlan } from "@/lib/plans";
 import { countOccupiedSlots } from "@/lib/slots";
@@ -13,19 +14,20 @@ async function getAccounts(userId: string) {
   const { data, error } = await supabase
     .from("provider_accounts")
     .select(`id, service_name, label, max_slots, start_date, end_date, duration_months, cost, status, created_at,
-      account_slots(id, client_subscriptions(id, status, end_date))`)
+      account_slots(id, client_subscriptions(id, status, end_date, grace_until))`)
     .eq("user_id", userId)
     .order("end_date", { ascending: true });
 
   if (error) throw new Error(error.message);
+  const today = todayDateOnly();
   return (data ?? []).map((a) => {
     const slots =
       (a as {
-        account_slots?: { id: string; client_subscriptions?: { id: string; status: string; end_date: string }[] }[];
+        account_slots?: { id: string; client_subscriptions?: { id: string; status: string; end_date: string; grace_until: string | null }[] }[];
       }).account_slots ?? [];
     return {
       ...a,
-      used_slots: countOccupiedSlots(slots),
+      used_slots: countOccupiedSlots(slots, today),
     } as unknown as ProviderAccount & { used_slots: number };
   });
 }

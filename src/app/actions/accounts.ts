@@ -6,6 +6,7 @@ import { requireActiveSeller } from "@/lib/authz";
 import { addMonths, todayDateOnly, toDateInputValue } from "@/lib/dates";
 import { decryptCredential, encryptCredential } from "@/lib/provider-credentials";
 import { sumSellerBalance } from "@/lib/ledger-sql";
+import { countOccupiedSlots } from "@/lib/slots";
 import {
   PLAN_LIMIT_ACCOUNT,
   PLAN_LIMIT_SLOTS,
@@ -76,7 +77,7 @@ export async function addProviderAccount(formData: FormData) {
 
   const { data: existing } = await supabase
     .from("provider_accounts")
-    .select("id, max_slots, end_date, account_slots(client_subscriptions(status))")
+    .select("id, max_slots, end_date, account_slots(client_subscriptions(status, end_date, grace_until))")
     .eq("user_id", user.id)
     .eq("service_name", serviceName)
     .eq("status", "active");
@@ -86,12 +87,10 @@ export async function addProviderAccount(formData: FormData) {
     id: string;
     max_slots: number;
     end_date: string;
-    account_slots?: Array<{ client_subscriptions?: Array<{ status: string }> }>;
+    account_slots?: Array<{ client_subscriptions?: Array<{ status: string; end_date: string; grace_until: string | null }> }>;
   }>) {
     if (acc.end_date < today) continue;
-    const used = (acc.account_slots ?? []).filter((slot) =>
-      (slot.client_subscriptions ?? []).some((s) => s.status === "active" || s.status === "grace")
-    ).length;
+    const used = countOccupiedSlots(acc.account_slots ?? [], today);
     const free = acc.max_slots - used;
     if (free > 0) {
       throw new Error(

@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { requireActiveSeller } from "@/lib/authz";
-import { addMonths } from "@/lib/dates";
-import { currentSlotSubscription } from "@/lib/slots";
+import { addMonths, todayDateOnly } from "@/lib/dates";
+import { accountOffersSlots, currentSlotSubscription } from "@/lib/slots";
 import { createInvoice } from "@/lib/invoices";
 import { recordClientEvent } from "@/lib/client-events";
 import { renewClientSubscription } from "@/app/actions/subscriptions";
@@ -71,22 +71,26 @@ export async function addClientWithSubscription(
   // Verify the slot belongs to an account owned by this user
   const { data: slot } = await supabase
     .from("account_slots")
-    .select("id, account_id, provider_accounts(user_id, service_name)")
+    .select("id, account_id, provider_accounts(user_id, service_name, status, end_date)")
     .eq("id", slotId)
     .single();
 
-  const account = slot?.provider_accounts as unknown as { user_id: string; service_name: string } | null;
+  const account = slot?.provider_accounts as unknown as { user_id: string; service_name: string; status: string; end_date: string } | null;
   const accountOwner = account?.user_id;
-  if (!slot || accountOwner !== user.id) throw new Error("Slot invalide");
+  if (!slot || !account || accountOwner !== user.id) throw new Error("Slot invalide");
+  const today = todayDateOnly();
+  if (!accountOffersSlots(account, today)) {
+    throw new Error("Ce compte fournisseur est expiré ou désactivé : renouvelez-le avant d’y placer un client.");
+  }
 
   const { data: occupyingSubs } = await supabase
     .from("client_subscriptions")
-    .select("id, status, end_date, client:clients(first_name, last_name)")
+    .select("id, status, end_date, grace_until, client:clients(first_name, last_name)")
     .eq("slot_id", slotId)
     .eq("user_id", user.id)
     .in("status", ["active", "grace"]);
 
-  const occupyingSub = currentSlotSubscription(occupyingSubs);
+  const occupyingSub = currentSlotSubscription(occupyingSubs, today);
   if (occupyingSub) {
     const existingClient = occupyingSub.client as unknown as { first_name?: string; last_name?: string | null } | null;
     const existingName = [existingClient?.first_name, existingClient?.last_name].filter(Boolean).join(" ") || "un client";

@@ -509,9 +509,9 @@ export function ClientsView({ subscriptions, freeSlots, invoices, events, initia
                 </span>
                 {" "}sur{" "}
                 <span style={{ color: "var(--sr-fg)", fontFamily: "var(--font-geist-mono)", fontVariantNumeric: "tabular-nums" }}>
-                  {counts.visible}
+                  {totalRows ?? rows.length}
                 </span>
-                {counts.visible > 1 ? " abonnements affichés" : " abonnement affiché"}
+                {(totalRows ?? rows.length) > 1 ? " abonnements affichés" : " abonnement affiché"}
               </div>
             </div>
           )}
