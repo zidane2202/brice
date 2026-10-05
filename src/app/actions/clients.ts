@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { requireActiveSeller } from "@/lib/authz";
-import { addMonths, todayDateOnly, toDateInputValue } from "@/lib/dates";
+import { addMonths } from "@/lib/dates";
+import { currentSlotSubscription } from "@/lib/slots";
 import { createInvoice } from "@/lib/invoices";
 import { recordClientEvent } from "@/lib/client-events";
 import { renewClientSubscription } from "@/app/actions/subscriptions";
@@ -78,7 +79,6 @@ export async function addClientWithSubscription(
   const accountOwner = account?.user_id;
   if (!slot || accountOwner !== user.id) throw new Error("Slot invalide");
 
-  const today = toDateInputValue();
   const { data: occupyingSubs } = await supabase
     .from("client_subscriptions")
     .select("id, status, end_date, client:clients(first_name, last_name)")
@@ -86,9 +86,7 @@ export async function addClientWithSubscription(
     .eq("user_id", user.id)
     .in("status", ["active", "grace"]);
 
-  const occupyingSub = (occupyingSubs ?? []).find((s) =>
-    s.status === "grace" || (s.status === "active" && s.end_date >= today)
-  );
+  const occupyingSub = currentSlotSubscription(occupyingSubs);
   if (occupyingSub) {
     const existingClient = occupyingSub.client as unknown as { first_name?: string; last_name?: string | null } | null;
     const existingName = [existingClient?.first_name, existingClient?.last_name].filter(Boolean).join(" ") || "un client";
@@ -234,6 +232,7 @@ export async function addClientWithSubscription(
 
   revalidatePath("/clients");
   revalidatePath("/dashboard");
+  revalidatePath("/abonnements");
   return { invoiceCode, clientName, clientPhone };
 }
 

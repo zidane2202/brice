@@ -311,7 +311,7 @@ export function ClientDrawer({ sub, lifetime, cyclesCount, history, invoices, ev
               color: "var(--sr-fg-subtle)",
             }}
           >
-            {cyclesCount} cycle{cyclesCount > 1 ? "s" : ""} honoré{cyclesCount > 1 ? "s" : ""}
+            {cyclesCount > 1 ? `${cyclesCount} cycles honorés` : `${cyclesCount} cycle honoré`}
           </div>
         </div>
       </Section>

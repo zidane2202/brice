@@ -5,6 +5,7 @@ import { TopProvidersPanel } from "@/components/TopProvidersPanel";
 import { TransactionsHistoryPanel } from "@/components/TransactionsHistoryPanel";
 import { addDays, daysUntil, firstOfMonthDateOnly, todayDateOnly } from "@/lib/dates";
 import { sumSellerBalance, sumSellerPeriod } from "@/lib/ledger-sql";
+import { occupiesSlot } from "@/lib/slots";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { getUser } from "@/lib/supabase-server";
 import type { ClientSubscription, ProviderAccount, Transaction } from "@/lib/types";
@@ -67,7 +68,10 @@ async function getDashboardData(userId: string) {
   });
 
   const totalSlots = liveAccounts.reduce((sum, a) => sum + a.max_slots, 0);
-  const usedSlots = activeClients.length;
+  const liveAccountIds = new Set(liveAccounts.map((a) => a.id));
+  const usedSlots = subscriptions.filter(
+    (s) => occupiesSlot(s) && liveAccountIds.has((s.slot as { account?: { id: string } } | null)?.account?.id ?? "")
+  ).length;
 
   const now = new Date();
   const monthData = await Promise.all(Array.from({ length: 6 }, async (_, i) => {
@@ -160,7 +164,7 @@ export default async function DashboardPage() {
                 <>
                   {". "}
                   <strong style={{ color: "var(--sr-warning)" }}>
-                    {urgentTotal} relance{urgentTotal > 1 ? "s" : ""}
+                    {urgentTotal > 1 ? `${urgentTotal} relances` : `${urgentTotal} relance`}
                   </strong>{" "}
                   {t("withinThreeDays")}
                 </>
@@ -228,7 +232,7 @@ export default async function DashboardPage() {
               <h2>Mouvements récents</h2>
             </div>
             <span style={{ color: "var(--sr-fg-muted)", fontSize: "0.78rem" }}>
-              {transactions.length} transaction{transactions.length > 1 ? "s" : ""}
+              {`${transactions.length} transaction${transactions.length > 1 ? "s" : ""}`}
             </span>
           </div>
           <TransactionsHistoryPanel transactions={transactions} />
@@ -244,7 +248,7 @@ export default async function DashboardPage() {
               </p>
             </div>
             <span style={{ color: "var(--sr-fg-muted)", fontSize: "0.78rem" }}>
-              {urgentTotal} rappel{urgentTotal > 1 ? "s" : ""}
+              {urgentTotal > 1 ? `${urgentTotal} rappels` : `${urgentTotal} rappel`}
             </span>
           </div>
           <NextEcheancesPanel subscriptions={urgent} accounts={urgentAccounts} />

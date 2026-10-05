@@ -42,8 +42,8 @@ self.addEventListener("notificationclick", (event) => {
       (clients) => {
         for (const client of clients) {
           if ("focus" in client) {
-            client.focus();
-            return;
+            const target = "navigate" in client ? client.navigate(url) : Promise.resolve(client);
+            return target.then((c) => (c || client).focus());
           }
         }
 

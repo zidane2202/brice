@@ -267,14 +267,19 @@ export function ClientsView({ subscriptions, freeSlots, invoices, events, initia
                 Mes clients
               </h1>
               <div style={{ marginTop: 8, font: "400 14px/1.4 var(--font-geist-sans)", color: "var(--sr-fg-muted)" }}>
-                <strong style={{ color: "var(--sr-fg)" }}>{uniqueClientIds.size}</strong> client{uniqueClientIds.size > 1 ? "s" : ""}
+                <strong style={{ color: "var(--sr-fg)" }}>{uniqueClientIds.size}</strong>
+                {uniqueClientIds.size > 1 ? " clients" : " client"}
                 {" · "}
-                <strong style={{ color: "var(--sr-success)" }}>{counts.active} actif{counts.active > 1 ? "s" : ""}</strong>
+                <strong style={{ color: "var(--sr-success)" }}>
+                  {counts.active > 1 ? `${counts.active} actifs` : `${counts.active} actif`}
+                </strong>
                 {counts.warning > 0 && (
-                  <> · <strong style={{ color: "var(--sr-warning)" }}>{counts.warning} expire{counts.warning > 1 ? "nt" : ""}</strong></>
+                  <> · <strong style={{ color: "var(--sr-warning)" }}>
+                    {counts.warning > 1 ? `${counts.warning} expirent` : `${counts.warning} expire`}
+                  </strong></>
                 )}
                 {counts.danger > 0 && (
-                  <>, <strong style={{ color: "var(--sr-danger)" }}>{counts.danger} en retard</strong></>
+                  <>, <strong style={{ color: "var(--sr-danger)" }}>{`${counts.danger} en retard`}</strong></>
                 )}
               </div>
             </div>
@@ -506,7 +511,7 @@ export function ClientsView({ subscriptions, freeSlots, invoices, events, initia
                 <span style={{ color: "var(--sr-fg)", fontFamily: "var(--font-geist-mono)", fontVariantNumeric: "tabular-nums" }}>
                   {counts.visible}
                 </span>
-                {" "}abonnement{counts.visible > 1 ? "s" : ""} affiché{rows.length > 1 ? "s" : ""}
+                {counts.visible > 1 ? " abonnements affichés" : " abonnement affiché"}
               </div>
             </div>
           )}

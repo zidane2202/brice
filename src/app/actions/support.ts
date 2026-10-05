@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { requireActiveSeller, requireAdmin } from "@/lib/authz";
 import { consumeRateLimit } from "@/lib/rate-limit";
+import { notifyUser } from "@/lib/push";
 
 async function ticketAllowed(userId: string, action: string) {
   const h = await headers();
@@ -86,16 +87,13 @@ export async function replySupportTicket(formData: FormData) {
     body,
   });
   await db.from("support_tickets").update({ status, updated_at: new Date().toISOString() }).eq("id", ticketId);
-  await db.from("user_notifications").upsert(
-    {
-      user_id: ticket.user_id,
-      type: "support_reply",
-      title: "Le support vous a répondu",
-      body: body.slice(0, 160),
-      url: "/support",
-      dedup_key: `support-${ticketId}-${Date.now()}`,
-    },
-    { onConflict: "user_id,dedup_key" }
-  );
+  await notifyUser(db, {
+    userId: ticket.user_id,
+    type: "support_reply",
+    title: "Le support vous a répondu",
+    body: body.slice(0, 160),
+    url: "/support",
+    dedupKey: `support-${ticketId}-${Date.now()}`,
+  });
   revalidatePath("/admin/support");
 }

@@ -99,7 +99,7 @@ export function TopProvidersPanel({ subscriptions }: Props) {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  {p.profils} profil{p.profils > 1 ? "s" : ""} · {p.accounts.size} compte{p.accounts.size > 1 ? "s" : ""}
+                  {`${p.profils} profil${p.profils > 1 ? "s" : ""} · ${p.accounts.size} compte${p.accounts.size > 1 ? "s" : ""}`}
                 </div>
                 <div
                   style={{

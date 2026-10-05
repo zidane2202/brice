@@ -1,52 +1,7 @@
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { todayDateOnly } from "@/lib/dates";
+import { notifyUser } from "@/lib/push";
 import { NextResponse } from "next/server";
-import webpush from "web-push";
-
-function vapidReady() {
-  return Boolean(
-    process.env.VAPID_SUBJECT &&
-      process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY &&
-      process.env.VAPID_PRIVATE_KEY
-  );
-}
-
-async function sendPush(
-  supabase: ReturnType<typeof createSupabaseAdmin>,
-  userId: string,
-  payload: { title: string; body: string; url: string }
-) {
-  if (!vapidReady()) return 0;
-  const { data: pushSubs } = await supabase
-    .from("push_subscriptions")
-    .select("id, subscription")
-    .eq("user_id", userId);
-
-  if (!pushSubs?.length) return 0;
-
-  let sent = 0;
-  const body = JSON.stringify(payload);
-  for (const { id, subscription } of pushSubs) {
-    try {
-      await webpush.sendNotification(
-        subscription as Parameters<typeof webpush.sendNotification>[0],
-        body
-      );
-      sent++;
-      await supabase.from("push_delivery_logs").insert({ user_id: userId, status: "sent" });
-    } catch (error) {
-      const status = (error as { statusCode?: number }).statusCode;
-      if (status === 404 || status === 410) {
-        await supabase.from("push_subscriptions").delete().eq("id", id);
-      }
-      await supabase.from("push_delivery_logs").insert({
-        user_id: userId,
-        status: status === 404 || status === 410 ? "expired" : "failed",
-      });
-    }
-  }
-  return sent;
-}
 
 export async function GET(request: Request) {
   const startedAt = new Date().toISOString();
@@ -54,14 +9,6 @@ export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
   if (!secret || authHeader !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (vapidReady()) {
-    webpush.setVapidDetails(
-      process.env.VAPID_SUBJECT!,
-      process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-      process.env.VAPID_PRIVATE_KEY!
-    );
   }
 
   const supabase = createSupabaseAdmin();
@@ -103,22 +50,14 @@ export async function GET(request: Request) {
           return `${client?.first_name ?? ""} ${client?.last_name ?? ""} (${slot?.account?.service_name ?? ""})`.trim();
         });
 
-        clientSent += await sendPush(supabase, userId, {
+        clientSent += await notifyUser(supabase, {
+          userId,
+          type: "client_reminder",
           title: `${subs.length} client(s) à relancer`,
           body: names.slice(0, 3).join(", ") + (names.length > 3 ? ` +${names.length - 3}` : ""),
           url: "/clients",
+          dedupKey: `client-reminder-${today}`,
         });
-        await supabase.from("user_notifications").upsert(
-          {
-            user_id: userId,
-            type: "client_reminder",
-            title: `${subs.length} client(s) à relancer`,
-            body: names.slice(0, 3).join(", ") + (names.length > 3 ? ` +${names.length - 3}` : ""),
-            url: "/clients",
-            dedup_key: `client-reminder-${today}`,
-          },
-          { onConflict: "user_id,dedup_key" }
-        );
 
         await supabase
           .from("client_subscriptions")
@@ -141,22 +80,14 @@ export async function GET(request: Request) {
 
     for (const row of renewing ?? []) {
       if (row.plan_renewal_notified_on && row.plan_renewal_notified_on >= today) continue;
-      planRemindSent += await sendPush(supabase, row.user_id, {
+      planRemindSent += await notifyUser(supabase, {
+        userId: row.user_id,
+        type: "plan_expiry",
         title: "Pack SubResell bientôt à renouveler",
         body: `Votre plan ${row.plan} expire le ${row.plan_renews_on}. Contactez le support pour renouveler.`,
-        url: "/profil",
+        url: "/profil#section-plan",
+        dedupKey: `plan-expiry-${row.plan_renews_on}`,
       });
-      await supabase.from("user_notifications").upsert(
-        {
-          user_id: row.user_id,
-          type: "plan_expiry",
-          title: "Pack bientôt à renouveler",
-          body: `Votre plan ${row.plan} expire le ${row.plan_renews_on}.`,
-          url: "/profil#section-plan",
-          dedup_key: `plan-expiry-${row.plan_renews_on}`,
-        },
-        { onConflict: "user_id,dedup_key" }
-      );
       await supabase
         .from("user_profiles")
         .update({ plan_renewal_notified_on: today })
@@ -182,22 +113,14 @@ export async function GET(request: Request) {
         .eq("user_id", row.user_id);
       if (!susErr) {
         autoSuspended++;
-        await sendPush(supabase, row.user_id, {
+        await notifyUser(supabase, {
+          userId: row.user_id,
+          type: "account_suspended",
           title: "Compte SubResell suspendu",
-          body: "Votre pack a expiré. Contactez le support pour réactiver.",
-          url: "/profil",
+          body: "Votre pack a expiré. Contactez le support pour le réactiver.",
+          url: "/profil#section-plan",
+          dedupKey: `suspended-${row.plan_renews_on}`,
         });
-        await supabase.from("user_notifications").upsert(
-          {
-            user_id: row.user_id,
-            type: "account_suspended",
-            title: "Compte SubResell suspendu",
-            body: "Votre pack a expiré. Contactez le support pour le réactiver.",
-            url: "/profil#section-plan",
-            dedup_key: `suspended-${row.plan_renews_on}`,
-          },
-          { onConflict: "user_id,dedup_key" }
-        );
         await supabase.from("admin_audit_logs").insert({
           actor_user_id: row.user_id,
           target_user_id: row.user_id,

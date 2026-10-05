@@ -1,6 +1,7 @@
 import { ClientsView } from "@/components/clients/ClientsView";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { todayDateOnly } from "@/lib/dates";
+import { occupiesSlot } from "@/lib/slots";
 import { getUser } from "@/lib/supabase-server";
 import type { AccountSlot, ClientSubscription, Invoice } from "@/lib/types";
 
@@ -48,11 +49,7 @@ async function getData(userId: string, page: number, filter: string, search: str
   if (subsResult.error) throw new Error(subsResult.error.message);
   if (slotsResult.error) throw new Error(slotsResult.error.message);
 
-  const occupiedSlotIds = new Set(
-    (occResult.data ?? [])
-      .filter((s) => s.status === "grace" || s.end_date >= today)
-      .map((s) => s.slot_id)
-  );
+  const occupiedSlotIds = new Set((occResult.data ?? []).filter(occupiesSlot).map((s) => s.slot_id));
 
   const freeSlots = (slotsResult.data ?? []).filter(
     (slot) => !occupiedSlotIds.has(slot.id)

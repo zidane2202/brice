@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "node --test --experimental-strip-types src/lib/*.test.ts",
+    "i18n:audit": "node --no-warnings --experimental-strip-types scripts/i18n-audit.mts",
     "test:e2e": "playwright test",
     "migrate:credentials": "node --env-file=.env.local scripts/migrate-provider-credentials.mjs"
   },

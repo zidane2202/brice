@@ -202,7 +202,9 @@ export function RecordPlatformPaymentForm({
         {pending
           ? "Activation en cours…"
           : kind === "pro_monthly" || kind === "business_monthly"
-            ? `Encaisser et ${defaultPlan === "free" ? "activer" : "renouveler"} 30 jours`
+            ? defaultPlan === "free"
+              ? "Encaisser et activer 30 jours"
+              : "Encaisser et renouveler 30 jours"
             : "Enregistrer l’encaissement"}
       </button>
       {ok && (

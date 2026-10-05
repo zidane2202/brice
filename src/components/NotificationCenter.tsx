@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/Icon";
 
@@ -16,6 +16,22 @@ export function NotificationCenter() {
     if (response.ok) setItems((await response.json()).notifications ?? []);
   };
   useEffect(() => { void load(); const timer = setInterval(load, 60000); return () => clearInterval(timer); }, []);
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (rootRef.current && !rootRef.current.contains(event.target as Node)) setOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
   const read = async (notice: Notice) => {
     if (!notice.read_at) await fetch("/api/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: notice.id }) });
     setItems((all) => all.map((item) => item.id === notice.id ? { ...item, read_at: new Date().toISOString() } : item));
@@ -30,7 +46,7 @@ export function NotificationCenter() {
     setItems((all) => all.map((item) => ({ ...item, read_at: item.read_at || new Date().toISOString() })));
   };
   return (
-    <div className="topbar-notice">
+    <div className="topbar-notice" ref={rootRef}>
       <button type="button" className="secondary topbar-notification" title="Notifications" aria-label={`Notifications${unread ? `, ${unread} non lues` : ""}`} onClick={() => { setOpen((value) => !value); if (!open) void load(); }}>
         <Icon name="bell" size={13} />
         {unread > 0 && <span style={{ position: "absolute", top: -4, right: -4, minWidth: 16, height: 16, padding: "0 4px", display: "grid", placeItems: "center", borderRadius: 99, background: "var(--sr-danger)", color: "white", fontSize: 9, fontWeight: 700 }}>{Math.min(unread, 9)}{unread > 9 ? "+" : ""}</span>}

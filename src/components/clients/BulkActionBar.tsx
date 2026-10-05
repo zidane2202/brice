@@ -78,7 +78,7 @@ export function BulkActionBar({ ids, onClear }: Props) {
           color: "var(--sr-fg-strong)",
         }}
       >
-        abonnement{ids.length > 1 ? "s" : ""} sélectionné{ids.length > 1 ? "s" : ""}
+        {ids.length > 1 ? "abonnements sélectionnés" : "abonnement sélectionné"}
       </span>
 
       <div style={{ width: 1, height: 20, background: "var(--sr-border)", marginInline: 4 }} />
