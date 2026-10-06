@@ -103,7 +103,6 @@ export function PlanExpiredGuard({ plan, renewsOn }: Props) {
       {open && (
         <div
           role="presentation"
-          onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}
           style={{ position: "fixed", inset: 0, zIndex: 1300, display: "grid", placeItems: "center", padding: 20, background: "rgba(0,0,0,.72)", backdropFilter: "blur(5px)" }}
         >
           <div

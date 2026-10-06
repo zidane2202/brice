@@ -167,21 +167,22 @@ export function importSlotName(slot: Pick<ImportSlot, "label" | "slot_number">) 
 }
 
 /** Propose un profil libre par ligne : même service, profil du fichier en priorité, jamais deux fois le même. */
-export function autoAssignSlots(rows: ImportRow[], slots: ImportSlot[]): Array<string | null> {
+/**
+ * Pré-remplit le compte d'après le service du fichier. Le profil n'est repris que s'il est nommé
+ * exactement dans le fichier : sinon c'est au vendeur de le choisir, jamais deux fois le même.
+ */
+export function autoAssignSlots(rows: ImportRow[], slots: ImportSlot[]): Array<{ accountId: string | null; slotId: string | null }> {
   const used = new Set<string>();
   return rows.map((row) => {
     const service = row.service?.trim().toLowerCase();
-    if (!service) return null;
+    if (!service) return { accountId: null, slotId: null };
     const candidates = slots.filter(
-      (slot) =>
-        !used.has(slot.id) &&
-        (slot.account.service_name.toLowerCase() === service || slot.account.label?.toLowerCase() === service)
+      (slot) => slot.account.service_name.toLowerCase() === service || slot.account.label?.toLowerCase() === service
     );
     const profile = row.profile?.trim().toLowerCase();
-    const pick = candidates.find((slot) => profile && importSlotName(slot).toLowerCase() === profile) ?? candidates[0];
-    if (!pick) return null;
-    used.add(pick.id);
-    return pick.id;
+    const pick = profile ? candidates.find((slot) => !used.has(slot.id) && importSlotName(slot).toLowerCase() === profile) : undefined;
+    if (pick) used.add(pick.id);
+    return { accountId: pick?.account.id ?? candidates[0]?.account.id ?? null, slotId: pick?.id ?? null };
   });
 }
 

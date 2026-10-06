@@ -89,7 +89,7 @@ export function createUiTranslator(dictionaries: UiDictionary[], patterns: UiPat
       const hit = exact.get(template) ?? folded.get(template.toLowerCase());
       if (hit !== undefined) {
         let index = 0;
-        return hit.replace(/\{n\}/g, () => numbers[index++] ?? "");
+        return hit.replace(/\{[nx]\}/g, () => numbers[index++] ?? "");
       }
     }
 

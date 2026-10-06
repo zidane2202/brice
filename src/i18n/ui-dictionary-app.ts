@@ -182,7 +182,7 @@ export const UI_EN_APP: Record<string, string> = {
   "Le montant dépasse le reste dû ({x} FCFA).": "The amount exceeds the remaining balance ({x} FCFA).",
   "Lien facture/transaction impossible : {x}": "Could not link invoice/transaction: {x}",
   "Limite atteinte : {x} compte{x} provider sur le plan {x}.": "Limit reached: {x} provider account{x} on the {x} plan.",
-  "Profil {n}": "Profile {x}",
+  "Profil {n}": "Profile {n}",
   "Solde insuffisant : {x} FCFA disponibles, {x} FCFA requis.": "Insufficient balance: {x} FCFA available, {x} FCFA required.",
   "Tu as déjà un compte {x} avec {x} profil{x} libre{x}. Remplis-le avant d'en créer un autre.":
     "You already have a {x} account with {x} free profile{x}. Fill it before creating another one.",
@@ -438,6 +438,7 @@ export const UI_EN_APP: Record<string, string> = {
   "{x} ({n} libre)": "{x} ({n} free)",
   "{n} client(s) · {n} prêt(s) à importer": "{n} client(s) · {n} ready to import",
   "· {n} sans compte ni profil": "· {n} without an account or profile",
+  "· {n} sans profil choisi": "· {n} without a chosen profile",
   "L'import doit contenir entre 1 et {n} comptes.": "The import must contain between 1 and {n} accounts.",
   "Nombre de profils manquant": "Number of profiles missing",
   "Importer des comptes": "Import accounts",

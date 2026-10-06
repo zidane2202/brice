@@ -526,9 +526,6 @@ export function ClientsView({ subscriptions, freeSlots, invoices, events, initia
         <div
           className="client-modal-backdrop"
           role="presentation"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setDrawerOpen(false);
-          }}
         >
       <ClientDrawer
             sub={selectedSub}

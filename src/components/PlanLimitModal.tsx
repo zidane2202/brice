@@ -36,12 +36,10 @@ export function PlanLimitModal({ open, onClose, mode, message }: Props) {
         justifyContent: "center",
         padding: 16,
       }}
-      onClick={onClose}
     >
       <div
         className="panel"
         style={{ maxWidth: 420, width: "100%", margin: 0 }}
-        onClick={(e) => e.stopPropagation()}
       >
         <h2 style={{ marginTop: 0 }}>Limite de plan atteinte</h2>
         <p style={{ color: "var(--sr-fg-subtle)", fontSize: 13 }}>

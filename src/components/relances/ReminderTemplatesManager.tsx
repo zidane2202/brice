@@ -68,7 +68,6 @@ export function ReminderTemplatesManager({ templates, unavailable, sellerName, o
       role="dialog"
       aria-modal="true"
       aria-label="Mes messages de relance"
-      onMouseDown={(event) => event.target === event.currentTarget && onClose()}
       style={{ position: "fixed", inset: 0, zIndex: 1200, display: "grid", placeItems: "center", padding: 20, background: "rgba(0,0,0,.72)" }}
     >
       <div style={{ width: "min(720px,100%)", maxHeight: "90vh", overflowY: "auto", padding: 22, borderRadius: 14, background: "var(--sr-surface)", border: "1px solid var(--sr-border-strong)" }}>

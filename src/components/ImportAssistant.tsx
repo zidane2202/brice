@@ -109,7 +109,6 @@ export function ImportAssistant<R extends Row>({ endpoint, dialogLabel, welcome,
       {open && (
         <div
           style={{ position: "fixed", inset: 0, zIndex: 1200, display: "grid", placeItems: "center", padding: 20, background: "rgba(0,0,0,.72)", backdropFilter: "blur(5px)" }}
-          onMouseDown={(event) => { if (event.target === event.currentTarget && !pending) setOpen(false); }}
         >
           <div
             role="dialog"

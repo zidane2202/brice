@@ -1438,6 +1438,10 @@ label { position: relative; }
   gap: 16px;
 }
 
+.admin-filters {
+  grid-template-columns: 2fr 1fr 1fr auto;
+}
+
 .journal-filters {
   grid-template-columns: 2fr 1fr 1fr 1fr auto;
   margin-bottom: 14px;
@@ -1942,10 +1946,12 @@ label { position: relative; }
 
   .new-client-fields,
   .journal-filters,
+  .admin-filters,
   .finances-catalog {
     grid-template-columns: 1fr;
   }
 
+  .admin-filters button,
   .journal-filters button {
     width: 100%;
     justify-content: center;

@@ -61,7 +61,7 @@ export default async function ResellerListPage({ searchParams }: { searchParams:
       </div>
 
       <div className="panel">
-        <form method="get" className="fields" style={{ gridTemplateColumns: "2fr 1fr 1fr auto", marginBottom: 16 }}><label>Recherche<input type="search" name="q" defaultValue={q} placeholder="Nom, email, téléphone…" /></label><label>Plan<select name="plan" defaultValue={plan}><option value="all">Tous</option><option value="free">Free</option><option value="pro">Pro</option><option value="business">Business</option></select></label><label>Ville<input name="city" defaultValue={city} placeholder="Ville" /></label><button type="submit" style={{ alignSelf: "end" }}>Filtrer</button></form>
+        <form method="get" className="fields admin-filters" style={{ marginBottom: 16 }}><label>Recherche<input type="search" name="q" defaultValue={q} placeholder="Nom, email, téléphone…" /></label><label>Plan<select name="plan" defaultValue={plan}><option value="all">Tous</option><option value="free">Free</option><option value="pro">Pro</option><option value="business">Business</option></select></label><label>Ville<input name="city" defaultValue={city} placeholder="Ville" /></label><button type="submit" style={{ alignSelf: "end" }}>Filtrer</button></form>
         <div className="table-wrap">
           <table>
             <thead>

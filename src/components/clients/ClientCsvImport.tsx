@@ -53,8 +53,8 @@ export function ClientCsvImportModal({ open, onClose, initialRows, freeSlots = [
   const load = (next: ImportRow[]) => {
     const assigned = autoAssignSlots(next, freeSlots);
     setRows(next);
-    setSlotIds(assigned);
-    setAccountIds(assigned.map((id) => (id ? slotById.get(id)?.account.id ?? null : null)));
+    setSlotIds(assigned.map((item) => item.slotId));
+    setAccountIds(assigned.map((item) => item.accountId));
   };
 
   useEffect(() => {
@@ -71,26 +71,20 @@ export function ClientCsvImportModal({ open, onClose, initialRows, freeSlots = [
     setRows((prev) => prev.map((row, i) => (i === index ? { ...row, [key]: value } : row)));
   const takenElsewhere = (index: number) => new Set(slotIds.filter((id, i) => id && i !== index) as string[]);
   const chooseAccount = (index: number, accountId: string) => {
-    const taken = takenElsewhere(index);
-    const firstFree = accountId ? freeSlots.find((slot) => slot.account.id === accountId && !taken.has(slot.id)) : undefined;
     setAccountIds((prev) => prev.map((id, i) => (i === index ? accountId || null : id)));
-    setSlotIds((prev) => prev.map((id, i) => (i === index ? firstFree?.id ?? null : id)));
+    setSlotIds((prev) => prev.map((id, i) => (i === index ? null : id)));
   };
   const chooseSlot = (index: number, slotId: string) =>
     setSlotIds((prev) => prev.map((id, i) => (i === index ? slotId || null : id)));
   const assignAllMissing = (accountId: string) => {
     if (!accountId) return;
-    const taken = new Set(slotIds.filter(Boolean) as string[]);
-    const free = freeSlots.filter((slot) => slot.account.id === accountId && !taken.has(slot.id));
-    const nextSlots = [...slotIds];
-    const nextAccounts = [...accountIds];
-    rows.forEach((_, index) => {
-      if (nextSlots[index] || free.length === 0) return;
-      nextSlots[index] = free.shift()!.id;
-      nextAccounts[index] = accountId;
-    });
-    setSlotIds(nextSlots);
-    setAccountIds(nextAccounts);
+    let room = freeSlots.filter((slot) => slot.account.id === accountId).length
+      - accountIds.filter((id) => id === accountId).length;
+    setAccountIds(accountIds.map((id) => {
+      if (id || room <= 0) return id;
+      room -= 1;
+      return accountId;
+    }));
   };
   const removeRow = (index: number) => {
     setRows((prev) => prev.filter((_, i) => i !== index));
@@ -107,10 +101,11 @@ export function ClientCsvImportModal({ open, onClose, initialRows, freeSlots = [
   const withSubscription = payload.filter((row) => row.slot_id && row.price).length;
   const missingPrice = payload.filter((row) => row.slot_id && !row.price).length;
   const missingSlot = payload.filter((row) => !row.slot_id).length;
-  const freeLeft = freeSlots.length - slotIds.filter(Boolean).length;
-
+  const missingAccount = rows.filter((_, index) => !accountIds[index]).length;
+  const roomOn = (accountId: string) =>
+    freeSlots.filter((slot) => slot.account.id === accountId).length - accountIds.filter((id) => id === accountId).length;
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 1250, display: "grid", placeItems: "center", padding: 20, background: "rgba(0,0,0,.72)", backdropFilter: "blur(5px)" }} onMouseDown={(event) => { if (event.target === event.currentTarget && !pending) onClose(); }}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 1250, display: "grid", placeItems: "center", padding: 20, background: "rgba(0,0,0,.72)", backdropFilter: "blur(5px)" }}>
       <div style={{ width: "min(1180px, 100%)", maxHeight: "88vh", overflow: "auto", padding: 22, borderRadius: 14, border: "1px solid var(--sr-border)", background: "var(--sr-surface)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
           <div>
@@ -148,12 +143,12 @@ export function ClientCsvImportModal({ open, onClose, initialRows, freeSlots = [
             {`${rows.length} clients pour ${freeSlots.length} profil(s) libre(s) : ajoutez des comptes ou retirez des lignes pour que chaque client ait un profil.`}
           </p>
         )}
-        {rows.length > 0 && missingSlot > 0 && freeLeft > 0 && (
+        {rows.length > 0 && missingAccount > 0 && accounts.some((account) => roomOn(account.id) > 0) && (
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, fontSize: 12, flexWrap: "wrap" }}>
-            <span style={{ color: "var(--sr-fg-muted)" }}>{`${missingSlot} client(s) sans compte : assigner`}</span>
+            <span style={{ color: "var(--sr-fg-muted)" }}>{`${missingAccount} client(s) sans compte : assigner`}</span>
             <select style={{ ...cellInput, width: "auto", minWidth: 200, height: 30, fontSize: 12 }} value="" onChange={(e) => assignAllMissing(e.target.value)}>
               <option value="">Choisir un compte…</option>
-              {accounts.filter((account) => freeSlots.some((slot) => slot.account.id === account.id && !slotIds.includes(slot.id))).map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+              {accounts.filter((account) => roomOn(account.id) > 0).map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
             </select>
           </div>
         )}
@@ -180,7 +175,9 @@ export function ClientCsvImportModal({ open, onClose, initialRows, freeSlots = [
                   {rows.map((row, index) => {
                     const accountId = accountIds[index] ?? "";
                     const taken = takenElsewhere(index);
-                    const profileOptions = freeSlots.filter((slot) => slot.account.id === accountId && !taken.has(slot.id));
+                    const profileOptions = freeSlots
+                      .filter((slot) => slot.account.id === accountId && !taken.has(slot.id))
+                      .sort((a, b) => a.slot_number - b.slot_number);
                     const accountOptions = accounts
                       .map((account) => ({ ...account, left: freeSlots.filter((slot) => slot.account.id === account.id && !taken.has(slot.id)).length }))
                       .filter((account) => account.left > 0 || account.id === accountId);
@@ -218,7 +215,7 @@ export function ClientCsvImportModal({ open, onClose, initialRows, freeSlots = [
             </div>
             <p style={{ color: "var(--sr-fg-subtle)", fontSize: 11 }}>
               {`${rows.length} client(s) · ${withSubscription} prêt(s) à importer`}
-              {missingSlot > 0 && <span style={{ color: "var(--sr-danger)" }}>{` · ${missingSlot} sans compte ni profil`}</span>}
+              {missingSlot > 0 && <span style={{ color: "var(--sr-danger)" }}>{` · ${missingSlot} sans profil choisi`}</span>}
               {missingPrice > 0 && <span style={{ color: "var(--sr-danger)" }}>{` · ${missingPrice} profil(s) choisi(s) sans montant`}</span>}
             </p>
           </>

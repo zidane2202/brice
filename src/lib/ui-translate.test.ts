@@ -11,8 +11,13 @@ const translate = createUiTranslator([
     "Rechercher…": "Search…",
     "Ce profil est déjà occupé par {x}. Action annulée.": "This profile is already taken by {x}. Action cancelled.",
     "{n} client{x}, {n} compte{x}": "{n} client{x}, {n} account{x}",
+    "Voir {n} de plus": "Show {x} more",
   },
 ]);
+
+test("a number key whose translation uses {x} still carries the number", () => {
+  assert.equal(translate("Voir 4 de plus"), "Show 4 more");
+});
 
 test("free-text placeholders carry names through", () => {
   assert.equal(

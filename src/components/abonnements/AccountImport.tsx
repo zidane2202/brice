@@ -42,7 +42,7 @@ export function AccountCsvImportModal({ open, onClose, initialRows, slotCap }: {
   const overCap = limited ? rows.filter((row) => Number(row.max_slots) > slotCap).length : 0;
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 1250, display: "grid", placeItems: "center", padding: 20, background: "rgba(0,0,0,.72)", backdropFilter: "blur(5px)" }} onMouseDown={(event) => { if (event.target === event.currentTarget && !pending) onClose(); }}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 1250, display: "grid", placeItems: "center", padding: 20, background: "rgba(0,0,0,.72)", backdropFilter: "blur(5px)" }}>
       <div style={{ width: "min(1180px, 100%)", maxHeight: "88vh", overflow: "auto", padding: 22, borderRadius: 14, border: "1px solid var(--sr-border)", background: "var(--sr-surface)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
           <div>

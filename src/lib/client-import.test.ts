@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { autoAssignSlots, normalizeImportRow, parseImportCsv, toImportCsv } from "./client-import.ts";
 
-test("each row gets a free profile of its service, never twice the same", () => {
+test("the file pre-fills the account; only an exactly named profile is pre-selected, never twice", () => {
   const netflix = { id: "acc-n", service_name: "Netflix" };
   const slots = [
     { id: "n1", slot_number: 1, label: null, account: netflix },
@@ -16,7 +16,14 @@ test("each row gets a free profile of its service, never twice the same", () => 
     { first_name: "D" },
     { first_name: "E", service: "Spotify", profile: "Profil 9" },
   ];
-  assert.deepEqual(autoAssignSlots(rows, slots), ["n2", "n1", null, null, "s1"]);
+  assert.deepEqual(autoAssignSlots([...rows, { first_name: "F", service: "Netflix", profile: "Salon" }], slots), [
+    { accountId: "acc-n", slotId: "n2" },
+    { accountId: "acc-n", slotId: null },
+    { accountId: "acc-n", slotId: null },
+    { accountId: null, slotId: null },
+    { accountId: "acc-s", slotId: null },
+    { accountId: "acc-n", slotId: null },
+  ]);
 });
 
 test("a CSV with only some columns is accepted", () => {
