@@ -3,7 +3,6 @@ import { ProviderGlyph } from "@/components/ProviderGlyph";
 import { resolveBrandLogoUrl, resolveBrandName } from "@/lib/branding";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { formatDate } from "@/lib/dates";
-import { clientInvoiceLabel, clientInvoiceRank } from "@/lib/invoice-rank";
 import { getProviderTheme, hexToRgba } from "@/lib/providers";
 import type { Invoice } from "@/lib/types";
 import { notFound } from "next/navigation";
@@ -32,12 +31,11 @@ export default async function InvoicePage({ params }: { params: Promise<{ code: 
     .eq("user_id", invoice.user_id)
     .maybeSingle();
 
-  const clientRank = await clientInvoiceRank(supabase, invoice);
   const brandName = resolveBrandName(profile, invoice.reseller_name);
   const brandLogo = resolveBrandLogoUrl(profile);
 
   const fmt = (n: number) => n.toLocaleString("en-US").replace(/,/g, " ");
-  const kindLabel = invoice.kind === "new" ? "Nouvel abonnement" : "Renouvellement";
+  const kindLabel = invoice.kind === "new" ? "Nouvel abonnement" : "Réabonnement";
   const theme = getProviderTheme(invoice.service_name);
   const brand = theme.bg;
   const brandTint = hexToRgba(brand, 0.06);
@@ -71,14 +69,11 @@ export default async function InvoicePage({ params }: { params: Promise<{ code: 
             <div className="invoice-number">
               N° {String(invoice.number).padStart(4, "0")}
             </div>
-            {clientRank && (
-              <div className="invoice-party-detail" style={{ marginTop: 6 }}>{clientInvoiceLabel(clientRank)}</div>
-            )}
           </div>
           <div className="invoice-date">
             <div className="invoice-label">Émise le</div>
             <div className="invoice-value" style={{ whiteSpace: "nowrap" }}>{formatDate(invoice.created_at)}</div>
-            <span style={{ display: "inline-flex", marginTop: 12 }} className={`status invoice-status ${(invoice.status ?? "paid") === "paid" ? "active" : "cancelled"}`}>{(invoice.status ?? "paid") === "paid" ? "Payée" : invoice.status === "refunded" ? "Remboursée" : "Annulée"}</span>
+            <span style={{ display: "inline-flex", marginTop: 20 }} className={`status invoice-status ${(invoice.status ?? "paid") === "paid" ? "active" : "cancelled"}`}>{(invoice.status ?? "paid") === "paid" ? "Payée" : invoice.status === "refunded" ? "Remboursée" : "Annulée"}</span>
           </div>
         </header>
 

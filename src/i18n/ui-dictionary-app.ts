@@ -757,6 +757,7 @@ export const UI_EN_APP: Record<string, string> = {
     "Sellers by plan: trial running {n} · trial ended {n} · Pro {n} · Business {n}",
   "Comptes extras actifs (Pro)": "Active extra accounts (Pro)",
   "À encaisser": "To collect",
+  "Réabonnement": "Re-subscription",
   "1re facture de ce client": "1st invoice for this client",
   "{n}e facture de ce client": "Invoice no. {n} for this client",
   "· 1re facture de ce client": "· 1st invoice for this client",
