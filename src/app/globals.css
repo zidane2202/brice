@@ -2026,6 +2026,7 @@ label { position: relative; }
     display: grid;
     gap: 10px;
     overflow: visible !important;
+    max-height: none !important;
   }
 
   .clients-list-inner {

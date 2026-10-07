@@ -262,13 +262,13 @@ export function ClientsView({ subscriptions, freeSlots, invoices, events, initia
             borderBottom: "1px solid var(--sr-border-subtle)",
           }}
         >
-          <div className="mobile-page-heading" style={{ display: "flex", alignItems: "flex-end", gap: 24 }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="mobile-page-heading" style={{ display: "flex", alignItems: "flex-end", flexWrap: "wrap", gap: 16 }}>
+            <div style={{ flex: "1 0 auto", minWidth: 0, maxWidth: "100%" }}>
               <p className="dash-eyebrow" style={{ marginBottom: 12 }}>Carnet d&apos;adresses</p>
               <h1 style={{ font: "600 32px/1.1 var(--font-geist-sans)", letterSpacing: "-0.022em", color: "var(--sr-fg-strong)" }}>
                 Mes clients
               </h1>
-              <div style={{ marginTop: 8, font: "400 14px/1.4 var(--font-geist-sans)", color: "var(--sr-fg-muted)" }}>
+              <div style={{ marginTop: 8, font: "400 14px/1.4 var(--font-geist-sans)", color: "var(--sr-fg-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 <strong style={{ color: "var(--sr-fg)" }}>{uniqueClientIds.size}</strong>
                 {uniqueClientIds.size > 1 ? " clients" : " client"}
                 {" · "}
@@ -427,8 +427,8 @@ export function ClientsView({ subscriptions, freeSlots, invoices, events, initia
               background: "var(--sr-surface)",
               border: "1px solid var(--sr-border-subtle)",
               borderRadius: 8,
-              overflowX: "auto",
-              overflowY: "hidden",
+              overflow: "auto",
+              maxHeight: "max(360px, calc(100vh - 300px))",
               boxShadow: "var(--sr-hairline-top)",
             }}
           >
@@ -447,6 +447,9 @@ export function ClientsView({ subscriptions, freeSlots, invoices, events, initia
                 textTransform: "uppercase",
                 color: "var(--sr-fg-muted)",
                 alignItems: "center",
+                position: "sticky",
+                top: 0,
+                zIndex: 2,
               }}
             >
               <div>
