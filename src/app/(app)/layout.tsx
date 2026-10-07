@@ -88,7 +88,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       />
       <div style={{ display: "flex", flexDirection: "column", minWidth: 0, minHeight: "100vh" }}>
         <TopBar />
-        <main id="app-content" className="app-main">
+        <main id="app-content" className="app-main" style={{ gridTemplateColumns: "minmax(0, 1fr)" }}>
           {planExpired && expiredOn && (
             <Suspense fallback={null}>
               <PlanExpiredGuard plan={normalizePlan(profile?.plan)} renewsOn={expiredOn} />

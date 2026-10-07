@@ -127,7 +127,7 @@ export function Sidebar({
   return (
     <aside className={`sidebar${moreOpen ? " sidebar--more-open" : ""}`}>
       <div className="sidebar-logo">
-        <BrandMark logoUrl={logoUrl} name={brandName} size={24} />
+        <BrandMark logoUrl={logoUrl} name={brandName} size={logoUrl ? 34 : 24} />
         <p className="eyebrow">{brandName}</p>
       </div>
 

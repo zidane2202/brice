@@ -315,10 +315,12 @@ button.danger:hover { background: rgba(255,107,107,0.18); border-color: var(--sr
   display: grid;
   grid-template-columns: 276px minmax(0, 1fr);
   min-height: 100vh;
+  overflow-x: clip;
 }
 
 .app-main {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: 24px;
   padding: 32px;
@@ -2024,6 +2026,12 @@ label { position: relative; }
     display: grid;
     gap: 10px;
     overflow: visible !important;
+  }
+
+  .clients-list-inner {
+    min-width: 0 !important;
+    display: grid;
+    gap: 10px;
   }
 
   .clients-list-head {

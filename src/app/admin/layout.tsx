@@ -11,7 +11,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div className="app-shell">
       <AdminSidebar />
-      <main id="app-content" className="app-main">{children}</main>
+      <main id="app-content" className="app-main" style={{ gridTemplateColumns: "minmax(0, 1fr)" }}>{children}</main>
     </div>
   );
 }

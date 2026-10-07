@@ -12,10 +12,9 @@ export function BrandMark({ logoUrl, name = "subresell", size = 24 }: Props) {
       <img
         src={logoUrl}
         alt={name}
-        width={size}
         height={size}
         onError={() => setBroken(true)}
-        style={{ width: size, height: size, borderRadius: 5, objectFit: "cover" }}
+        style={{ height: size, width: "auto", maxWidth: size * 4, borderRadius: 5, objectFit: "contain", flex: "0 0 auto" }}
       />
     );
   }

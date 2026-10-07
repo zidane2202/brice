@@ -427,10 +427,12 @@ export function ClientsView({ subscriptions, freeSlots, invoices, events, initia
               background: "var(--sr-surface)",
               border: "1px solid var(--sr-border-subtle)",
               borderRadius: 8,
-              overflow: "hidden",
+              overflowX: "auto",
+              overflowY: "hidden",
               boxShadow: "var(--sr-hairline-top)",
             }}
           >
+            <div className="clients-list-inner" style={{ minWidth: 1040 }}>
             <div
               className="clients-list-head"
               style={{
@@ -492,6 +494,7 @@ export function ClientsView({ subscriptions, freeSlots, invoices, events, initia
                 />
               ))
             )}
+            </div>
           </div>
 
           {rows.length > 0 && (
