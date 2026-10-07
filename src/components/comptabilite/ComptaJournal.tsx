@@ -23,6 +23,21 @@ type Props = {
   allowReverse?: boolean;
 };
 
+const NOWRAP: React.CSSProperties = { whiteSpace: "nowrap" };
+const TD: React.CSSProperties = { padding: "8px 10px", borderBottom: "1px solid var(--sr-border-subtle)", verticalAlign: "middle" };
+const TH: React.CSSProperties = {
+  ...TD,
+  ...NOWRAP,
+  position: "sticky",
+  top: 0,
+  zIndex: 1,
+  background: "var(--sr-bg)",
+  fontSize: 10,
+  fontWeight: 500,
+  letterSpacing: "0.08em",
+  textTransform: "uppercase",
+};
+
 export function ComptaJournal({
   transactions,
   from,
@@ -127,39 +142,39 @@ export function ComptaJournal({
           Aucune écriture sur cette période.
         </p>
       ) : (
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+        <div style={{ overflow: "auto", maxHeight: "max(360px, calc(100vh - 260px))", border: "1px solid var(--sr-border-subtle)", borderRadius: 8 }}>
+          <table style={{ width: "100%", minWidth: 860, borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ textAlign: "left", color: "var(--sr-fg-subtle)" }}>
-                <th style={{ padding: "8px 6px", borderBottom: "1px solid var(--sr-border-subtle)" }}>Date</th>
-                <th style={{ padding: "8px 6px", borderBottom: "1px solid var(--sr-border-subtle)" }}>Libellé</th>
-                <th style={{ padding: "8px 6px", borderBottom: "1px solid var(--sr-border-subtle)" }}>Catégorie</th>
-                <th style={{ padding: "8px 6px", borderBottom: "1px solid var(--sr-border-subtle)" }}>Type</th>
-                <th style={{ padding: "8px 6px", borderBottom: "1px solid var(--sr-border-subtle)", textAlign: "right" }}>Montant</th>
-                <th style={{ padding: "8px 6px", borderBottom: "1px solid var(--sr-border-subtle)" }}>Source</th>
-                <th style={{ padding: "8px 6px", borderBottom: "1px solid var(--sr-border-subtle)" }}>Payé avec</th>
-                <th style={{ padding: "8px 6px", borderBottom: "1px solid var(--sr-border-subtle)" }}></th>
+                <th style={TH}>Date</th>
+                <th style={TH}>Libellé</th>
+                <th style={TH}>Catégorie</th>
+                <th style={TH}>Type</th>
+                <th style={{ ...TH, textAlign: "right" }}>Montant</th>
+                <th style={TH}>Source</th>
+                <th style={TH}>Payé avec</th>
+                <th style={TH}></th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((t) => (
                 <tr key={t.id}>
-                  <td style={{ padding: "8px 6px", borderBottom: "1px solid var(--sr-border-subtle)" }}>
+                  <td style={{ ...TD, ...NOWRAP, fontVariantNumeric: "tabular-nums" }}>
                     {t.occurred_on}
                   </td>
-                  <td style={{ padding: "8px 6px", borderBottom: "1px solid var(--sr-border-subtle)" }}>
+                  <td style={{ ...TD, minWidth: 200 }}>
                     {t.label}
                   </td>
-                  <td style={{ padding: "8px 6px", borderBottom: "1px solid var(--sr-border-subtle)" }}>
+                  <td style={TD}>
                     {categoryLabel(t.category)}
                   </td>
-                  <td style={{ padding: "8px 6px", borderBottom: "1px solid var(--sr-border-subtle)" }}>
+                  <td style={{ ...TD, ...NOWRAP }}>
                     {t.kind === "income" ? "Entrée" : "Sortie"}
                   </td>
                   <td
                     style={{
-                      padding: "8px 6px",
-                      borderBottom: "1px solid var(--sr-border-subtle)",
+                      ...TD,
+                      ...NOWRAP,
                       textAlign: "right",
                       color: t.kind === "income" ? "var(--sr-mint-400)" : "var(--sr-warning)",
                       fontVariantNumeric: "tabular-nums",
@@ -168,13 +183,13 @@ export function ComptaJournal({
                     {t.kind === "income" ? "+" : "−"}
                     {formatFcfa(Number(t.amount))} FCFA
                   </td>
-                  <td style={{ padding: "8px 6px", borderBottom: "1px solid var(--sr-border-subtle)" }}>
+                  <td style={{ ...TD, ...NOWRAP }}>
                     {sourceLabel(t.source)}
                   </td>
-                  <td style={{ padding: "8px 6px", borderBottom: "1px solid var(--sr-border-subtle)", color: "var(--sr-fg-muted)" }}>
+                  <td style={{ ...TD, ...NOWRAP, color: "var(--sr-fg-muted)" }}>
                     {t.kind === "income" ? "Caisse" : t.funded_by === "personal" ? "Ma poche" : "Caisse"}
                   </td>
-                  <td style={{ padding: "8px 6px", borderBottom: "1px solid var(--sr-border-subtle)", textAlign: "right" }}>{allowReverse && t.source !== "reversal" && !reversedIds.has(t.id) && <button type="button" className="secondary" onClick={() => { setToReverse(t); setReason(""); setActionError(""); }} style={{ minHeight: 26, height: 26, fontSize: 10 }}>Annuler</button>}</td>
+                  <td style={{ ...TD, textAlign: "right" }}>{allowReverse && t.source !== "reversal" && !reversedIds.has(t.id) && <button type="button" className="secondary" onClick={() => { setToReverse(t); setReason(""); setActionError(""); }} style={{ minHeight: 26, height: 26, fontSize: 10 }}>Annuler</button>}</td>
                 </tr>
               ))}
             </tbody>

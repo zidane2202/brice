@@ -56,6 +56,8 @@ export function KpiCard({ label, value, unit, sub, tone = "neutral", accent }: P
         flexDirection: "column",
         gap: 10,
         minHeight: 116,
+        minWidth: 0,
+        containerType: "inline-size",
         boxShadow: "var(--sr-hairline-top)",
         transition: "background var(--sr-dur) var(--sr-ease), border-color var(--sr-dur) var(--sr-ease), transform var(--sr-dur) var(--sr-ease), box-shadow var(--sr-dur) var(--sr-ease)",
         overflow: "hidden",
@@ -99,13 +101,14 @@ export function KpiCard({ label, value, unit, sub, tone = "neutral", accent }: P
         {label}
       </div>
 
-      <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+      <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", columnGap: 6, rowGap: 4, minWidth: 0 }}>
         <div
           style={{
-            font: "600 28px/1 var(--font-geist-mono)",
+            font: "600 clamp(17px, 16cqi, 28px)/1 var(--font-geist-mono)",
             letterSpacing: "-0.025em",
             fontVariantNumeric: "tabular-nums",
             color: valueColor,
+            whiteSpace: "nowrap",
           }}
         >
           {formatted}
