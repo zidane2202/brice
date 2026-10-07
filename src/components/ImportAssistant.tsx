@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
+import { ModalPortal } from "@/components/ui/ModalPortal";
 
 type Row = Record<string, string | undefined>;
 
@@ -107,6 +108,7 @@ export function ImportAssistant<R extends Row>({ endpoint, dialogLabel, welcome,
       </button>
 
       {open && (
+        <ModalPortal>
         <div
           style={{ position: "fixed", inset: 0, zIndex: 1200, display: "grid", placeItems: "center", padding: 20, background: "rgba(0,0,0,.72)", backdropFilter: "blur(5px)" }}
         >
@@ -220,6 +222,7 @@ export function ImportAssistant<R extends Row>({ endpoint, dialogLabel, welcome,
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {renderImport(importRows, () => setImportRows(null))}

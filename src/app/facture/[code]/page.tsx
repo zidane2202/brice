@@ -56,31 +56,24 @@ export default async function InvoicePage({ params }: { params: Promise<{ code: 
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={qrCode} alt="QR code de vérification de la facture" width={72} height={72} style={{ position: "absolute", right: 48, bottom: 40, borderRadius: 4 }} />
         <header className="invoice-header">
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+          <div>
             {brandLogo ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={brandLogo}
-                alt={brandName}
-                width={40}
-                height={40}
-                style={{ borderRadius: 6, objectFit: "cover", flexShrink: 0 }}
-              />
-            ) : null}
-            <div>
+              <img src={brandLogo} alt={brandName} className="invoice-logo" />
+            ) : (
               <div className="invoice-eyebrow" style={{ color: brand }}>
                 {brandName}
               </div>
-              <h1 className="invoice-title">Facture</h1>
-              <span className={`status ${(invoice.status ?? "paid") === "paid" ? "active" : "cancelled"}`}>{(invoice.status ?? "paid") === "paid" ? "Payée" : invoice.status === "refunded" ? "Remboursée" : "Annulée"}</span>
-              <div className="invoice-number">
-                N° {String(invoice.number).padStart(4, "0")}
-              </div>
+            )}
+            <h1 className="invoice-title">Facture</h1>
+            <div className="invoice-number">
+              N° {String(invoice.number).padStart(4, "0")}
             </div>
           </div>
           <div className="invoice-date">
             <div className="invoice-label">Émise le</div>
             <div className="invoice-value">{formatDate(invoice.created_at)}</div>
+            <span className={`status invoice-status ${(invoice.status ?? "paid") === "paid" ? "active" : "cancelled"}`}>{(invoice.status ?? "paid") === "paid" ? "Payée" : invoice.status === "refunded" ? "Remboursée" : "Annulée"}</span>
           </div>
         </header>
 

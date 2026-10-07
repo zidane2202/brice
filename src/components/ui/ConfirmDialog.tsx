@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { Icon } from "@/components/Icon";
+import { ModalPortal } from "@/components/ui/ModalPortal";
 
 export type ConfirmDialogRow = { label: string; value: string; accent?: boolean };
 
@@ -33,6 +34,7 @@ export function ConfirmDialog({ open, title, description, rows = [], detail, con
   const danger = tone === "danger";
 
   return (
+    <ModalPortal>
     <div role="presentation" style={{ position: "fixed", inset: 0, zIndex: 1200, display: "grid", placeItems: "center", padding: 20, background: "rgba(0,0,0,.72)", backdropFilter: "blur(5px)" }}>
       <div role="dialog" aria-modal="true" aria-labelledby="confirm-dialog-title" style={{ width: "min(440px, 100%)", padding: 22, borderRadius: 14, border: `1px solid ${danger ? "var(--sr-danger-border)" : "var(--sr-border)"}`, background: "var(--sr-surface)", boxShadow: "0 24px 80px rgba(0,0,0,.55)" }}>
         <div style={{ width: 42, height: 42, display: "grid", placeItems: "center", borderRadius: 10, background: danger ? "var(--sr-danger-bg)" : "rgba(41,220,133,.12)", color: danger ? "var(--sr-danger)" : "var(--sr-mint-300)", marginBottom: 16 }}>
@@ -57,5 +59,6 @@ export function ConfirmDialog({ open, title, description, rows = [], detail, con
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }

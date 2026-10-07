@@ -5,6 +5,7 @@ import { importClientsCsv } from "@/app/actions/clients";
 import { Icon } from "@/components/Icon";
 import { autoAssignSlots, IMPORT_MAX_ROWS, importSlotName, parseImportCsv, toImportCsv, type ImportRow, type ImportSlot } from "@/lib/client-import";
 import { blockIfPlanExpired } from "@/lib/plan-expired-client";
+import { ModalPortal } from "@/components/ui/ModalPortal";
 
 type Report = { imported: number; failed: number; blocked?: string | null; results: Array<{ line: number; ok: boolean; message: string }> };
 
@@ -40,12 +41,13 @@ export function ClientCsvImportModal({ open, onClose, initialRows, freeSlots = [
     const unique = Array.from(new Map(freeSlots.map((slot) => [slot.account.id, slot.account])).values());
     const perService = new Map<string, number>();
     return unique
-      .sort((a, b) => a.service_name.localeCompare(b.service_name))
+      .sort((a, b) => a.service_name.localeCompare(b.service_name) || (a.label ?? "").localeCompare(b.label ?? "") || a.id.localeCompare(b.id))
       .map((account) => {
         const count = unique.filter((other) => other.service_name === account.service_name).length;
         const index = (perService.get(account.service_name) ?? 0) + 1;
         perService.set(account.service_name, index);
-        const name = account.label ? `${account.service_name} · ${account.label}` : count > 1 ? `${account.service_name} (${index})` : account.service_name;
+        const service = count > 1 ? `${account.service_name} ${index}` : account.service_name;
+        const name = account.label ? `${service} · ${account.label}` : service;
         return { id: account.id, name, free: freeSlots.filter((slot) => slot.account.id === account.id).length };
       });
   }, [freeSlots]);
@@ -105,6 +107,7 @@ export function ClientCsvImportModal({ open, onClose, initialRows, freeSlots = [
   const roomOn = (accountId: string) =>
     freeSlots.filter((slot) => slot.account.id === accountId).length - accountIds.filter((id) => id === accountId).length;
   return (
+    <ModalPortal>
     <div style={{ position: "fixed", inset: 0, zIndex: 1250, display: "grid", placeItems: "center", padding: 20, background: "rgba(0,0,0,.72)", backdropFilter: "blur(5px)" }}>
       <div style={{ width: "min(1180px, 100%)", maxHeight: "88vh", overflow: "auto", padding: 22, borderRadius: 14, border: "1px solid var(--sr-border)", background: "var(--sr-surface)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
@@ -255,6 +258,7 @@ export function ClientCsvImportModal({ open, onClose, initialRows, freeSlots = [
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }
 

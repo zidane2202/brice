@@ -2,6 +2,7 @@
 
 import { PLAN_PRICES_FCFA } from "@/lib/plans";
 import { Icon } from "@/components/Icon";
+import { ModalPortal } from "@/components/ui/ModalPortal";
 
 type Props = {
   open: boolean;
@@ -23,13 +24,14 @@ export function PlanLimitModal({ open, onClose, mode, message }: Props) {
   if (!open) return null;
 
   return (
+    <ModalPortal>
     <div
       role="dialog"
       aria-modal="true"
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 80,
+        zIndex: 1200,
         background: "rgba(0,0,0,0.55)",
         display: "flex",
         alignItems: "center",
@@ -134,5 +136,6 @@ export function PlanLimitModal({ open, onClose, mode, message }: Props) {
         </button>
       </div>
     </div>
+    </ModalPortal>
   );
 }

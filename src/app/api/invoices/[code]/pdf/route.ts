@@ -2,17 +2,39 @@ import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import QRCode from "qrcode";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 
+/** pdf-lib ne lit que PNG et JPEG : tout autre format (ou échec réseau) retombe sur le nom. */
+async function embedLogo(pdf: PDFDocument, url: string | null | undefined) {
+  if (!url || !/^https:\/\//i.test(url)) return null;
+  try {
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) return null;
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes[0] === 0x89 && bytes[1] === 0x50) return await pdf.embedPng(bytes);
+    if (bytes[0] === 0xff && bytes[1] === 0xd8) return await pdf.embedJpg(bytes);
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(request: Request, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
   if (!/^[a-f0-9]{12,64}$/i.test(code)) return new Response("Facture introuvable", { status: 404 });
   const db = createSupabaseAdmin();
   const { data: invoice } = await db.from("invoices").select("*").eq("code", code).maybeSingle();
   if (!invoice) return new Response("Facture introuvable", { status: 404 });
-  const { data: profile } = await db.from("user_profiles").select("company_name,first_name,last_name").eq("user_id", invoice.user_id).maybeSingle();
+  const { data: profile } = await db.from("user_profiles").select("company_name,first_name,last_name,logo_url").eq("user_id", invoice.user_id).maybeSingle();
   const brand = profile?.company_name || [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "SubResell";
   const pdf = await PDFDocument.create(); const page = pdf.addPage([595, 842]); const regular = await pdf.embedFont(StandardFonts.Helvetica); const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   const draw = (text: string, x: number, y: number, size = 11, strong = false, color = rgb(.12,.13,.15)) => page.drawText(text, { x, y, size, font: strong ? bold : regular, color });
-  draw(brand, 48, 790, 11, true, rgb(.1,.55,.35)); draw("FACTURE", 48, 748, 28, true); draw(`N° ${String(invoice.number).padStart(4, "0")}`, 48, 725, 10);
+  const logo = await embedLogo(pdf, profile?.logo_url);
+  if (logo) {
+    const scale = Math.min(48 / logo.height, 180 / logo.width);
+    page.drawImage(logo, { x: 48, y: 772, width: logo.width * scale, height: logo.height * scale });
+  } else {
+    draw(brand, 48, 790, 11, true, rgb(.1,.55,.35));
+  }
+  draw("FACTURE", 48, 740, 28, true); draw(`N° ${String(invoice.number).padStart(4, "0")}`, 48, 720, 10);
   draw(`Émise le ${new Date(invoice.created_at).toLocaleDateString("fr-FR")}`, 395, 790, 10); draw(`Statut : ${(invoice.status || "paid") === "paid" ? "Payée" : invoice.status === "refunded" ? "Remboursée" : "Annulée"}`, 395, 770, 10, true);
   page.drawLine({ start: { x: 48, y: 700 }, end: { x: 547, y: 700 }, thickness: 1, color: rgb(.85,.86,.88) });
   draw("CLIENT", 48, 670, 9, true, rgb(.45,.47,.5)); draw(invoice.client_name, 48, 648, 13, true); if (invoice.client_phone) draw(invoice.client_phone, 48, 630, 10); if (invoice.client_email) draw(invoice.client_email, 48, 613, 10);

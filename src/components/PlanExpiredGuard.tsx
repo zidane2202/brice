@@ -3,6 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Icon } from "@/components/Icon";
+import { ModalPortal } from "@/components/ui/ModalPortal";
 import { PLAN_EXPIRED_EVENT } from "@/lib/plan-expired-client";
 import { PLAN_EXPIRED_PARAM, PLAN_EXPIRED_VALUE, PLAN_PRICES_FCFA } from "@/lib/plans";
 import { supportWhatsAppHref } from "@/lib/support";
@@ -101,6 +102,7 @@ export function PlanExpiredGuard({ plan, renewsOn }: Props) {
       </div>
 
       {open && (
+        <ModalPortal>
         <div
           role="presentation"
           style={{ position: "fixed", inset: 0, zIndex: 1300, display: "grid", placeItems: "center", padding: 20, background: "rgba(0,0,0,.72)", backdropFilter: "blur(5px)" }}
@@ -135,6 +137,7 @@ export function PlanExpiredGuard({ plan, renewsOn }: Props) {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </>
   );

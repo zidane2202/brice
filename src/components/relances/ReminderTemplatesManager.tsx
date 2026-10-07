@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { deleteReminderTemplate, saveReminderTemplate } from "@/app/actions/reminders";
 import { Icon } from "@/components/Icon";
+import { ModalPortal } from "@/components/ui/ModalPortal";
 import { ActionForm } from "@/components/ui/ActionForm";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import {
@@ -64,6 +65,7 @@ export function ReminderTemplatesManager({ templates, unavailable, sellerName, o
   }
 
   return (
+    <ModalPortal>
     <div
       role="dialog"
       aria-modal="true"
@@ -193,5 +195,6 @@ export function ReminderTemplatesManager({ templates, unavailable, sellerName, o
         )}
       </div>
     </div>
+    </ModalPortal>
   );
 }

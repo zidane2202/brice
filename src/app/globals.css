@@ -2607,6 +2607,19 @@ label { position: relative; }
 
 .invoice-date { text-align: right; }
 
+.invoice-logo {
+  display: block;
+  height: 56px;
+  width: auto;
+  max-width: 220px;
+  object-fit: contain;
+}
+
+.invoice-status {
+  display: inline-flex;
+  margin-top: 12px;
+}
+
 .invoice-label {
   font: 500 10px/1 var(--font-geist-sans);
   letter-spacing: 0.08em;
@@ -2627,6 +2640,8 @@ label { position: relative; }
   padding: 24px 0;
   border-bottom: 1px solid #eee;
 }
+
+.invoice-parties > :last-child { text-align: right; }
 
 .invoice-party-name {
   font: 600 15px/1.3 var(--font-geist-sans);
@@ -2782,6 +2797,7 @@ label { position: relative; }
 @media (max-width: 600px) {
   .invoice-sheet { padding: 24px 20px; }
   .invoice-parties { grid-template-columns: 1fr; gap: 16px; }
+  .invoice-parties > :last-child { text-align: left; }
   .invoice-header { flex-direction: column; gap: 16px; }
   .invoice-date { text-align: left; }
 }

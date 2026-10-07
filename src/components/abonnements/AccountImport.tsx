@@ -8,6 +8,7 @@ import { ACCOUNT_IMPORT_MAX_ROWS, parseAccountCsv, prefillAccountRow, toAccountC
 import { ADMIN_UNLIMITED } from "@/lib/plans";
 import { blockIfPlanExpired } from "@/lib/plan-expired-client";
 import { SERVICES } from "@/lib/services";
+import { ModalPortal } from "@/components/ui/ModalPortal";
 
 type Report = { imported: number; failed: number; results: Array<{ line: number; ok: boolean; message: string }> };
 
@@ -42,6 +43,7 @@ export function AccountCsvImportModal({ open, onClose, initialRows, slotCap }: {
   const overCap = limited ? rows.filter((row) => Number(row.max_slots) > slotCap).length : 0;
 
   return (
+    <ModalPortal>
     <div style={{ position: "fixed", inset: 0, zIndex: 1250, display: "grid", placeItems: "center", padding: 20, background: "rgba(0,0,0,.72)", backdropFilter: "blur(5px)" }}>
       <div style={{ width: "min(1180px, 100%)", maxHeight: "88vh", overflow: "auto", padding: 22, borderRadius: 14, border: "1px solid var(--sr-border)", background: "var(--sr-surface)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
@@ -145,6 +147,7 @@ export function AccountCsvImportModal({ open, onClose, initialRows, slotCap }: {
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }
 
