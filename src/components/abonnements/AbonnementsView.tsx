@@ -206,7 +206,7 @@ export function AbonnementsView({ accounts, displayNames, balance, plan, slotCap
                 </button>
               </div>
               <div style={{ padding: 18 }}>
-                <AddAccountForm today={today} plan={plan} slotCap={slotCap} />
+                <AddAccountForm today={today} plan={plan} slotCap={slotCap} balance={balance} />
               </div>
             </div>
           </div>

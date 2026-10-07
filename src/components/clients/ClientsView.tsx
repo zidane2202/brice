@@ -435,7 +435,7 @@ export function ClientsView({ subscriptions, freeSlots, invoices, events, initia
               className="clients-list-head"
               style={{
                 display: "grid",
-                gridTemplateColumns: "28px minmax(160px,1.6fr) minmax(140px,1fr) 40px 80px 100px 130px 110px 36px",
+                gridTemplateColumns: "28px minmax(160px,1.6fr) minmax(140px,1fr) 110px 80px 100px 130px 110px 36px",
                 gap: 12,
                 padding: "10px 16px",
                 borderBottom: "1px solid var(--sr-border-subtle)",
@@ -456,7 +456,7 @@ export function ClientsView({ subscriptions, freeSlots, invoices, events, initia
               </div>
               <div>Client</div>
               <div>Service</div>
-              <div title="Mode de paiement" style={{ textAlign: "center" }}>Paie.</div>
+              <div style={{ textAlign: "center" }}>Mode de paiement</div>
               <div>PIN</div>
               <div>Statut</div>
               <div style={{ textAlign: "right" }}>Renouvellement</div>
@@ -640,7 +640,7 @@ function Row({
       style={{
         position: "relative",
         display: "grid",
-        gridTemplateColumns: "28px minmax(160px,1.6fr) minmax(140px,1fr) 40px 80px 100px 130px 110px 36px",
+        gridTemplateColumns: "28px minmax(160px,1.6fr) minmax(140px,1fr) 110px 80px 100px 130px 110px 36px",
         gap: 12,
         alignItems: "center",
         padding: "10px 16px",

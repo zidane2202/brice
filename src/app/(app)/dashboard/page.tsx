@@ -4,6 +4,7 @@ import { RevenueChart } from "@/components/RevenueChart";
 import { TopProvidersPanel } from "@/components/TopProvidersPanel";
 import { TransactionsHistoryPanel } from "@/components/TransactionsHistoryPanel";
 import { addDays, daysUntil, firstOfMonthDateOnly, todayDateOnly } from "@/lib/dates";
+import { computePersonalAdvance } from "@/lib/comptabilite";
 import { sumSellerBalance, sumSellerPeriod } from "@/lib/ledger-sql";
 import { occupiesSlot, withAccountRule } from "@/lib/slots";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
@@ -20,7 +21,7 @@ async function getDashboardData(userId: string) {
 
   const today = todayDateOnly();
   const monthStart = firstOfMonthDateOnly();
-  const [subsResult, accountsResult, txResult, balance, monthKpis, invoicesResult] = await Promise.all([
+  const [subsResult, accountsResult, txResult, balance, monthKpis, invoicesResult, monthTxResult] = await Promise.all([
     supabase
       .from("client_subscriptions")
       .select(`
@@ -47,6 +48,7 @@ async function getDashboardData(userId: string) {
     sumSellerBalance(supabase, userId),
     sumSellerPeriod(supabase, userId, monthStart, today),
     supabase.from("invoices").select("kind,status,amount,service_name,created_at").eq("user_id",userId).gte("created_at", `${monthStart}T00:00:00`),
+    supabase.from("transactions").select("kind,amount,occurred_on,funded_by").eq("user_id", userId).gte("occurred_on", monthStart).lte("occurred_on", today),
   ]);
 
   const subscriptions = ((subsResult.data ?? []) as unknown as ClientSubscription[]).map((s) => withAccountRule(s, today));
@@ -96,7 +98,10 @@ async function getDashboardData(userId: string) {
     const remaining = daysUntil(subscription.end_date);
     return remaining >= 0 && remaining <= days;
   }).reduce((sum, subscription) => sum + Number(subscription.price ?? 0), 0);
-  const netProfit = monthKpis.margin;
+  const monthTxs = (monthTxResult.data ?? []) as Pick<Transaction, "kind" | "amount" | "occurred_on" | "funded_by">[];
+  const monthProfit = monthKpis.margin;
+  const monthExpenses = monthKpis.expenses;
+  const personalAdvance = computePersonalAdvance(monthTxs, monthStart, today);
   const serviceProfit = Array.from(paidInvoices.reduce((map, invoice) => map.set(invoice.service_name, (map.get(invoice.service_name) ?? 0) + Number(invoice.amount ?? 0)), new Map<string,number>())).sort((a,b)=>b[1]-a[1]).slice(0,5);
 
   return {
@@ -117,7 +122,9 @@ async function getDashboardData(userId: string) {
     renewalRate,
     forecast7: forecast(7),
     forecast30: forecast(30),
-    netProfit,
+    monthProfit,
+    monthExpenses,
+    personalAdvance,
     serviceProfit,
   };
 }
@@ -143,7 +150,9 @@ export default async function DashboardPage() {
     renewalRate,
     forecast7,
     forecast30,
-    netProfit,
+    monthProfit,
+    monthExpenses,
+    personalAdvance,
     serviceProfit,
   } = await getDashboardData(user.id);
   const urgentTotal = urgent.length + urgentAccounts.length;
@@ -193,19 +202,17 @@ export default async function DashboardPage() {
           unit="FCFA"
         />
         <KpiCard
-          label={t("occupiedProfiles")}
-          value={usedSlots}
-          sub={`${freeSlots} libre${freeSlots > 1 ? "s" : ""} · détails dans Mes abonnements`}
+          label={t("monthlyProfit")}
+          value={monthProfit}
+          unit="FCFA"
+          tone={monthProfit < 0 ? "danger" : "success"}
+          sub={`Dépenses caisse ${monthExpenses.toLocaleString("en-US").replace(/,/g, " ")} FCFA`}
         />
         <KpiCard
-          label={t("toRemind")}
-          value={urgentTotal}
-          tone={urgentTotal > 0 ? "warning" : "neutral"}
-          sub={
-            urgentTotal > 0
-              ? `${urgent.length} client${urgent.length > 1 ? "s" : ""}, ${urgentAccounts.length} compte${urgentAccounts.length > 1 ? "s" : ""}`
-              : t("nothingUrgent")
-          }
+          label={t("personalAdvance")}
+          value={personalAdvance}
+          unit="FCFA"
+          sub="ce mois · hors bénéfice"
         />
       </div>
 
@@ -213,7 +220,7 @@ export default async function DashboardPage() {
 
       <section className="panel commercial-panel">
         <div className="section-head"><div><p className="eyebrow">{t("management")}</p><h2>{t("commercialPerformance")}</h2></div></div>
-        <div className="commercial-kpis"><KpiCard label={t("netProfit")} value={netProfit} unit="FCFA" tone={netProfit<0?"danger":"neutral"}/><KpiCard label={t("renewalRate")} value={renewalRate} unit="%"/><KpiCard label={t("forecast7")} value={forecast7} unit="FCFA"/><KpiCard label={t("forecast30")} value={forecast30} unit="FCFA"/></div>
+        <div className="commercial-kpis"><KpiCard label={t("occupiedProfiles")} value={usedSlots} sub={`${freeSlots} libre${freeSlots > 1 ? "s" : ""}`}/><KpiCard label={t("renewalRate")} value={renewalRate} unit="%"/><KpiCard label={t("forecast7")} value={forecast7} unit="FCFA"/><KpiCard label={t("forecast30")} value={forecast30} unit="FCFA"/></div>
         <div className="service-profit-list">{serviceProfit.map(([service,revenue])=><div key={service}><span>{service}</span><strong>{revenue.toLocaleString("fr-FR")} FCFA</strong></div>)}{!serviceProfit.length&&<p className="empty-state">Les services les plus rentables apparaîtront après les premières ventes.</p>}</div>
       </section>
 
@@ -231,9 +238,9 @@ export default async function DashboardPage() {
               <p className="eyebrow">Historique</p>
               <h2>Mouvements récents</h2>
             </div>
-            <span style={{ color: "var(--sr-fg-muted)", fontSize: "0.78rem" }}>
-              {`${transactions.length} transaction${transactions.length > 1 ? "s" : ""}`}
-            </span>
+            <Link href="/comptabilite" style={{ color: "var(--sr-mint-400)", fontSize: "0.78rem", textDecoration: "none" }}>
+              {t("fullHistory")}
+            </Link>
           </div>
           <TransactionsHistoryPanel transactions={transactions} />
         </div>

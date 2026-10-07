@@ -372,7 +372,7 @@ export function AccountCard({ account, displayName, balance = 0 }: Props) {
                           style={{
                             width: "100%",
                             justifyContent: "flex-start",
-                            background: "transparent",
+                            background: insufficient ? "transparent" : "var(--sr-success-bg)",
                             border: "none",
                             padding: "8px 10px",
                             borderRadius: 5,
@@ -392,7 +392,7 @@ export function AccountCard({ account, displayName, balance = 0 }: Props) {
                             style={{ color: insufficient ? "var(--sr-fg-disabled)" : "var(--sr-mint-400)" }}
                           />
                           <div style={{ flex: 1 }}>
-                            <div>Mon solde</div>
+                            <div>Caisse (recommandé)</div>
                             <div
                               style={{
                                 font: "400 10px/1.2 var(--font-geist-mono)",
@@ -413,7 +413,8 @@ export function AccountCard({ account, displayName, balance = 0 }: Props) {
                     successMessage="Compte renouvelé"
                     errorMessage="Renouvellement impossible"
                     confirm={{
-                      title: "Renouveler avec argent personnel ?",
+                      title: "Renouveler avec ton argent personnel ?",
+                      description: "Le coût ne touche pas la caisse et n'est pas compté dans le bénéfice.",
                       confirmLabel: "Renouveler",
                     }}
                     style={{ margin: 0 }}
@@ -441,9 +442,9 @@ export function AccountCard({ account, displayName, balance = 0 }: Props) {
                     >
                       <Icon name="zap" size={13} style={{ color: "var(--sr-fg-muted)" }} />
                       <div style={{ flex: 1 }}>
-                        <div>Argent personnel</div>
+                        <div>Ma poche</div>
                         <div style={{ font: "400 10px/1.2 var(--font-geist-mono)", color: "var(--sr-fg-subtle)" }}>
-                          aucune déduction
+                          solde intact · hors bénéfice
                         </div>
                       </div>
                     </SubmitButton>

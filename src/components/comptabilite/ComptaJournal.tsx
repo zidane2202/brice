@@ -137,6 +137,7 @@ export function ComptaJournal({
                 <th style={{ padding: "8px 6px", borderBottom: "1px solid var(--sr-border-subtle)" }}>Type</th>
                 <th style={{ padding: "8px 6px", borderBottom: "1px solid var(--sr-border-subtle)", textAlign: "right" }}>Montant</th>
                 <th style={{ padding: "8px 6px", borderBottom: "1px solid var(--sr-border-subtle)" }}>Source</th>
+                <th style={{ padding: "8px 6px", borderBottom: "1px solid var(--sr-border-subtle)" }}>Payé avec</th>
                 <th style={{ padding: "8px 6px", borderBottom: "1px solid var(--sr-border-subtle)" }}></th>
               </tr>
             </thead>
@@ -169,6 +170,9 @@ export function ComptaJournal({
                   </td>
                   <td style={{ padding: "8px 6px", borderBottom: "1px solid var(--sr-border-subtle)" }}>
                     {sourceLabel(t.source)}
+                  </td>
+                  <td style={{ padding: "8px 6px", borderBottom: "1px solid var(--sr-border-subtle)", color: "var(--sr-fg-muted)" }}>
+                    {t.kind === "income" ? "Caisse" : t.funded_by === "personal" ? "Ma poche" : "Caisse"}
                   </td>
                   <td style={{ padding: "8px 6px", borderBottom: "1px solid var(--sr-border-subtle)", textAlign: "right" }}>{allowReverse && t.source !== "reversal" && !reversedIds.has(t.id) && <button type="button" className="secondary" onClick={() => { setToReverse(t); setReason(""); setActionError(""); }} style={{ minHeight: 26, height: 26, fontSize: 10 }}>Annuler</button>}</td>
                 </tr>

@@ -2,7 +2,7 @@ import { PrintButton } from "@/components/comptabilite/PrintButton";
 import {
   categoryLabel,
   computePeriodKpis,
-  computeProfit,
+  computePersonalAdvance,
   filterJournal,
   formatFcfa,
   monthBounds,
@@ -68,7 +68,7 @@ export default async function ComptabiliteRapportPage({
 
   const filtered = filterJournal(txs, { from, to, kind, category, q });
   const kpis = computePeriodKpis(filtered, from, to);
-  const profit = computeProfit(filtered, from, to);
+  const personalAdvance = computePersonalAdvance(filtered, from, to);
 
   return (
     <article className="compta-rapport" style={{ padding: 8 }}>
@@ -104,16 +104,16 @@ export default async function ComptabiliteRapportPage({
           <div style={{ fontSize: 18, fontWeight: 600 }}>{formatFcfa(kpis.income)} FCFA</div>
         </div>
         <div className="panel">
-          <div style={{ fontSize: 12, color: "var(--sr-fg-subtle)" }}>Dépenses</div>
+          <div style={{ fontSize: 12, color: "var(--sr-fg-subtle)" }}>Dépenses (caisse)</div>
           <div style={{ fontSize: 18, fontWeight: 600 }}>{formatFcfa(kpis.expenses)} FCFA</div>
         </div>
         <div className="panel">
-          <div style={{ fontSize: 12, color: "var(--sr-fg-subtle)" }}>Marge caisse</div>
+          <div style={{ fontSize: 12, color: "var(--sr-fg-subtle)" }}>Bénéfice</div>
           <div style={{ fontSize: 18, fontWeight: 600 }}>{formatFcfa(kpis.margin)} FCFA</div>
         </div>
         <div className="panel">
-          <div style={{ fontSize: 12, color: "var(--sr-fg-subtle)" }}>Bénéfice réel</div>
-          <div style={{ fontSize: 18, fontWeight: 600 }}>{formatFcfa(profit)} FCFA</div>
+          <div style={{ fontSize: 12, color: "var(--sr-fg-subtle)" }}>Avancé de ta poche</div>
+          <div style={{ fontSize: 18, fontWeight: 600 }}>{formatFcfa(personalAdvance)} FCFA</div>
         </div>
       </div>
 

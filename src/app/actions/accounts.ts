@@ -200,6 +200,18 @@ export async function addProviderAccount(formData: FormData) {
     }
   }
 
+  const fundedBy: "balance" | "personal" = formData.get("funded_by") === "balance" ? "balance" : "personal";
+  if (fundedBy === "balance" && cost != null && cost > 0) {
+    const balance = await sumSellerBalance(supabase, user.id);
+    if (balance < cost) {
+      throw new Error(
+        `Solde insuffisant : ${balance.toLocaleString("en-US").replace(/,/g, " ")} FCFA disponibles, ${cost
+          .toLocaleString("en-US")
+          .replace(/,/g, " ")} FCFA requis.`
+      );
+    }
+  }
+
   const account = await insertProviderAccount(supabase, user.id, {
     service_name: serviceName,
     label,
@@ -213,21 +225,24 @@ export async function addProviderAccount(formData: FormData) {
   });
 
   if (cost != null && cost > 0) {
+    const tag = fundedBy === "personal" ? " (fond personnel)" : "";
     await supabase.from("transactions").insert({
       user_id: user.id,
       kind: "outflow",
       source: "account_renewal",
-      funded_by: "personal",
-      affects_balance: false,
+      funded_by: fundedBy,
+      affects_balance: fundedBy === "balance",
       amount: cost,
       account_id: account.id,
       category: "account_renewal",
       occurred_on: todayDateOnly(),
-      label: `Achat compte ${serviceName}${label ? ` (${label})` : ""}`,
+      label: `Achat compte ${serviceName}${label ? ` (${label})` : ""}${tag}`,
     });
   }
 
   revalidatePath("/abonnements");
+  revalidatePath("/dashboard");
+  revalidatePath("/comptabilite");
 }
 
 export async function updateProviderAccountLabel(formData: FormData) {
@@ -310,6 +325,7 @@ export async function renewProviderAccount(formData: FormData) {
 
   revalidatePath("/abonnements");
   revalidatePath("/dashboard");
+  revalidatePath("/comptabilite");
 }
 
 export async function updateProviderAccountStatus(formData: FormData) {

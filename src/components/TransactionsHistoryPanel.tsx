@@ -144,10 +144,12 @@ export function TransactionsHistoryPanel({ transactions }: Props) {
                 <span>{meta.label}</span>
                 <span style={{ opacity: 0.5 }}>•</span>
                 <span>{relTime(tx.created_at)}</span>
-                {isPersonal && (
+                {!isIncome && (
                   <>
                     <span style={{ opacity: 0.5 }}>•</span>
-                    <span style={{ color: "var(--sr-fg-muted)" }}>fond personnel</span>
+                    <span style={{ color: isPersonal ? "var(--sr-fg-muted)" : "var(--sr-warning)" }}>
+                      {isPersonal ? "ma poche" : "caisse"}
+                    </span>
                   </>
                 )}
               </div>

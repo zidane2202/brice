@@ -92,6 +92,16 @@ function csvEscape(value: string): string {
   return value;
 }
 
+export function computePersonalAdvance(
+  txs: Pick<Transaction, "kind" | "amount" | "occurred_on" | "funded_by">[],
+  from: string,
+  to: string
+): number {
+  return txs
+    .filter((t) => t.kind === "outflow" && t.funded_by === "personal" && t.occurred_on >= from && t.occurred_on <= to)
+    .reduce((sum, t) => sum + Number(t.amount ?? 0), 0);
+}
+
 export function computeProfit(
   txs: Pick<Transaction, "kind" | "amount" | "occurred_on">[],
   from: string,

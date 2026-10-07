@@ -13,10 +13,31 @@ type Props = {
   today: string;
   plan: PlanId;
   slotCap: number;
+  balance: number;
 };
 
-export function AddAccountForm({ today, plan, slotCap }: Props) {
+const formatFcfa = (value: number) => value.toLocaleString("en-US").replace(/,/g, " ");
+
+const PAYMENT_METHODS = [
+  "Orange Money",
+  "MTN MoMo",
+  "Wave",
+  "Moov Money",
+  "Cash",
+  "Virement bancaire",
+  "Carte Visa",
+  "Carte Mastercard",
+  "PayPal",
+];
+const OTHER_METHOD = "__other__";
+
+export function AddAccountForm({ today, plan, slotCap, balance }: Props) {
   const toast = useToast();
+  const [cost, setCost] = useState("");
+  const [fundedBy, setFundedBy] = useState<"personal" | "balance">("personal");
+  const [paymentMethod, setPaymentMethod] = useState("");
+  const costValue = Number(cost) || 0;
+  const insufficient = fundedBy === "balance" && costValue > balance;
   const [selectedService, setSelectedService] = useState("");
   const [slots, setSlots] = useState(1);
   const [officialMax, setOfficialMax] = useState<number | null>(null);
@@ -50,6 +71,9 @@ export function AddAccountForm({ today, plan, slotCap }: Props) {
     startTransition(async () => {
       try {
         await addProviderAccount(formData);
+        setCost("");
+        setFundedBy("personal");
+        setPaymentMethod("");
         toast.dismiss(loadingId);
         toast.success("Compte fournisseur ajouté");
       } catch (err) {
@@ -156,14 +180,38 @@ export function AddAccountForm({ today, plan, slotCap }: Props) {
 
       <div className="fields two-cols">
         <label>
-          Surnom / Mode de paiement <span className="field-optional">(optionnel)</span>
-          <input name="label" type="text" placeholder="Ex: Wave, Orange Money, Perso…" maxLength={40} />
+          Mode de paiement <span className="field-optional">(optionnel)</span>
+          <select name={paymentMethod === OTHER_METHOD ? undefined : "label"} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
+            <option value="">Non précisé</option>
+            {PAYMENT_METHODS.map((method) => (
+              <option key={method} value={method}>{method}</option>
+            ))}
+            <option value={OTHER_METHOD}>Autre…</option>
+          </select>
+          {paymentMethod === OTHER_METHOD && (
+            <input name="label" type="text" placeholder="Précise le mode de paiement" maxLength={40} required style={{ marginTop: 6 }} />
+          )}
         </label>
         <label>
           Coût payé (FCFA)
-          <input name="cost" type="number" placeholder="Ex: 5000" />
+          <input name="cost" type="number" min="0" placeholder="Ex: 5000" value={cost} onChange={(e) => setCost(e.target.value)} />
         </label>
       </div>
+
+      <label>
+        Provenance de l&apos;argent
+        <select name="funded_by" value={fundedBy} onChange={(e) => setFundedBy(e.target.value as "personal" | "balance")}>
+          <option value="personal">Ma poche (fonds personnels)</option>
+          <option value="balance">{`Caisse · solde ${formatFcfa(balance)} FCFA`}</option>
+        </select>
+        <span style={{ marginTop: 4, font: "400 11px/1.4 var(--font-geist-sans)", color: insufficient ? "var(--sr-danger)" : "var(--sr-fg-subtle)" }}>
+          {insufficient
+            ? `Solde insuffisant : ${formatFcfa(balance)} FCFA disponibles.`
+            : fundedBy === "balance"
+              ? "Le coût sera déduit du solde de la caisse."
+              : "Le coût ne touche pas la caisse et n'est pas compté dans le bénéfice."}
+        </span>
+      </label>
 
       {errorMsg && (
         <div
@@ -181,10 +229,10 @@ export function AddAccountForm({ today, plan, slotCap }: Props) {
       )}
       <button
         type="submit"
-        disabled={isPending}
+        disabled={isPending || insufficient}
         style={{
-          opacity: isPending ? 0.7 : 1,
-          cursor: isPending ? "not-allowed" : "pointer",
+          opacity: isPending || insufficient ? 0.7 : 1,
+          cursor: isPending || insufficient ? "not-allowed" : "pointer",
         }}
       >
         {isPending ? "Ajout…" : "Ajouter le compte"}

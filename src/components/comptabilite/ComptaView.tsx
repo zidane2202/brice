@@ -15,7 +15,7 @@ type Props = {
   income: number;
   expenses: number;
   margin: number;
-  profit: number;
+  personalAdvance: number;
   transactions: Transaction[];
   expenseForm: ReactNode;
   fullCompta?: boolean;
@@ -49,7 +49,7 @@ export function ComptaView(props: Props) {
         income={props.income}
         expenses={props.expenses}
         margin={props.margin}
-        profit={props.profit}
+        personalAdvance={props.personalAdvance}
       />
 
       <div className="panel" style={{ marginBottom: 20 }}>
