@@ -1,6 +1,7 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import QRCode from "qrcode";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
+import { clientInvoiceLabel, clientInvoiceRank } from "@/lib/invoice-rank";
 
 /** pdf-lib ne lit que PNG et JPEG : tout autre format (ou échec réseau) retombe sur le nom. */
 async function embedLogo(pdf: PDFDocument, url: string | null | undefined) {
@@ -35,6 +36,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
     draw(brand, 48, 790, 11, true, rgb(.1,.55,.35));
   }
   draw("FACTURE", 48, 740, 28, true); draw(`N° ${String(invoice.number).padStart(4, "0")}`, 48, 720, 10);
+  const clientRank = await clientInvoiceRank(db, invoice);
+  if (clientRank) draw(clientInvoiceLabel(clientRank), 48, 706, 9, false, rgb(.45,.47,.5));
   draw(`Émise le ${new Date(invoice.created_at).toLocaleDateString("fr-FR")}`, 395, 790, 10); draw(`Statut : ${(invoice.status || "paid") === "paid" ? "Payée" : invoice.status === "refunded" ? "Remboursée" : "Annulée"}`, 395, 770, 10, true);
   page.drawLine({ start: { x: 48, y: 700 }, end: { x: 547, y: 700 }, thickness: 1, color: rgb(.85,.86,.88) });
   draw("CLIENT", 48, 670, 9, true, rgb(.45,.47,.5)); draw(invoice.client_name, 48, 648, 13, true); if (invoice.client_phone) draw(invoice.client_phone, 48, 630, 10); if (invoice.client_email) draw(invoice.client_email, 48, 613, 10);

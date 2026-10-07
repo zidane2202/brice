@@ -3,6 +3,7 @@ import { ProviderGlyph } from "@/components/ProviderGlyph";
 import { resolveBrandLogoUrl, resolveBrandName } from "@/lib/branding";
 import { createSupabaseAdmin } from "@/lib/supabase-admin";
 import { formatDate } from "@/lib/dates";
+import { clientInvoiceLabel, clientInvoiceRank } from "@/lib/invoice-rank";
 import { getProviderTheme, hexToRgba } from "@/lib/providers";
 import type { Invoice } from "@/lib/types";
 import { notFound } from "next/navigation";
@@ -31,6 +32,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ code: 
     .eq("user_id", invoice.user_id)
     .maybeSingle();
 
+  const clientRank = await clientInvoiceRank(supabase, invoice);
   const brandName = resolveBrandName(profile, invoice.reseller_name);
   const brandLogo = resolveBrandLogoUrl(profile);
 
@@ -59,7 +61,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ code: 
           <div>
             {brandLogo ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={brandLogo} alt={brandName} className="invoice-logo" />
+              <img src={brandLogo} alt={brandName} className="invoice-logo" style={{ display: "block", height: 44, width: "auto", maxWidth: 160, objectFit: "contain" }} />
             ) : (
               <div className="invoice-eyebrow" style={{ color: brand }}>
                 {brandName}
@@ -69,22 +71,29 @@ export default async function InvoicePage({ params }: { params: Promise<{ code: 
             <div className="invoice-number">
               N° {String(invoice.number).padStart(4, "0")}
             </div>
+            {clientRank && (
+              <div className="invoice-party-detail" style={{ marginTop: 6 }}>{clientInvoiceLabel(clientRank)}</div>
+            )}
           </div>
           <div className="invoice-date">
             <div className="invoice-label">Émise le</div>
-            <div className="invoice-value">{formatDate(invoice.created_at)}</div>
-            <span className={`status invoice-status ${(invoice.status ?? "paid") === "paid" ? "active" : "cancelled"}`}>{(invoice.status ?? "paid") === "paid" ? "Payée" : invoice.status === "refunded" ? "Remboursée" : "Annulée"}</span>
+            <div className="invoice-value" style={{ whiteSpace: "nowrap" }}>{formatDate(invoice.created_at)}</div>
+            <span style={{ display: "inline-flex", marginTop: 12 }} className={`status invoice-status ${(invoice.status ?? "paid") === "paid" ? "active" : "cancelled"}`}>{(invoice.status ?? "paid") === "paid" ? "Payée" : invoice.status === "refunded" ? "Remboursée" : "Annulée"}</span>
           </div>
         </header>
 
         <section className="invoice-parties">
           <div>
-            <div className="invoice-label">De</div>
-            <div className="invoice-party-name">{brandName}</div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+              <span className="invoice-label" style={{ marginBottom: 0 }}>De</span>
+              <span className="invoice-party-name">{brandName}</span>
+            </div>
           </div>
           <div>
-            <div className="invoice-label">Pour</div>
-            <div className="invoice-party-name">{invoice.client_name}</div>
+            <div style={{ display: "inline-flex", alignItems: "baseline", gap: 8 }}>
+              <span className="invoice-label" style={{ marginBottom: 0 }}>Pour</span>
+              <span className="invoice-party-name">{invoice.client_name}</span>
+            </div>
             {invoice.client_phone && <div className="invoice-party-detail">{invoice.client_phone}</div>}
             {invoice.client_email && <div className="invoice-party-detail">{invoice.client_email}</div>}
           </div>

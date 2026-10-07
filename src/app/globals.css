@@ -2609,9 +2609,9 @@ label { position: relative; }
 
 .invoice-logo {
   display: block;
-  height: 56px;
+  height: 44px;
   width: auto;
-  max-width: 220px;
+  max-width: 160px;
   object-fit: contain;
 }
 

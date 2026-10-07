@@ -19,6 +19,7 @@ import { ProviderGlyph } from "@/components/ProviderGlyph";
 import { RailGlyph, RAIL_NAMES } from "@/components/RailGlyph";
 import { addDays, formatDate, toDateInputValue } from "@/lib/dates";
 import type { ClientSubscription, Invoice } from "@/lib/types";
+import { clientInvoiceLabel } from "@/lib/invoice-rank";
 
 type Props = {
   sub: ClientSubscription;
@@ -353,7 +354,12 @@ export function ClientDrawer({ sub, lifetime, cyclesCount, history, invoices, ev
             </div>
           )}
           {invoices.map((inv) => (
-            <InvoiceRow key={inv.id} invoice={inv} clientPhone={client.phone} />
+            <InvoiceRow
+              key={inv.id}
+              invoice={inv}
+              clientPhone={client.phone}
+              rank={invoices.filter((other) => other.number <= inv.number).length}
+            />
           ))}
           {sub.price && sub.price > 0 && (
             <ActionForm
@@ -791,7 +797,7 @@ function HistoryRow({ h, last }: { h: ClientSubscription; last: boolean }) {
   );
 }
 
-function InvoiceRow({ invoice, clientPhone }: { invoice: Invoice; clientPhone: string | null }) {
+function InvoiceRow({ invoice, clientPhone, rank }: { invoice: Invoice; clientPhone: string | null; rank: number }) {
   const [origin, setOrigin] = useState("");
   useEffect(() => {
     setOrigin(window.location.origin);
@@ -840,6 +846,7 @@ function InvoiceRow({ invoice, clientPhone }: { invoice: Invoice; clientPhone: s
           }}
         >
           N° {String(invoice.number).padStart(4, "0")}
+          <span style={{ marginLeft: 6, color: "var(--sr-fg-subtle)", fontWeight: 400 }}>{`· ${clientInvoiceLabel(rank)}`}</span>
         </div>
         <div
           style={{
